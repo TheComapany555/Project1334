@@ -1,4 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Salebiz
+
+Marketplace platform for buying and selling businesses (Australia). Built with Next.js, TypeScript, Supabase, NextAuth.js, and shadcn/ui.
+
+## Milestone 1 — Foundation & Authentication
+
+- Broker registration and login (email/password)
+- Email verification and password reset (Resend)
+- Role-based access: broker dashboard (`/dashboard`), admin panel (`/admin`)
+- Unverified brokers cannot access dashboard
+
+### Setup
+
+1. **Environment**  
+   Copy `.env.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`)
+   - `NEXTAUTH_URL` (e.g. `http://localhost:3000`)
+   - `RESEND_API_KEY`, `EMAIL_FROM` (for verification and reset emails)
+
+2. **Database**  
+   Run Supabase migrations in order:
+   - `supabase/migrations/20250224000001_profiles.sql` (users + profiles)
+   - `supabase/migrations/20250224000002_auth_tokens.sql` (verification/reset tokens)
+
+3. **First admin**  
+   After registering a user, set their profile role in Supabase:
+   ```sql
+   UPDATE profiles SET role = 'admin' WHERE id = (SELECT id FROM users WHERE email = 'your@email.com');
+   ```
 
 ## Getting Started
 
