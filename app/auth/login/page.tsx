@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +38,12 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    if (searchParams.get("verified") === "1") {
+      toast.success("Email verified. You can sign in now.");
+    }
+  }, [searchParams]);
+
   async function onSubmit(data: FormData) {
     setError(null);
     const res = await signIn("credentials", {
@@ -46,14 +53,17 @@ export default function LoginPage() {
     });
     if (res?.error) {
       setError("Invalid email or password.");
+      toast.error("Invalid email or password.");
       return;
     }
     if (res?.ok) {
+      toast.success("Signed in successfully.");
       router.push(callbackUrl);
       router.refresh();
       return;
     }
     setError("Something went wrong. Please try again.");
+    toast.error("Something went wrong. Please try again.");
   }
 
   return (

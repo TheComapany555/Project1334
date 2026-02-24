@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 
@@ -9,8 +10,8 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link href="/" className="font-semibold text-foreground">
-            Salebiz
+          <Link href="/" className="flex items-center gap-2 font-semibold text-foreground">
+            <Image src="/Salebiz.png" alt="Salebiz" width={120} height={36} className="h-9 w-auto object-contain" priority />
           </Link>
           <nav className="flex items-center gap-2">
             {session?.user ? (

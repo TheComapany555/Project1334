@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,16 +56,26 @@ function ResetFormInner() {
     const formData = new FormData();
     formData.set("email", data.email);
     const ok = await requestPasswordReset(formData);
-    if (ok) setRequestSent(true);
-    else setError("Something went wrong. Please try again.");
+    if (ok) {
+      setRequestSent(true);
+      toast.success("If an account exists, we sent a reset link to your email.");
+    } else {
+      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
+    }
   }
 
   async function onResetSubmit(data: ResetForm) {
     if (!token) return;
     setError(null);
     const result = await resetPasswordWithToken(token, data.password);
-    if (result.ok) setResetDone(true);
-    else setError(result.error ?? "Something went wrong.");
+    if (result.ok) {
+      setResetDone(true);
+      toast.success("Password updated. You can sign in now.");
+    } else {
+      setError(result.error ?? "Something went wrong.");
+      toast.error(result.error ?? "Something went wrong.");
+    }
   }
 
   if (resetDone) {

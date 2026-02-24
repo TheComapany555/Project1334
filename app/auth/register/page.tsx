@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +33,6 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,9 +51,11 @@ export default function RegisterPage() {
     const result = await registerAction(formData);
     if (result.ok) {
       setSuccess(true);
+      toast.success("Account created. Check your email to verify.");
       return;
     }
     setError(result.error);
+    toast.error(result.error);
   }
 
   if (success) {
