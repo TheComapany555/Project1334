@@ -110,7 +110,7 @@ export function LoginForm() {
               <p className="text-sm text-destructive">{errors.password.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+          <Button variant={"default"} type="submit" className="w-full" size="lg" disabled={isSubmitting}>
             {isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>

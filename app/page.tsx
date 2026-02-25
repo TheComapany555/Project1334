@@ -44,7 +44,7 @@ export default async function HomePage() {
               </Button>
             ) : (
               <>
-                <Button asChild size="sm" variant="ghost">
+                <Button asChild size="sm" variant="outline">
                   <Link href="/auth/login">Sign in</Link>
                 </Button>
                 <Button asChild size="sm" variant="default">
