@@ -60,11 +60,16 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {brokerNav.map((item) => (
+              {brokerNav.map((item) => {
+                const isDashboardRoot = item.href === "/dashboard";
+                const isActive = isDashboardRoot
+                  ? pathname === "/dashboard"
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                    isActive={isActive}
                     tooltip={item.label}
                   >
                     <Link href={item.href}>
@@ -73,7 +78,8 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

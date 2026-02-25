@@ -61,20 +61,26 @@ export function AdminAppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminNav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
-                    tooltip={item.label}
-                  >
-                    <Link href={item.href}>
-                      <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {adminNav.map((item) => {
+                const isAdminRoot = item.href === "/admin";
+                const isActive = isAdminRoot
+                  ? pathname === "/admin"
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

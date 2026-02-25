@@ -11,7 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <TooltipProvider delayDuration={0}>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster richColors position="bottom-right" />
         </TooltipProvider>
       </ThemeProvider>
     </SessionProvider>
