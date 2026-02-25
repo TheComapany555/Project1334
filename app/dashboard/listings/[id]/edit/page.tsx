@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getListingById } from "@/lib/actions/listings";
-import { EditListingForm } from "./edit-listing-form";
+import { EditListingForm } from "@/app/dashboard/listings/[id]/edit/edit-listing-form";
 
 type Props = { params: Promise<{ id: string }> };
 

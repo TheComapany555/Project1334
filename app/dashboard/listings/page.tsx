@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ListingsTable } from "./listings-table";
+import { ListingsTable } from "@/app/dashboard/listings/listings-table";
 
 export default async function ListingsPage() {
   const [listings, brokerSlug] = await Promise.all([

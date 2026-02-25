@@ -62,7 +62,7 @@ export default async function ListingPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
+        <div className="mx-auto max-w-3xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
             <Image src="/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
           </Link>
@@ -75,8 +75,10 @@ export default async function ListingPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="container flex-1 px-4 py-6 sm:py-8 max-w-3xl space-y-6">
-        <div className="space-y-2">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
+
+        {/* Title block */}
+        <div className="space-y-1.5">
           {listing.category && (
             <Link
               href={`/search?category=${listing.category.slug}`}
@@ -85,19 +87,27 @@ export default async function ListingPage({ params }: Props) {
               {listing.category.name}
             </Link>
           )}
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{listing.title}</h1>
-          {locationText && (
-            <p className="text-muted-foreground">{locationText}</p>
-          )}
-          {formatPrice(listing) && (
-            <p className="text-lg font-medium">{formatPrice(listing)}</p>
-          )}
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl leading-tight">
+            {listing.title}
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+            {locationText && (
+              <p className="text-muted-foreground text-sm">{locationText}</p>
+            )}
+            {formatPrice(listing) && locationText && (
+              <span className="text-muted-foreground/40 text-sm">·</span>
+            )}
+            {formatPrice(listing) && (
+              <p className="text-base font-semibold text-foreground">{formatPrice(listing)}</p>
+            )}
+          </div>
         </div>
 
+        {/* Images */}
         {images.length > 0 && (
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-0">
-              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-lg bg-muted">
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
                 <Image
                   src={images[0].url}
                   alt=""
@@ -108,9 +118,9 @@ export default async function ListingPage({ params }: Props) {
                 />
               </div>
               {images.length > 1 && (
-                <div className="flex gap-2 p-2 overflow-x-auto">
+                <div className="flex gap-2 p-3 overflow-x-auto border-t border-border">
                   {images.slice(1, 6).map((img) => (
-                    <div key={img.id} className="relative h-16 w-24 shrink-0 overflow-hidden rounded border bg-muted">
+                    <div key={img.id} className="relative h-16 w-24 shrink-0 overflow-hidden rounded border border-border bg-muted">
                       <Image src={img.url} alt="" fill className="object-cover" sizes="96px" />
                     </div>
                   ))}
@@ -120,6 +130,7 @@ export default async function ListingPage({ params }: Props) {
           </Card>
         )}
 
+        {/* Highlights */}
         {highlights.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {highlights.map((h) => (
@@ -133,54 +144,69 @@ export default async function ListingPage({ params }: Props) {
           </div>
         )}
 
+        {/* Summary */}
         {listing.summary && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle>Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap">{listing.summary}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{listing.summary}</p>
             </CardContent>
           </Card>
         )}
 
+        {/* Description */}
         {listing.description && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
+              <div className="text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert leading-relaxed">
                 {listing.description}
               </div>
             </CardContent>
           </Card>
         )}
 
+        {/* Key details */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle>Key details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {listing.revenue != null && (
-              <p><span className="text-muted-foreground">Revenue:</span>{" "}
-                {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.revenue))}
-              </p>
-            )}
-            {listing.profit != null && (
-              <p><span className="text-muted-foreground">Profit:</span>{" "}
-                {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.profit))}
-              </p>
-            )}
-            {listing.lease_details && (
-              <p><span className="text-muted-foreground">Lease:</span> {listing.lease_details}</p>
-            )}
+          <CardContent>
+            <dl className="divide-y divide-border">
+              {listing.revenue != null && (
+                <div className="flex items-center justify-between py-2.5 text-sm">
+                  <dt className="text-muted-foreground">Revenue</dt>
+                  <dd className="font-medium text-foreground">
+                    {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.revenue))}
+                  </dd>
+                </div>
+              )}
+              {listing.profit != null && (
+                <div className="flex items-center justify-between py-2.5 text-sm">
+                  <dt className="text-muted-foreground">Profit</dt>
+                  <dd className="font-medium text-foreground">
+                    {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.profit))}
+                  </dd>
+                </div>
+              )}
+              {listing.lease_details && (
+                <div className="flex items-center justify-between py-2.5 text-sm">
+                  <dt className="text-muted-foreground">Lease</dt>
+                  <dd className="font-medium text-foreground text-right max-w-[60%]">{listing.lease_details}</dd>
+                </div>
+              )}
+            </dl>
           </CardContent>
         </Card>
 
+        {/* Broker */}
         {broker?.slug && (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle>Contact broker</CardTitle>
               <CardDescription>Listed by this broker</CardDescription>
             </CardHeader>
@@ -197,12 +223,14 @@ export default async function ListingPage({ params }: Props) {
                     />
                   </div>
                 )}
-                <div>
-                  <p className="font-medium">{broker.name ?? broker.company ?? "Broker"}</p>
-                  {broker.company && broker.name && (
-                    <p className="text-sm text-muted-foreground">{broker.company}</p>
-                  )}
-                  <Button size="sm" className="mt-2" asChild>
+                <div className="flex flex-1 items-center justify-between gap-4 flex-wrap">
+                  <div className="space-y-0.5">
+                    <p className="font-medium leading-snug">{broker.name ?? broker.company ?? "Broker"}</p>
+                    {broker.company && broker.name && (
+                      <p className="text-sm text-muted-foreground">{broker.company}</p>
+                    )}
+                  </div>
+                  <Button size="sm" asChild>
                     <Link href={`/broker/${broker.slug}`}>View profile</Link>
                   </Button>
                 </div>
