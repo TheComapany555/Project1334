@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function AuthErrorContent() {
+function AuthErrorContentInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const error = searchParams.get("error") ?? "Something went wrong.";
@@ -46,5 +46,13 @@ export function AuthErrorContent() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+export function AuthErrorContent() {
+  return (
+    <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
+      <AuthErrorContentInner />
+    </Suspense>
   );
 }
