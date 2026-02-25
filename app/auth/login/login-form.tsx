@@ -54,8 +54,12 @@ export function LoginForm() {
       redirect: false,
     });
     if (res?.error) {
-      setError("Invalid email or password.");
-      toast.error("Invalid email or password.");
+      const message =
+        res.error === "CredentialsSignin"
+          ? "Invalid email or password. If you just signed up, verify your email first."
+          : "Invalid email or password.";
+      setError(message);
+      toast.error(message);
       return;
     }
     if (res?.ok) {

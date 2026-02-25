@@ -8,8 +8,14 @@ export default async function DashboardLayout({
   children,
 }: { children: React.ReactNode }) {
   const session = await getSession();
-  if (!session?.user || session.user.role !== "broker") {
+  if (!session?.user) {
     redirect("/auth/login?callbackUrl=/dashboard");
+  }
+  if (session.user.role === "admin") {
+    redirect("/admin");
+  }
+  if (session.user.role !== "broker") {
+    redirect("/403");
   }
   if (!session.user.emailVerified) {
     redirect("/auth/error?error=EmailVerification");

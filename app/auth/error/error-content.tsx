@@ -1,7 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +15,14 @@ import {
 
 export function AuthErrorContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const error = searchParams.get("error") ?? "Something went wrong.";
+
+  useEffect(() => {
+    if (error === "EmailVerification") {
+      signOut({ redirect: false }).then(() => router.refresh());
+    }
+  }, [error, router]);
 
   const message =
     error === "CredentialsSignin"

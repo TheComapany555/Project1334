@@ -18,6 +18,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(login);
     }
     const role = token.role as string | undefined;
+    if (role === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
     if (role !== "broker") {
       return NextResponse.redirect(new URL("/403", request.url));
     }
