@@ -9,7 +9,7 @@ import {
 export default function AdminBrokersPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Brokers</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Brokers</h1>
       <Card>
         <CardHeader>
           <CardTitle>Manage brokers</CardTitle>

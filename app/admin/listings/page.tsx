@@ -9,7 +9,7 @@ import {
 export default function AdminListingsPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Listings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
       <Card>
         <CardHeader>
           <CardTitle>Moderate listings</CardTitle>

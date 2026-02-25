@@ -1,6 +1,8 @@
 import { getSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
-import { BrokerSidebar } from "@/components/dashboard/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
 export default async function DashboardLayout({
   children,
@@ -14,9 +16,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <BrokerSidebar />
-      <main className="flex-1 overflow-auto p-6">{children}</main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <DashboardHeader />
+        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
