@@ -127,7 +127,7 @@ export default function ProfilePage() {
     const result = await uploadProfilePhoto(formData);
     setPhotoUploading(false);
     if (result.ok && result.url) {
-      setPhotoUrl(result.url);
+      setPhotoUrl(result.url + "?t=" + Date.now());
       toast.success("Photo updated.");
       router.refresh();
     } else {
@@ -144,7 +144,7 @@ export default function ProfilePage() {
     const result = await uploadProfileLogo(formData);
     setLogoUploading(false);
     if (result.ok && result.url) {
-      setLogoUrl(result.url);
+      setLogoUrl(result.url + "?t=" + Date.now());
       toast.success("Logo updated.");
       router.refresh();
     } else {
