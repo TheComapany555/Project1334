@@ -55,26 +55,26 @@ export default async function BrokerProfilePage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <Link href="/" className="font-semibold text-foreground">
-            Salebiz
+        <div className="container flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
+          <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
+            <Image src="/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/search">Browse listings</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container flex-1 px-4 py-8 max-w-3xl space-y-6">
+      <main className="container flex-1 px-4 py-6 sm:py-8 max-w-3xl space-y-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="flex gap-4 shrink-0">
+              <div className="flex gap-3 sm:gap-4 shrink-0">
                 {profile.photo_url ? (
-                  <div className="relative h-24 w-24 rounded-full overflow-hidden border border-border bg-muted">
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border border-border bg-muted">
                     <Image
                       src={profile.photo_url}
                       alt={profile.name ?? "Profile photo"}
@@ -85,7 +85,7 @@ export default async function BrokerProfilePage({ params }: Props) {
                   </div>
                 ) : null}
                 {profile.logo_url ? (
-                  <div className="relative h-24 w-24 rounded-md overflow-hidden border border-border bg-muted">
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-md overflow-hidden border border-border bg-muted">
                     <Image
                       src={profile.logo_url}
                       alt={profile.company ?? "Logo"}
@@ -97,11 +97,11 @@ export default async function BrokerProfilePage({ params }: Props) {
                 ) : null}
               </div>
               <div className="min-w-0 space-y-1">
-                <CardTitle className="text-2xl">{displayName}</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl">{displayName}</CardTitle>
                 {profile.company && profile.name && (
                   <CardDescription>{profile.company}</CardDescription>
                 )}
-                <div className="flex flex-wrap gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-3">
                   {profile.phone ? (
                     <Button asChild size="sm">
                       <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>Call</a>
@@ -183,7 +183,7 @@ export default async function BrokerProfilePage({ params }: Props) {
                   const thumb = listing.listing_images?.[0]?.url;
                   return (
                     <li key={listing.id}>
-                      <Link href={`/listing/${listing.slug}`} className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50">
+                      <Link href={`/listing/${listing.slug}`} className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         <div className="flex gap-4">
                           {thumb ? (
                             <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded border bg-muted">

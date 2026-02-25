@@ -18,6 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -104,16 +106,17 @@ export function LoginForm() {
               <p className="text-sm text-destructive">{errors.password.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
             {isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
-        <div className="text-center text-sm text-muted-foreground space-x-2">
-          <Link href="/auth/register" className="text-primary hover:underline">
+        <Separator className="my-4" />
+        <div className="flex flex-col gap-2 text-center text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-3">
+          <Link href="/auth/register" className="text-primary hover:underline font-medium">
             Create account
           </Link>
-          <span>·</span>
-          <Link href="/auth/reset" className="text-primary hover:underline">
+          <span className="hidden sm:inline" aria-hidden>·</span>
+          <Link href="/auth/reset" className="text-primary hover:underline font-medium">
             Forgot password?
           </Link>
         </div>

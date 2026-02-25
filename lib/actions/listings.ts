@@ -106,6 +106,96 @@ export async function getListingById(id: string): Promise<Listing | null> {
   } as Listing & { listing_highlights?: ListingHighlight[] };
 }
 
+export type SearchListingsParams = {
+  keyword?: string | null;
+  category?: string | null;
+  state?: string | null;
+  suburb?: string | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  revenue_min?: number | null;
+  revenue_max?: number | null;
+  profit_min?: number | null;
+  profit_max?: number | null;
+  sort?: "newest" | "price_asc" | "price_desc";
+  page?: number;
+  page_size?: number;
+};
+
+export type SearchListingsResult = {
+  listings: Listing[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
+
+/** Public: search published listings with filters, sort, and pagination. */
+export async function searchListings(params: SearchListingsParams): Promise<SearchListingsResult> {
+  const supabase = createServiceRoleClient();
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, params.page_size ?? 12));
+  const offset = (page - 1) * pageSize;
+
+  let query = supabase
+    .from("listings")
+    .select(
+      `
+      *,
+      category:categories(id, name, slug),
+      listing_images(id, url, sort_order)
+    `,
+      { count: "exact" }
+    )
+    .eq("status", "published");
+
+  if (params.keyword?.trim()) {
+    const k = params.keyword.trim();
+    const escaped = k.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    const term = `%${escaped}%`;
+    query = query.or(`title.ilike.${term},summary.ilike.${term},description.ilike.${term}`);
+  }
+  if (params.category?.trim()) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("slug", params.category.trim())
+      .eq("active", true)
+      .single();
+    if (cat?.id) query = query.eq("category_id", cat.id);
+  }
+  if (params.state?.trim()) query = query.eq("state", params.state.trim());
+  if (params.suburb?.trim()) query = query.ilike("suburb", `%${params.suburb.trim()}%`);
+  if (params.price_min != null) query = query.gte("asking_price", Number(params.price_min));
+  if (params.price_max != null) query = query.lte("asking_price", Number(params.price_max));
+  if (params.revenue_min != null) query = query.gte("revenue", Number(params.revenue_min));
+  if (params.revenue_max != null) query = query.lte("revenue", Number(params.revenue_max));
+  if (params.profit_min != null) query = query.gte("profit", Number(params.profit_min));
+  if (params.profit_max != null) query = query.lte("profit", Number(params.profit_max));
+
+  const sort = params.sort ?? "newest";
+  if (sort === "newest") query = query.order("published_at", { ascending: false, nullsFirst: false });
+  else if (sort === "price_asc") query = query.order("asking_price", { ascending: true, nullsFirst: true });
+  else if (sort === "price_desc") query = query.order("asking_price", { ascending: false, nullsFirst: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  const total = count ?? 0;
+  const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  const listings = list.map((l) => ({
+    ...l,
+    listing_images: l.listing_images ?? [],
+    category: l.category ?? null,
+  }));
+
+  return {
+    listings,
+    total,
+    page,
+    page_size: pageSize,
+    total_pages: Math.ceil(total / pageSize) || 1,
+  };
+}
+
 /** Public: published listings for a broker (by broker profile id). */
 export async function getPublishedListingsByBrokerId(brokerId: string): Promise<Listing[]> {
   const supabase = createServiceRoleClient();

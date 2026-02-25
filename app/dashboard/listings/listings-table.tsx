@@ -9,6 +9,7 @@ import {
   updateListingStatus,
   deleteListing,
 } from "@/lib/actions/listings";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -107,8 +108,17 @@ export function ListingsTable({ listings, brokerSlug }: Props) {
 
   if (listings.length === 0) {
     return (
-      <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-        No listings yet. Create your first listing to get started.
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 py-12 sm:py-16 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
+          <HugeiconsIcon icon={Edit02Icon} className="size-6 text-muted-foreground" />
+        </div>
+        <h3 className="font-semibold text-foreground mb-1">No listings yet</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mb-6">
+          Create your first listing to start showcasing businesses to buyers.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard/listings/new">Add your first listing</Link>
+        </Button>
       </div>
     );
   }
@@ -154,23 +164,37 @@ export function ListingsTable({ listings, brokerSlug }: Props) {
                   <span className="font-medium">{listing.title}</span>
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={listing.status}
-                    onValueChange={(v) => onStatusChange(listing.id, v as ListingStatus)}
-                  >
-                    <SelectTrigger className="h-8 w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.filter((opt) =>
-                        opt.value === listing.status || nextStatuses.includes(opt.value)
-                      ).map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant={
+                        listing.status === "published"
+                          ? "default"
+                          : listing.status === "sold"
+                            ? "secondary"
+                            : "outline"
+                      }
+                      className="shrink-0 capitalize"
+                    >
+                      {listing.status.replace("_", " ")}
+                    </Badge>
+                    <Select
+                      value={listing.status}
+                      onValueChange={(v) => onStatusChange(listing.id, v as ListingStatus)}
+                    >
+                      <SelectTrigger className="h-8 w-[120px] sm:w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.filter((opt) =>
+                          opt.value === listing.status || nextStatuses.includes(opt.value)
+                        ).map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </TableCell>
                 <TableCell>
                   {listing.category?.name ?? "—"}

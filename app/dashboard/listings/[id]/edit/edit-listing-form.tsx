@@ -213,22 +213,22 @@ export function EditListingForm({ listing }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
           <Link href="/dashboard/listings">
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             <span className="sr-only">Back</span>
           </Link>
         </Button>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Edit listing</h1>
-          <p className="text-muted-foreground">{listing.title}</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl truncate">Edit listing</h1>
+          <p className="text-muted-foreground text-sm sm:text-base truncate">{listing.title}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSave)} className="space-y-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="space-y-1.5">
             <CardTitle>Basic info</CardTitle>
             <CardDescription>Title, category, location and price.</CardDescription>
           </CardHeader>
@@ -412,7 +412,7 @@ export function EditListingForm({ listing }: Props) {
           </CardContent>
         </Card>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save changes"}
           </Button>

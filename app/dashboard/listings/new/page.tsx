@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
@@ -147,8 +148,24 @@ export default function NewListingPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">New listing</h1>
-        <Card><CardContent className="pt-6">Loading…</CardContent></Card>
+        <div className="space-y-1">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Card>
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-1/2" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -157,16 +174,28 @@ export default function NewListingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
           <Link href="/dashboard/listings">
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             <span className="sr-only">Back</span>
           </Link>
         </Button>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">New listing</h1>
-          <p className="text-muted-foreground">Step {step} of 3</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New listing</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-muted-foreground">Step {step} of 3</span>
+            <div className="flex gap-1" aria-hidden>
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className={`h-1.5 w-8 rounded-full transition-colors ${
+                    s === step ? "bg-primary" : s < step ? "bg-primary/50" : "bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
