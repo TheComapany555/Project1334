@@ -16,6 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { register as registerAction } from "@/lib/actions/auth";
 
 const schema = z
@@ -60,16 +62,16 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
+      <Card className="w-full shadow-md">
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="text-xl">Check your email</CardTitle>
+          <CardDescription className="text-base">
             We sent a verification link to your email. Click the link to verify
             your account, then sign in.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild className="w-full">
+          <Button asChild size="lg" className="w-full">
             <Link href="/auth/login">Go to sign in</Link>
           </Button>
         </CardContent>
@@ -78,17 +80,17 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create account</CardTitle>
+    <Card className="w-full shadow-md">
+      <CardHeader className="space-y-1.5">
+        <CardTitle className="text-xl">Create account</CardTitle>
         <CardDescription>Register as a broker on Salebiz</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -146,13 +148,14 @@ export default function RegisterPage() {
               </p>
             )}
           </div>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
             {isSubmitting ? "Creating account…" : "Create account"}
           </Button>
         </form>
+        <Separator className="my-4" />
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/auth/login" className="text-primary hover:underline">
+          <Link href="/auth/login" className="text-primary hover:underline font-medium">
             Sign in
           </Link>
         </p>

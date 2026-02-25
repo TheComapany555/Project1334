@@ -123,7 +123,94 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Larger base for shadcn-style readability; 18px so 1rem = 18px */
+  html {
+    font-size: 112.5%;
+  }
   body {
     @apply bg-background text-foreground;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Global UI scale: bigger buttons, inputs, and controls (touch-friendly, shadcn-docs feel) */
+@layer components {
+  /* Inputs – height 44px, comfortable padding and text */
+  input[data-slot="input"],
+  [data-slot="input-group"] {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 1rem;
+  }
+  /* Select trigger – match input height */
+  [data-slot="select-trigger"][data-size="default"] {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 1rem;
+  }
+  [data-slot="select-trigger"][data-size="sm"] {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    font-size: 0.9375rem;
+  }
+  /* Textareas – base text size, comfortable padding */
+  textarea[data-slot="textarea"],
+  textarea {
+    min-height: 5rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  /* Buttons – default size larger (44px), more padding */
+  [data-slot="button"][data-size="default"] {
+    height: 2.75rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    font-size: 1rem;
+  }
+  [data-slot="button"][data-size="sm"] {
+    height: 2.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-size: 0.9375rem;
+  }
+  [data-slot="button"][data-size="lg"] {
+    height: 3rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    font-size: 1.0625rem;
+  }
+  [data-slot="button"][data-size="icon"] {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  [data-slot="button"][data-size="icon-sm"] {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  [data-slot="button"][data-size="icon-lg"] {
+    width: 3rem;
+    height: 3rem;
+  }
+  /* Card titles and descriptions – slightly larger text */
+  [data-slot="card"] [data-slot="card-title"] {
+    font-size: 1.125rem;
+    line-height: 1.4;
+  }
+  [data-slot="card"] [data-slot="card-description"] {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  /* Labels – base size for readability */
+  [data-slot="field-label"],
+  label[data-slot="label"] {
+    font-size: 0.9375rem;
   }
 }

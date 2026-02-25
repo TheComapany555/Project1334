@@ -9,7 +9,7 @@ import {
 export default function AdminEnquiriesPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Enquiries</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Enquiries</h1>
       <Card>
         <CardHeader>
           <CardTitle>All enquiries</CardTitle>

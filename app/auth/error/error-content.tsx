@@ -1,0 +1,58 @@
+"use client";
+
+import { Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+function AuthErrorContentInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const error = searchParams.get("error") ?? "Something went wrong.";
+
+  useEffect(() => {
+    if (error === "EmailVerification") {
+      signOut({ redirect: false }).then(() => router.refresh());
+    }
+  }, [error, router]);
+
+  const message =
+    error === "CredentialsSignin"
+      ? "Invalid email or password."
+      : error === "EmailVerification"
+        ? "Please verify your email before signing in."
+        : "An error occurred during sign in.";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in error</CardTitle>
+        <CardDescription>{message}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Button asChild className="w-full">
+          <Link href="/auth/login">Try again</Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/">Back to home</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function AuthErrorContent() {
+  return (
+    <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
+      <AuthErrorContentInner />
+    </Suspense>
+  );
+}

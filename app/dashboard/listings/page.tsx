@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { getListingsByBroker } from "@/lib/actions/listings";
+import { getBrokerSlug } from "@/lib/actions/profile";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -5,17 +9,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ListingsTable } from "@/app/dashboard/listings/listings-table";
 
-export default function ListingsPage() {
+export default async function ListingsPage() {
+  const [listings, brokerSlug] = await Promise.all([
+    getListingsByBroker(),
+    getBrokerSlug(),
+  ]);
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Listings</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Listings</h1>
+          <p className="text-muted-foreground mt-1">
+            Create and manage your business listings.
+          </p>
+        </div>
+        <Button asChild size="sm" className="w-full sm:w-auto sm:size-default">
+          <Link href="/dashboard/listings/new">Add listing</Link>
+        </Button>
+      </div>
       <Card>
-        <CardHeader>
-          <CardTitle>Manage listings</CardTitle>
-          <CardDescription>Create and manage your listings (Milestone 3).</CardDescription>
+        <CardHeader className="space-y-1.5">
+          <CardTitle>Your listings</CardTitle>
+          <CardDescription>
+            Edit, change status, or delete. View public page when published.
+          </CardDescription>
         </CardHeader>
-        <CardContent>Placeholder — coming in Milestone 3.</CardContent>
+        <CardContent className="px-0 sm:px-6 sm:pt-0 pb-6">
+          <div className="overflow-x-auto px-4 sm:px-6">
+            <ListingsTable listings={listings} brokerSlug={brokerSlug ?? undefined} />
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

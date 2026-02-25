@@ -23,6 +23,7 @@ export const authOptions: NextAuthOptions = {
         if (userError || !userRow) return null;
         const valid = await bcrypt.compare(credentials.password, userRow.password_hash);
         if (!valid) return null;
+        if (!userRow.email_verified_at) return null;
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")

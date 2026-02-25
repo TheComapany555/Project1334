@@ -29,6 +29,22 @@ Marketplace platform for buying and selling businesses (Australia). Built with N
    UPDATE profiles SET role = 'admin' WHERE id = (SELECT id FROM users WHERE email = 'your@email.com');
    ```
 
+## Milestone 2 — Broker Profiles
+
+- Public broker profile at `/broker/[slug]` with photo, logo, contact info, bio, social links
+- Dashboard profile editing at `/dashboard/profile` (photo/logo upload, slug, social links)
+- Contact broker: Call (tel:) and Email (mailto:) buttons
+
+### Setup (Milestone 2)
+
+1. **Storage buckets**  
+   In Supabase Dashboard → Storage, create two **public** buckets:
+   - `avatars` — for profile photos (optional: set file size limit 5MB, allowed MIME types: image/jpeg, image/png, image/webp, image/gif)
+   - `logos` — for company logos (optional: allow image/svg+xml as well)
+
+2. **Database**  
+   Run migration: `supabase/migrations/20250224000003_profiles_slug_index.sql` (index for broker lookup by slug).
+
 ## Getting Started
 
 First, run the development server:

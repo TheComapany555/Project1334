@@ -9,7 +9,7 @@ import {
 export default function AdminCategoriesPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Categories</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
       <Card>
         <CardHeader>
           <CardTitle>Manage categories</CardTitle>
