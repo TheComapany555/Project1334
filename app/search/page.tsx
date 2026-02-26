@@ -3,18 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
 import { searchListings, getCategories } from "@/lib/actions/listings";
-import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
 
@@ -24,13 +16,15 @@ export const metadata: Metadata = {
 };
 
 const PAGE_SIZE = 12;
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
 ] as const;
 
-type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
 function parseNum(v: string | string[] | undefined): number | undefined {
   if (v == null) return undefined;
@@ -45,8 +39,34 @@ function parseStr(v: string | string[] | undefined): string | undefined {
   return typeof s === "string" && s.trim() !== "" ? s.trim() : undefined;
 }
 
+/** Count how many filter fields (beyond keyword + sort) are active */
+function countActiveFilters(p: {
+  category?: string;
+  state?: string;
+  suburb?: string;
+  price_min?: number;
+  price_max?: number;
+  revenue_min?: number;
+  revenue_max?: number;
+  profit_min?: number;
+  profit_max?: number;
+}) {
+  return [
+    p.category,
+    p.state,
+    p.suburb,
+    p.price_min,
+    p.price_max,
+    p.revenue_min,
+    p.revenue_max,
+    p.profit_min,
+    p.profit_max,
+  ].filter((v) => v != null && v !== "").length;
+}
+
 export default async function SearchPage({ searchParams }: Props) {
   const [params, session] = await Promise.all([searchParams, getSession()]);
+
   const keyword = parseStr(params.q);
   const category = parseStr(params.category);
   const state = parseStr(params.state);
@@ -57,7 +77,9 @@ export default async function SearchPage({ searchParams }: Props) {
   const revenue_max = parseNum(params.revenue_max);
   const profit_min = parseNum(params.profit_min);
   const profit_max = parseNum(params.profit_max);
-  const sort = (parseStr(params.sort) as "newest" | "price_asc" | "price_desc") ?? "newest";
+  const sort =
+    (parseStr(params.sort) as "newest" | "price_asc" | "price_desc") ??
+    "newest";
   const page = Math.max(1, parseNum(params.page) ?? 1);
 
   const [result, categories] = await Promise.all([
@@ -93,12 +115,38 @@ export default async function SearchPage({ searchParams }: Props) {
     sort,
   };
 
+  const activeFilters = countActiveFilters({
+    category,
+    state,
+    suburb,
+    price_min,
+    price_max,
+    revenue_min,
+    revenue_max,
+    profit_min,
+    profit_max,
+  });
+
+  const isFiltered = !!(keyword || activeFilters > 0);
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+
+      {/* ── Header ── */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
-          <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
-            <Image src="/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
+          <Link
+            href="/"
+            className="flex items-center shrink-0"
+            aria-label="Salebiz home"
+          >
+            <Image
+              src="/Salebiz.png"
+              alt="Salebiz"
+              width={100}
+              height={30}
+              className="h-7 w-auto object-contain sm:h-8"
+            />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
@@ -107,23 +155,67 @@ export default async function SearchPage({ searchParams }: Props) {
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
             ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/auth/login">Sign in</Link>
-              </Button>
+              <>
+                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+                  <Link href="/auth/register">Create account</Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/auth/login">Sign in</Link>
+                </Button>
+              </>
             )}
           </div>
         </div>
       </header>
 
-      <main className="container flex-1 px-4 py-6 sm:py-8 max-w-6xl">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Browse listings</h1>
-            <p className="text-muted-foreground mt-1">Search and filter businesses for sale across Australia</p>
+      <main className="container flex-1 px-4 py-8 sm:py-10 max-w-6xl">
+        <div className="space-y-8">
+
+          {/* ── Page heading ── */}
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  Browse listings
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Search and filter businesses for sale across Australia.
+                </p>
+              </div>
+
+              {/* Results summary — shown when a search is active */}
+              {isFiltered && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {keyword && (
+                    <Badge variant="secondary" className="gap-1">
+                      "{keyword}"
+                    </Badge>
+                  )}
+                  {activeFilters > 0 && (
+                    <Badge variant="outline" className="gap-1">
+                      {activeFilters} filter{activeFilters > 1 ? "s" : ""} active
+                    </Badge>
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {result.total === 0
+                      ? "No results"
+                      : `${result.total} result${result.total === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <Separator />
           </div>
 
-          <SearchForm categories={categories} defaultValues={formValues} sortOptions={SORT_OPTIONS} />
+          {/* ── Search form ── */}
+          <SearchForm
+            categories={categories}
+            defaultValues={formValues}
+            sortOptions={SORT_OPTIONS}
+          />
 
+          {/* ── Results ── */}
           <SearchResults
             listings={result.listings}
             total={result.total}
@@ -134,6 +226,24 @@ export default async function SearchPage({ searchParams }: Props) {
           />
         </div>
       </main>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-border py-6 mt-auto">
+        <div className="container max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-foreground transition-colors">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">
+              Terms
+            </Link>
+            <Link href="/contact" className="hover:text-foreground transition-colors">
+              Contact
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

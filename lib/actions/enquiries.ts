@@ -129,6 +129,8 @@ export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
 export async function getAllEnquiries(options?: {
   page?: number;
   pageSize?: number;
+  reason?: string | null;
+  broker_id?: string | null;
 }): Promise<{ enquiries: EnquiryWithListingAndBroker[]; total: number }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
@@ -137,15 +139,17 @@ export async function getAllEnquiries(options?: {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data: rows, error, count } = await supabase
+  let query = supabase
     .from("enquiries")
     .select(`
       *,
       listing:listings(id, title, slug),
       broker:profiles!broker_id(id, name, company)
     `, { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .order("created_at", { ascending: false });
+  if (options?.reason?.trim()) query = query.eq("reason", options.reason.trim());
+  if (options?.broker_id?.trim()) query = query.eq("broker_id", options.broker_id.trim());
+  const { data: rows, error, count } = await query.range(from, to);
   if (error) return { enquiries: [], total: 0 };
   const list = (rows ?? []) as (Enquiry & {
     listing?: { id: string; title: string; slug: string }[] | { id: string; title: string; slug: string };
