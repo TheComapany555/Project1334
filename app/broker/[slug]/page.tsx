@@ -68,53 +68,64 @@ export default async function BrokerProfilePage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-8">
 
-        {/* Broker profile card */}
+        {/* Broker hero */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          <CardContent className="pt-6 pb-6 sm:pt-8 sm:pb-8">
+            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:text-left">
+              {/* Single avatar: profile photo (person) or initial */}
+              <div className="shrink-0">
+                {profile.photo_url ? (
+                  <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden border-2 border-border bg-muted ring-2 ring-primary/10">
+                    <Image
+                      src={profile.photo_url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="112px"
+                      priority
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full border-2 border-border bg-muted text-2xl sm:text-3xl font-semibold text-muted-foreground"
+                    aria-hidden
+                  >
+                    {(profile.name?.trim() || profile.company?.trim() || "B").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
 
-              {/* Avatars */}
-              {(profile.photo_url || profile.logo_url) && (
-                <div className="flex gap-3 shrink-0">
-                  {profile.photo_url && (
-                    <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border border-border bg-muted">
-                      <Image
-                        src={profile.photo_url}
-                        alt={profile.name ?? "Profile photo"}
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                      />
-                    </div>
-                  )}
-                  {profile.logo_url && (
-                    <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-md overflow-hidden border border-border bg-muted">
-                      <Image
-                        src={profile.logo_url}
-                        alt={profile.company ?? "Logo"}
-                        fill
-                        className="object-contain p-1"
-                        sizes="96px"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Info + actions */}
-              <div className="flex flex-1 flex-col gap-3 min-w-0">
-                <div className="space-y-0.5">
-                  <h1 className="text-xl font-semibold tracking-tight sm:text-2xl leading-snug">
+              <div className="flex-1 min-w-0 space-y-3">
+                <div>
+                  <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
                     {displayName}
                   </h1>
-                  {profile.company && profile.name && (
-                    <p className="text-sm text-muted-foreground">{profile.company}</p>
+                  {/* Company: name + optional logo (clearly labeled) */}
+                  {profile.company && (
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                      {profile.logo_url ? (
+                        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1">
+                          <span className="relative inline-block h-6 w-6 shrink-0 overflow-hidden rounded-sm bg-background">
+                            <Image
+                              src={profile.logo_url}
+                              alt=""
+                              fill
+                              className="object-contain p-0.5"
+                              sizes="24px"
+                            />
+                          </span>
+                          <span className="text-sm font-medium text-foreground">{profile.company}</span>
+                        </span>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{profile.company}</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
                   {profile.phone && (
                     <Button asChild size="sm">
                       <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>Call</a>
@@ -138,23 +149,23 @@ export default async function BrokerProfilePage({ params }: Props) {
           </CardContent>
         </Card>
 
-        {/* Bio */}
+        {/* About */}
         {profile.bio && (
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>About</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">About</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+              <p className="text-muted-foreground text-sm sm:text-base whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Social links */}
+        {/* Connect */}
         {(social?.linkedin || social?.facebook || social?.instagram) && (
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Connect</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Connect</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {social.linkedin && (
@@ -178,48 +189,50 @@ export default async function BrokerProfilePage({ params }: Props) {
 
         {/* Listings */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Listings by this broker</CardTitle>
-            <CardDescription>
-              {listings.length === 0
-                ? "No published listings yet."
-                : `${listings.length} listing${listings.length === 1 ? "" : "s"}`}
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Listings by this broker</CardTitle>
+            {listings.length > 0 && (
+              <CardDescription>
+                {listings.length} listing{listings.length === 1 ? "" : "s"}
+              </CardDescription>
+            )}
           </CardHeader>
-          {listings.length > 0 && (
-            <CardContent>
-              <ul className="grid gap-3 sm:grid-cols-2">
+          <CardContent>
+            {listings.length > 0 ? (
+              <ul className="grid gap-4 sm:grid-cols-2">
                 {listings.map((listing) => {
                   const thumb = listing.listing_images?.[0]?.url;
                   return (
                     <li key={listing.id}>
                       <Link
                         href={`/listing/${listing.slug}`}
-                        className="flex gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4 transition-colors hover:bg-muted/60 hover:border-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {thumb ? (
-                          <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded border bg-muted">
-                            <Image src={thumb} alt="" fill className="object-cover" sizes="96px" />
+                          <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                            <Image src={thumb} alt="" fill className="object-cover" sizes="112px" />
                           </div>
                         ) : (
-                          <div className="h-20 w-24 shrink-0 rounded border border-dashed bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                          <div className="flex h-24 w-28 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-xs text-muted-foreground">
                             No image
                           </div>
                         )}
-                        <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                        <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
                           <p className="font-medium text-sm leading-snug line-clamp-2">{listing.title}</p>
                           {listing.category && (
                             <p className="text-xs text-muted-foreground">{listing.category.name}</p>
                           )}
-                          <p className="text-sm font-semibold text-foreground mt-1">{formatPrice(listing)}</p>
+                          <p className="text-sm font-semibold text-foreground">{formatPrice(listing)}</p>
                         </div>
                       </Link>
                     </li>
                   );
                 })}
               </ul>
-            </CardContent>
-          )}
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">No published listings yet.</p>
+            )}
+          </CardContent>
         </Card>
       </main>
     </div>

@@ -10,6 +10,10 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Salebiz | Business for Sale",
   description: "Buy and sell businesses across Australia",
+  icons: {
+    icon: "/Salebiz.png",
+    apple: "/Salebiz.png",
+  },
 };
 
 export default function RootLayout({

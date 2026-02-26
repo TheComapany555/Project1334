@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import {
   getCategories,
   getListingHighlights,
   createListing,
+  uploadListingImage,
 } from "@/lib/actions/listings";
 import type { Category, ListingHighlight } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,10 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowRight01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
+
+const MAX_IMAGES_PER_LISTING = 10;
+const ACCEPT_IMAGES = "image/jpeg,image/png,image/webp,image/gif";
 
 const step1Schema = z.object({
   title: z.string().min(1, "Title is required").max(200),
@@ -86,6 +90,8 @@ export default function NewListingPage() {
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<{ file: File; url: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(fullSchema) as Resolver<FormData>,
@@ -115,6 +121,28 @@ export default function NewListingPage() {
     if (ok) setStep(3);
   }
 
+  function onImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    e.target.value = "";
+    setSelectedImages((prev) => {
+      const next = [...prev];
+      for (const file of files) {
+        if (next.length >= MAX_IMAGES_PER_LISTING) break;
+        if (!ACCEPT_IMAGES.includes(file.type)) continue;
+        next.push({ file, url: URL.createObjectURL(file) });
+      }
+      return next.slice(0, MAX_IMAGES_PER_LISTING);
+    });
+  }
+
+  function removeSelectedImage(index: number) {
+    setSelectedImages((prev) => {
+      const entry = prev[index];
+      if (entry?.url) URL.revokeObjectURL(entry.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
   async function onPublish(isDraft: boolean) {
     setSubmitting(true);
     const values = form.getValues();
@@ -135,13 +163,28 @@ export default function NewListingPage() {
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
     });
+    if (!result.ok) {
+      setSubmitting(false);
+      toast.error(result.error ?? "Failed to save.");
+      return;
+    }
+    const listingId = result.id;
+    if (listingId && selectedImages.length > 0) {
+      for (let i = 0; i < selectedImages.length; i++) {
+        const formData = new FormData();
+        formData.set("file", selectedImages[i].file);
+        const up = await uploadListingImage(listingId, formData);
+        if (!up.ok) {
+          toast.error(up.error ?? "Some images could not be uploaded.");
+          break;
+        }
+      }
+    }
     setSubmitting(false);
     if (result.ok) {
       toast.success(isDraft ? "Draft saved." : "Listing published.");
-      router.push(result.id ? `/dashboard/listings/${result.id}/edit` : "/dashboard/listings");
+      router.push(listingId ? `/dashboard/listings/${listingId}/edit` : "/dashboard/listings");
       router.refresh();
-    } else {
-      toast.error(result.error ?? "Failed to save.");
     }
   }
 
@@ -292,7 +335,7 @@ export default function NewListingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Content</CardTitle>
-              <CardDescription>Summary and full description.</CardDescription>
+              <CardDescription>Summary, description and images (optional).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -302,6 +345,57 @@ export default function NewListingPage() {
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" {...register("description")} rows={8} placeholder="Full description of the business" />
+              </div>
+              <div className="space-y-2">
+                <Label>Images</Label>
+                <p className="text-sm text-muted-foreground">
+                  Up to {MAX_IMAGES_PER_LISTING} images (JPEG, PNG, WebP, GIF). You can select multiple at once.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPT_IMAGES}
+                  multiple
+                  className="sr-only"
+                  aria-label="Select listing images"
+                  onChange={onImageSelect}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={selectedImages.length >= MAX_IMAGES_PER_LISTING}
+                >
+                  Select images
+                  {selectedImages.length > 0 && (
+                    <span className="ml-2 text-muted-foreground">({selectedImages.length}/{MAX_IMAGES_PER_LISTING})</span>
+                  )}
+                </Button>
+                {selectedImages.length > 0 && (
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    {selectedImages.map((entry, index) => (
+                      <div key={entry.url} className="relative flex flex-col items-center gap-1">
+                        <div className="relative h-20 w-28 overflow-hidden rounded-md border bg-muted">
+                          <img
+                            src={entry.url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          aria-label="Remove image"
+                          onClick={() => removeSelectedImage(index)}
+                        >
+                          <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex justify-between">
                 <Button type="button" variant="outline" onClick={() => setStep(1)}>
@@ -321,7 +415,7 @@ export default function NewListingPage() {
             <CardHeader>
               <CardTitle>Highlights & publish</CardTitle>
               <CardDescription>
-                Add highlight tags. You can add images from the edit page after saving.
+                Add highlight tags. Images can be added in Step 2 or changed later on the edit page.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

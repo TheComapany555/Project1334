@@ -60,6 +60,21 @@ export async function getBrokerSlug(): Promise<string | null> {
   return data.slug as string;
 }
 
+/** Slug and photo for nav (broker + admin). Call with current session user id. */
+export async function getProfileNavInfo(userId: string): Promise<{ slug: string | null; photo_url: string | null }> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("slug, photo_url")
+    .eq("id", userId)
+    .single();
+  if (error || !data) return { slug: null, photo_url: null };
+  return {
+    slug: (data.slug as string) ?? null,
+    photo_url: (data.photo_url as string) ?? null,
+  };
+}
+
 export async function getProfileBySlug(slug: string): Promise<ProfilePublic | null> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase

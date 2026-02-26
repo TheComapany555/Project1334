@@ -215,7 +215,7 @@ export default function ProfilePage() {
               <Label>Company logo</Label>
               <div className="flex items-center gap-4">
                 {logoUrl ? (
-                  <div className="relative h-24 w-24 rounded-md overflow-hidden border border-border bg-muted">
+                  <div className="relative h-24 w-24 rounded-full overflow-hidden border border-border bg-muted">
                     <Image src={logoUrl} alt="Logo" fill className="object-contain p-1" unoptimized />
                   </div>
                 ) : (
