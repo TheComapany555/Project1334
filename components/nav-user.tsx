@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
+import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog"
 import {
   Avatar,
   AvatarFallback,
@@ -40,6 +42,7 @@ export function NavUser({
   profileSlug?: string
   role?: "broker" | "admin"
 }) {
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const { isMobile } = useSidebar()
   const initial = (user.name || user.email).charAt(0).toUpperCase()
 
@@ -148,7 +151,7 @@ export function NavUser({
 
             <DropdownMenuItem
               className="gap-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/8"
-              onSelect={() => signOut({ callbackUrl: "/" })}
+              onSelect={() => setLogoutOpen(true)}
             >
               <HugeiconsIcon
                 icon={Logout01Icon}
@@ -160,6 +163,11 @@ export function NavUser({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
     </SidebarMenu>
   )
 }

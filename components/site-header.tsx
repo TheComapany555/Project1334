@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -38,6 +40,7 @@ export function SiteHeader({
   title?: string
   user?: HeaderUser
 }) {
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const displayName = user?.name?.trim() || user?.email || "Account"
   const initial = (user?.name?.trim() || user?.email || "?").charAt(0).toUpperCase()
 
@@ -140,7 +143,7 @@ export function SiteHeader({
 
               <DropdownMenuItem
                 className="gap-2.5 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/8"
-                onSelect={() => signOut({ callbackUrl: "/" })}
+                onSelect={() => setLogoutOpen(true)}
               >
                 <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} className="size-4" />
                 Sign out
@@ -149,6 +152,11 @@ export function SiteHeader({
           </DropdownMenu>
         )}
       </div>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
     </header>
   )
 }

@@ -33,15 +33,15 @@ const chartConfig = {
   },
   published: {
     label: "Published",
-    color: "#1a5c38",
+    color: "var(--success)",
   },
   draft: {
     label: "Draft",
-    color: "var(--chart-3)",
+    color: "var(--warning)",
   },
   other: {
     label: "Other",
-    color: "var(--chart-4)",
+    color: "var(--muted-foreground)",
   },
 } satisfies ChartConfig
 
@@ -81,7 +81,7 @@ export function ChartLineListings({ data, footer }: ChartLineListingsProps) {
             <div
               className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full shrink-0 ${
                 trendUp
-                  ? "bg-[#1a5c38]/10 text-[#1a5c38] dark:bg-[#4ade80]/10 dark:text-[#4ade80]"
+                  ? "bg-success/15 text-success dark:bg-success/20"
                   : "bg-muted text-muted-foreground"
               }`}
             >

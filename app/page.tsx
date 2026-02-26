@@ -106,7 +106,7 @@ export default async function HomePage() {
 
             {/* Desktop nav */}
             <nav className="hidden sm:flex items-center gap-1">
-              <ThemeSwitcher />
+              
               <Button asChild variant="ghost" size="sm" className="nav-link">
                 <Link href="/search">Browse listings</Link>
               </Button>
@@ -135,6 +135,7 @@ export default async function HomePage() {
                   >
                     <Link href="/auth/register">List your business</Link>
                   </Button>
+                  <ThemeSwitcher />
                 </>
               )}
             </nav>

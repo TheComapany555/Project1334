@@ -16,11 +16,18 @@ type Props = { brokerId: string; status: string };
 export function BrokerActions({ brokerId, status }: Props) {
   const router = useRouter();
   const isActive = status === "active";
+  const isPending = status === "pending";
 
   async function handleSetStatus(newStatus: "active" | "disabled") {
     const result = await setBrokerStatus(brokerId, newStatus);
     if (result.ok) {
-      toast.success(newStatus === "active" ? "Broker enabled." : "Broker disabled.");
+      toast.success(
+        newStatus === "active"
+          ? isPending
+            ? "Broker approved. They can sign in now."
+            : "Broker enabled."
+          : "Broker disabled."
+      );
       router.refresh();
     } else {
       toast.error(result.error ?? "Failed to update.");
@@ -35,6 +42,11 @@ export function BrokerActions({ brokerId, status }: Props) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {isPending && (
+          <DropdownMenuItem onClick={() => handleSetStatus("active")}>
+            Approve broker
+          </DropdownMenuItem>
+        )}
         {isActive ? (
           <DropdownMenuItem
             onClick={() => handleSetStatus("disabled")}
@@ -42,11 +54,11 @@ export function BrokerActions({ brokerId, status }: Props) {
           >
             Disable broker
           </DropdownMenuItem>
-        ) : (
+        ) : !isPending ? (
           <DropdownMenuItem onClick={() => handleSetStatus("active")}>
             Enable broker
           </DropdownMenuItem>
-        )}
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

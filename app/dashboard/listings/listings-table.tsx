@@ -168,12 +168,14 @@ export function ListingsTable({ listings, brokerSlug }: Props) {
                     <Badge
                       variant={
                         listing.status === "published"
-                          ? "default"
+                          ? "success"
                           : listing.status === "sold"
-                            ? "secondary"
-                            : "outline"
+                            ? "destructive"
+                            : listing.status === "draft" || listing.status === "under_offer"
+                              ? "warning"
+                              : "outline"
                       }
-                      className="shrink-0 capitalize"
+                      className="shrink-0 capitalize border-0"
                     >
                       {listing.status.replace("_", " ")}
                     </Badge>

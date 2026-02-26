@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Mail, Lock, ArrowRight } from "lucide-react";
+import { checkBrokerPendingApproval } from "@/lib/actions/auth";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -35,7 +36,7 @@ export function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
-      toast.success("Email verified. You can sign in now.");
+      toast.success("Email verified. Your account is pending approval—you can sign in once an admin has approved it.");
     }
   }, [searchParams]);
 
@@ -47,10 +48,15 @@ export function LoginForm() {
       redirect: false,
     });
     if (res?.error) {
-      const message =
+      let message =
         res.error === "CredentialsSignin"
           ? "Invalid email or password. If you just signed up, verify your email first."
           : "Invalid email or password.";
+      const { pending } = await checkBrokerPendingApproval(data.email);
+      if (pending) {
+        message =
+          "Your account is pending approval. An admin will review your signup shortly. You'll be able to sign in once approved.";
+      }
       setError(message);
       toast.error(message);
       return;

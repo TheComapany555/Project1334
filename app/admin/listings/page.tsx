@@ -70,10 +70,23 @@ export default async function AdminListingsPage() {
                         {l.broker?.name ?? l.broker?.company ?? "—"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{l.status.replace("_", " ")}</Badge>
+                        <Badge
+                          variant={
+                            l.status === "published"
+                              ? "success"
+                              : l.status === "sold"
+                                ? "destructive"
+                                : l.status === "draft" || l.status === "under_offer"
+                                  ? "warning"
+                                  : "secondary"
+                          }
+                          className="border-0"
+                        >
+                          {l.status.replace("_", " ")}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={isRemoved ? "destructive" : "default"}>
+                        <Badge variant={isRemoved ? "destructive" : "success"} className="border-0">
                           {isRemoved ? "Removed" : "Visible"}
                         </Badge>
                       </TableCell>

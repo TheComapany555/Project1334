@@ -139,7 +139,7 @@ export function CategoriesManager({ initialCategories }: Props) {
               <TableCell className="text-muted-foreground text-sm">{cat.slug}</TableCell>
               <TableCell>{cat.sort_order}</TableCell>
               <TableCell>
-                <Badge variant={cat.active ? "default" : "secondary"}>
+                <Badge variant={cat.active ? "success" : "secondary"} className="border-0">
                   {cat.active ? "Active" : "Inactive"}
                 </Badge>
               </TableCell>

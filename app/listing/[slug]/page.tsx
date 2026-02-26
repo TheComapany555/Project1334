@@ -137,7 +137,7 @@ export default async function ListingPage({ params }: Props) {
             {highlights.map((h) => (
               <Badge
                 key={h.id}
-                variant={h.accent === "warning" ? "destructive" : h.accent === "primary" ? "default" : "secondary"}
+                variant={h.accent === "warning" ? "warning" : h.accent === "primary" ? "default" : "secondary"}
               >
                 {h.label}
               </Badge>

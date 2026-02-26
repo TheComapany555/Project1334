@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
+import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -62,6 +64,7 @@ type Props = {
 };
 
 export function DashboardHeader({ title, description, user }: Props) {
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const displayName = user?.name?.trim() || user?.email || "Account";
 
   return (
@@ -132,7 +135,7 @@ export function DashboardHeader({ title, description, user }: Props) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
-                onSelect={() => signOut({ callbackUrl: "/" })}
+                onSelect={() => setLogoutOpen(true)}
               >
                 <HugeiconsIcon icon={LogoutIcon} strokeWidth={2} className="size-4" />
                 Sign out
@@ -141,6 +144,11 @@ export function DashboardHeader({ title, description, user }: Props) {
           </DropdownMenu>
         </div>
       )}
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
     </header>
   );
 }

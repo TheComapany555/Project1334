@@ -1,12 +1,12 @@
 import Link from "next/link"
 import { getListingsByBroker } from "@/lib/actions/listings"
-import type { ListingsChartDataPoint } from "@/components/dashboard/chart-line-listings"
 import { ChartLineListings } from "@/components/dashboard/chart-line-listings"
+import { buildListingsChartData } from "@/lib/chart-data"
+import { PageHeader } from "@/components/admin/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  LayoutDashboard,
   FileText,
   FileCheck2,
   FileClock,
@@ -16,53 +16,30 @@ import {
   Pencil,
 } from "lucide-react"
 
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-]
-
-function buildListingsChartData(listings: { created_at: string; status: string }[]): ListingsChartDataPoint[] {
-  const now = new Date()
-  const points: ListingsChartDataPoint[] = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    const added = listings.filter((l) => {
-      const created = new Date(l.created_at)
-      return created >= d && created < nextMonth
-    }).length
-    const published = listings.filter((l) => {
-      const created = new Date(l.created_at)
-      return created >= d && created < nextMonth && l.status === "published"
-    }).length
-    const draft = listings.filter((l) => {
-      const created = new Date(l.created_at)
-      return created >= d && created < nextMonth && l.status === "draft"
-    }).length
-    const other = added - published - draft
-    points.push({
-      month: MONTH_NAMES[d.getMonth()],
-      added,
-      published,
-      draft,
-      other,
-    })
-  }
-  return points
-}
-
 function statusBadge(status: string) {
   const s = status.replace("_", " ")
   switch (status) {
     case "published":
       return (
-        <Badge className="bg-[#1a5c38]/10 text-[#1a5c38] dark:bg-[#4ade80]/10 dark:text-[#4ade80] border-0 text-xs font-medium capitalize">
+        <Badge variant="success" className="text-xs font-medium capitalize border-0">
           {s}
         </Badge>
       )
     case "draft":
       return (
-        <Badge variant="secondary" className="text-xs font-medium capitalize">
+        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
+          {s}
+        </Badge>
+      )
+    case "under_offer":
+      return (
+        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
+          {s}
+        </Badge>
+      )
+    case "sold":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium capitalize border-0">
           {s}
         </Badge>
       )
@@ -96,16 +73,16 @@ export default async function DashboardPage() {
       value: published,
       description: "Live on the marketplace",
       icon: FileCheck2,
-      color: "text-[#1a5c38] dark:text-[#4ade80]",
-      bg: "bg-[#1a5c38]/10 dark:bg-[#4ade80]/10",
+      color: "text-success",
+      bg: "bg-success/15 dark:bg-success/20",
     },
     {
       title: "Draft",
       value: draft,
       description: "Not yet published",
       icon: FileClock,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10 dark:bg-amber-400/10",
+      color: "text-[var(--warning-foreground)]",
+      bg: "bg-warning/15 dark:bg-warning/20",
     },
     {
       title: "Other",
@@ -122,28 +99,18 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Manage your listings, profile, and enquiries.
-          </p>
-        </div>
-        <Button
-          asChild
-          size="sm"
-          className="shrink-0 bg-[#1a5c38] hover:bg-[#144a2d] text-white shadow-sm"
-        >
-          <Link href="/dashboard/listings/new">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add listing
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Overview"
+        description="Manage your listings, profile, and enquiries."
+        action={
+          <Button asChild size="sm" className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+            <Link href="/dashboard/listings/new">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add listing
+            </Link>
+          </Button>
+        }
+      />
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -208,7 +175,7 @@ export default async function DashboardPage() {
               <Button
                 asChild
                 size="sm"
-                className="mt-1 bg-[#1a5c38] hover:bg-[#144a2d] text-white"
+                className="mt-1 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <Link href="/dashboard/listings/new">
                   <Plus className="h-4 w-4 mr-1.5" />

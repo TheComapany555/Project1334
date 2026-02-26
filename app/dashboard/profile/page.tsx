@@ -370,7 +370,7 @@ export default function ProfilePage() {
                 uploading={logoUploading}
                 onChange={onLogoChange}
                 accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-                shape="square"
+                shape="circle"
               />
             </div>
           </CardContent>

@@ -13,6 +13,7 @@ async function requireAdmin() {
 
 export type AdminStats = {
   brokersActive: number;
+  brokersPending: number;
   brokersDisabled: number;
   listingsPublished: number;
   listingsDraft: number;
@@ -28,6 +29,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   const [
     { count: brokersActive },
+    { count: brokersPending },
     { count: brokersDisabled },
     { count: listingsPublished },
     { count: listingsDraft },
@@ -37,6 +39,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     { count: categoriesActive },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "broker").eq("status", "active"),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "broker").eq("status", "pending"),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "broker").eq("status", "disabled"),
     supabase.from("listings").select("id", { count: "exact", head: true }).eq("status", "published").is("admin_removed_at", null),
     supabase.from("listings").select("id", { count: "exact", head: true }).eq("status", "draft"),
@@ -48,6 +51,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   return {
     brokersActive: brokersActive ?? 0,
+    brokersPending: brokersPending ?? 0,
     brokersDisabled: brokersDisabled ?? 0,
     listingsPublished: listingsPublished ?? 0,
     listingsDraft: listingsDraft ?? 0,

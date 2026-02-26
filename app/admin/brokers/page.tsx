@@ -33,14 +33,14 @@ export default async function AdminBrokersPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Brokers</h1>
         <p className="text-muted-foreground mt-1">
-          Manage broker accounts. Disabled brokers cannot sign in.
+          Approve new signups, or enable/disable broker access. Pending and disabled brokers cannot sign in.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Manage brokers</CardTitle>
           <CardDescription>
-            Enable or disable broker access. Disabled brokers are blocked from logging in.
+            New brokers are pending until you approve. Approve to allow sign-in, or disable to block access.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -67,8 +67,17 @@ export default async function AdminBrokersPage() {
                     <TableCell>{b.name ?? "—"}</TableCell>
                     <TableCell>{b.company ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={b.status === "active" ? "default" : "secondary"}>
-                        {b.status === "active" ? "Active" : "Disabled"}
+                      <Badge
+                        variant={
+                          b.status === "active"
+                            ? "success"
+                            : b.status === "pending"
+                              ? "warning"
+                              : "secondary"
+                        }
+                        className="border-0"
+                      >
+                        {b.status === "active" ? "Active" : b.status === "pending" ? "Pending" : "Disabled"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">

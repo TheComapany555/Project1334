@@ -2,21 +2,30 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-client";
 import { getAdminStats } from "@/lib/actions/admin-stats";
 import { getAllEnquiries } from "@/lib/actions/enquiries";
+import { getAllListingsForAdmin } from "@/lib/actions/admin-listings";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatCard } from "@/components/admin/stat-card";
+import { ChartLineListings } from "@/components/dashboard/chart-line-listings";
+import { ChartOverview } from "@/components/admin/chart-overview";
+import { buildListingsChartData } from "@/lib/chart-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
 import { Users, FileText, Mail, FolderTree } from "lucide-react";
 
 export default async function AdminPage() {
-  const [session, stats, { enquiries: recentEnquiries }] = await Promise.all([
+  const [session, stats, { enquiries: recentEnquiries }, allListings] = await Promise.all([
     getSession(),
     getAdminStats(),
     getAllEnquiries({ page: 1, pageSize: 10 }),
+    getAllListingsForAdmin(),
   ]);
 
-  const totalBrokers = stats.brokersActive + stats.brokersDisabled;
+  const listingsChartData = buildListingsChartData(
+    allListings.map((l) => ({ created_at: l.created_at, status: l.status }))
+  );
+
+  const totalBrokers = stats.brokersActive + stats.brokersPending + stats.brokersDisabled;
   const totalListings =
     stats.listingsPublished + stats.listingsDraft + stats.listingsRemoved;
 
@@ -32,7 +41,11 @@ export default async function AdminPage() {
           label="Brokers"
           value={totalBrokers}
           icon={Users}
-          description={`${stats.brokersActive} active, ${stats.brokersDisabled} disabled`}
+          description={
+            stats.brokersPending > 0
+              ? `${stats.brokersPending} pending, ${stats.brokersActive} active, ${stats.brokersDisabled} disabled`
+              : `${stats.brokersActive} active, ${stats.brokersDisabled} disabled`
+          }
           href="/admin/brokers"
           linkLabel="Manage brokers"
         />
@@ -61,6 +74,17 @@ export default async function AdminPage() {
           linkLabel="Manage categories"
         />
       </div>
+
+      {/* Overview chart: Brokers, Listings, Enquiries, Categories */}
+      <ChartOverview stats={stats} />
+
+      {/* Listings over time chart */}
+      <ChartLineListings
+        data={listingsChartData}
+        footer={{
+          description: "New listings added and status breakdown across all brokers — last 6 months",
+        }}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="shadow-sm">

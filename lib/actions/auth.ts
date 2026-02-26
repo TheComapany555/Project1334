@@ -48,6 +48,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
   await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
+    status: "pending",
     updated_at: new Date().toISOString(),
   });
 
@@ -88,7 +89,38 @@ export async function verifyEmailToken(token: string): Promise<{ ok: boolean; er
     updated_at: new Date().toISOString(),
   }).eq("id", row.user_id);
   await supabase.from("auth_tokens").delete().eq("token", token);
+
+  // Notify admin of new broker signup (pending approval)
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  if (adminEmail) {
+    const { data: user } = await supabase.from("users").select("email").eq("id", row.user_id).single();
+    const brokerEmail = user?.email ?? "(unknown)";
+    const adminDashboardUrl = process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/admin/brokers` : "#";
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: adminEmail,
+      subject: "Salebiz: New broker signup pending approval",
+      html: `
+        <p>A new broker has verified their email and is waiting for approval.</p>
+        <p><strong>Email:</strong> ${brokerEmail}</p>
+        <p><a href="${adminDashboardUrl}">Review and approve in Admin → Brokers</a></p>
+      `,
+    }).catch(() => {});
+  }
+
   return { ok: true };
+}
+
+/** Check if a broker with this email has verified but is pending approval. Used after failed login to show a helpful message. */
+export async function checkBrokerPendingApproval(email: string): Promise<{ pending: boolean }> {
+  const e = email?.toLowerCase().trim();
+  if (!e) return { pending: false };
+  const supabase = createServiceRoleClient();
+  const { data: user } = await supabase.from("users").select("id, email_verified_at").eq("email", e).single();
+  if (!user?.email_verified_at) return { pending: false };
+  const { data: profile } = await supabase.from("profiles").select("status").eq("id", user.id).single();
+  if (!profile || profile.status !== "pending") return { pending: false };
+  return { pending: true };
 }
 
 export async function requestPasswordReset(formData: FormData): Promise<{ ok: boolean; error?: string }> {
