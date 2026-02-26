@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EnquiryForm } from "./enquiry-form";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -238,6 +239,9 @@ export default async function ListingPage({ params }: Props) {
             </CardContent>
           </Card>
         )}
+
+        {/* Enquiry form */}
+        <EnquiryForm listingId={listing.id} />
       </main>
     </div>
   );

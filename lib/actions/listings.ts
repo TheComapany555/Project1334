@@ -147,7 +147,8 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
     `,
       { count: "exact" }
     )
-    .eq("status", "published");
+    .eq("status", "published")
+    .is("admin_removed_at", null);
 
   if (params.keyword?.trim()) {
     const k = params.keyword.trim();
@@ -208,6 +209,7 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
     `)
     .eq("broker_id", brokerId)
     .eq("status", "published")
+    .is("admin_removed_at", null)
     .order("published_at", { ascending: false });
   if (error) return [];
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
@@ -230,6 +232,7 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
     `)
     .eq("slug", slug)
     .eq("status", "published")
+    .is("admin_removed_at", null)
     .single();
   if (error || !data) return null;
   const row = data as Listing & {
