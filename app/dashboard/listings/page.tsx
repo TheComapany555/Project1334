@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { getListingsByBroker } from "@/lib/actions/listings";
+import {
+  getListingsByBroker,
+  getCategories,
+  getListingHighlights,
+} from "@/lib/actions/listings";
 import { getBrokerSlug } from "@/lib/actions/profile";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,15 +15,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ListingsTable } from "@/app/dashboard/listings/listings-table";
-import { PlusIcon, Building2Icon, CheckCircleIcon, ClockIcon } from "lucide-react";
-// or use lucide-react if that's your icon library:
-// import { Plus, Store, CheckCircle2, Clock } from "lucide-react";
+import { BrokerListingsWithFilter } from "@/app/dashboard/listings/broker-listings-filter";
+import { PlusIcon, Building2Icon } from "lucide-react";
 
 export default async function ListingsPage() {
-  const [listings, brokerSlug] = await Promise.all([
+  const [listings, brokerSlug, categories, highlights] = await Promise.all([
     getListingsByBroker(),
     getBrokerSlug(),
+    getCategories(),
+    getListingHighlights(),
   ]);
 
   // Derive quick stats from listings
@@ -118,8 +122,10 @@ export default async function ListingsPage() {
             /* ── Table ── */
             <div className="overflow-x-auto">
               <div className="min-w-full px-4 sm:px-6 pt-4 pb-6">
-                <ListingsTable
+                <BrokerListingsWithFilter
                   listings={listings}
+                  categories={categories}
+                  highlights={highlights}
                   brokerSlug={brokerSlug ?? undefined}
                 />
               </div>

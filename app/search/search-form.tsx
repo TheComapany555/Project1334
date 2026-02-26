@@ -13,16 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Category } from "@/lib/types/listings";
+import type { Category, ListingHighlight } from "@/lib/types/listings";
 
 type SortOption = { value: string; label: string };
 
 type Props = {
   categories: Category[];
+  highlights: ListingHighlight[];
   sortOptions: readonly SortOption[];
   defaultValues: {
     q: string;
     category: string;
+    highlight: string;
     state: string;
     suburb: string;
     price_min: string;
@@ -35,10 +37,11 @@ type Props = {
   };
 };
 
-export function SearchForm({ categories, defaultValues, sortOptions }: Props) {
+export function SearchForm({ categories, highlights, defaultValues, sortOptions }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [category, setCategory] = useState(defaultValues.category || "");
+  const [highlight, setHighlight] = useState(defaultValues.highlight || "");
   const [sort, setSort] = useState(defaultValues.sort || "newest");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -58,6 +61,7 @@ export function SearchForm({ categories, defaultValues, sortOptions }: Props) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (category && category !== "_any") params.set("category", category);
+    if (highlight && highlight !== "_any") params.set("highlight", highlight);
     if (state) params.set("state", state);
     if (suburb) params.set("suburb", suburb);
     if (price_min) params.set("price_min", price_min);
@@ -98,6 +102,22 @@ export function SearchForm({ categories, defaultValues, sortOptions }: Props) {
               {categories.map((c) => (
                 <SelectItem key={c.id} value={c.slug}>
                   {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="search-highlight">Tag</Label>
+          <Select value={highlight || "_any"} onValueChange={(v) => setHighlight(v === "_any" ? "" : v)}>
+            <SelectTrigger id="search-highlight">
+              <SelectValue placeholder="All tags" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_any">All tags</SelectItem>
+              {highlights.map((h) => (
+                <SelectItem key={h.id} value={h.id}>
+                  {h.label}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -150,6 +150,24 @@ export function SearchResults({
                     )}
                   </div>
 
+                  {listing.listing_highlights && listing.listing_highlights.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {listing.listing_highlights.slice(0, 4).map((h) => (
+                        <span
+                          key={h.id}
+                          className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        >
+                          {h.label}
+                        </span>
+                      ))}
+                      {listing.listing_highlights.length > 4 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          +{listing.listing_highlights.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <Separator />
 
                   <div className="flex items-center justify-between mt-auto">

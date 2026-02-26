@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
-import { searchListings, getCategories } from "@/lib/actions/listings";
+import { searchListings, getCategories, getListingHighlights } from "@/lib/actions/listings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -42,6 +42,7 @@ function parseStr(v: string | string[] | undefined): string | undefined {
 /** Count how many filter fields (beyond keyword + sort) are active */
 function countActiveFilters(p: {
   category?: string;
+  highlight?: string;
   state?: string;
   suburb?: string;
   price_min?: number;
@@ -53,6 +54,7 @@ function countActiveFilters(p: {
 }) {
   return [
     p.category,
+    p.highlight,
     p.state,
     p.suburb,
     p.price_min,
@@ -69,6 +71,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   const keyword = parseStr(params.q);
   const category = parseStr(params.category);
+  const highlight = parseStr(params.highlight);
   const state = parseStr(params.state);
   const suburb = parseStr(params.suburb);
   const price_min = parseNum(params.price_min);
@@ -82,10 +85,11 @@ export default async function SearchPage({ searchParams }: Props) {
     "newest";
   const page = Math.max(1, parseNum(params.page) ?? 1);
 
-  const [result, categories] = await Promise.all([
+  const [result, categories, highlights] = await Promise.all([
     searchListings({
       keyword: keyword ?? null,
       category: category ?? null,
+      highlight_id: highlight ?? null,
       state: state ?? null,
       suburb: suburb ?? null,
       price_min: price_min ?? null,
@@ -99,11 +103,13 @@ export default async function SearchPage({ searchParams }: Props) {
       page_size: PAGE_SIZE,
     }),
     getCategories(),
+    getListingHighlights(),
   ]);
 
   const formValues = {
     q: keyword ?? "",
     category: category ?? "",
+    highlight: highlight ?? "",
     state: state ?? "",
     suburb: suburb ?? "",
     price_min: price_min != null ? String(price_min) : "",
@@ -117,6 +123,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   const activeFilters = countActiveFilters({
     category,
+    highlight,
     state,
     suburb,
     price_min,
@@ -196,6 +203,11 @@ export default async function SearchPage({ searchParams }: Props) {
                       {activeFilters} filter{activeFilters > 1 ? "s" : ""} active
                     </Badge>
                   )}
+                  {highlight && highlights.find((h) => h.id === highlight) && (
+                    <Badge variant="secondary" className="gap-1">
+                      Tag: {highlights.find((h) => h.id === highlight)?.label}
+                    </Badge>
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {result.total === 0
                       ? "No results"
@@ -211,6 +223,7 @@ export default async function SearchPage({ searchParams }: Props) {
           {/* ── Search form ── */}
           <SearchForm
             categories={categories}
+            highlights={highlights}
             defaultValues={formValues}
             sortOptions={SORT_OPTIONS}
           />

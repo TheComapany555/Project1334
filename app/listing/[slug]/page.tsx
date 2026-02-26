@@ -131,17 +131,23 @@ export default async function ListingPage({ params }: Props) {
           </Card>
         )}
 
-        {/* Highlights */}
+        {/* Tags / Highlights */}
         {highlights.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {highlights.map((h) => (
-              <Badge
-                key={h.id}
-                variant={h.accent === "warning" ? "warning" : h.accent === "primary" ? "default" : "secondary"}
-              >
-                {h.label}
-              </Badge>
-            ))}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Tags
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {highlights.map((h) => (
+                <Badge
+                  key={h.id}
+                  variant={h.accent === "warning" ? "warning" : h.accent === "primary" ? "default" : "secondary"}
+                  className="border-0"
+                >
+                  {h.label}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
 

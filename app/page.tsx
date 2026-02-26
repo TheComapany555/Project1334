@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
-import { searchListings } from "@/lib/actions/listings";
+import { searchListings, getListingHighlights } from "@/lib/actions/listings";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,17 +74,17 @@ const FEATURES = [
 
 // ─── Page (Server Component) ───────────────────────────────────────────────────
 export default async function HomePage() {
-  const [session, searchResult] = await Promise.all([
+  const [session, searchResult, highlights] = await Promise.all([
     getSession(),
     searchListings({ sort: "newest", page: 1, page_size: 8 }),
+    getListingHighlights(),
   ]);
   const recentListings = searchResult.listings;
 
   return (
-    <>
-      <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-top">
           <div className="container flex h-14 sm:h-16 items-center justify-between gap-2 px-4 sm:px-6 max-w-7xl mx-auto">
 
@@ -335,25 +335,39 @@ export default async function HomePage() {
 
           {/* ── Recent listings ─────────────────────────────────────────────── */}
           <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-16 md:py-20">
-            <div className="flex items-end justify-between gap-4 mb-6 sm:mb-8">
-              <div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-[#1a5c38] dark:text-[#4ade80] mb-1 sm:mb-1.5">
-                  Latest opportunities
-                </p>
-                <h2 className="text-xl font-bold tracking-tight sm:text-3xl">
-                  Recently listed
-                </h2>
+            <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-[#1a5c38] dark:text-[#4ade80] mb-1 sm:mb-1.5">
+                    Latest opportunities
+                  </p>
+                  <h2 className="text-xl font-bold tracking-tight sm:text-3xl">
+                    Recently listed
+                  </h2>
+                </div>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="btn-spring shrink-0 text-[#1a5c38] dark:text-[#4ade80] hover:text-[#144a2d] dark:hover:text-[#22c55e] text-xs sm:text-sm px-2 sm:px-3"
+                >
+                  <Link href="/search" className="flex items-center gap-0.5">
+                    View all <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="btn-spring shrink-0 text-[#1a5c38] dark:text-[#4ade80] hover:text-[#144a2d] dark:hover:text-[#22c55e] text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <Link href="/search" className="flex items-center gap-0.5">
-                  View all <ChevronRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              {highlights.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs text-muted-foreground self-center mr-1">Filter by tag:</span>
+                  {highlights.map((h) => (
+                    <Button key={h.id} variant="outline" size="sm" className="h-8 text-xs rounded-full" asChild>
+                      <Link href={`/search?highlight=${encodeURIComponent(h.id)}`}>
+                        {h.label}
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {recentListings.length > 0 ? (
@@ -400,6 +414,18 @@ export default async function HomePage() {
                                   <MapPin className="h-3 w-3 shrink-0" />
                                   {location}
                                 </p>
+                              )}
+                              {listing.listing_highlights && listing.listing_highlights.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {listing.listing_highlights.slice(0, 3).map((h) => (
+                                    <span
+                                      key={h.id}
+                                      className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                    >
+                                      {h.label}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
                               <div className="mt-auto pt-2.5 flex items-center justify-between border-t border-border/40 mt-2.5">
                                 <p className="text-sm font-bold text-foreground">{formatPrice(listing)}</p>
@@ -457,6 +483,18 @@ export default async function HomePage() {
                                 <MapPin className="h-3 w-3 shrink-0" />
                                 {location}
                               </p>
+                            )}
+                            {listing.listing_highlights && listing.listing_highlights.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {listing.listing_highlights.slice(0, 4).map((h) => (
+                                  <span
+                                    key={h.id}
+                                    className="inline-flex rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                  >
+                                    {h.label}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                             <div className="mt-auto pt-3 flex items-center justify-between border-t border-border/40 mt-3">
                               <p className="text-base font-bold text-foreground">{formatPrice(listing)}</p>
@@ -642,13 +680,15 @@ export default async function HomePage() {
             <Separator className="mt-8 sm:mt-10 mb-5 opacity-50" />
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground text-center sm:text-left">
+              <p
+                className="text-xs text-muted-foreground text-center sm:text-left"
+                suppressHydrationWarning
+              >
                 © {new Date().getFullYear()} Salebiz.com.au. All rights reserved.
               </p>
             </div>
           </div>
         </footer>
-      </div>
-    </>
+    </div>
   );
 }
