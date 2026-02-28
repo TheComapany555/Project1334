@@ -97,7 +97,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
               <Link href="/dashboard" className="flex items-center gap-2">
                 <Image
-                  src="/Salebiz.png"
+                  src="/Salebizsvg.svg"
                   alt="Salebiz"
                   width={100}
                   height={30}

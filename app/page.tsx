@@ -95,7 +95,7 @@ export default async function HomePage() {
               aria-label="Salebiz home"
             >
               <Image
-                src="/Salebiz.png"
+                src="/Salebizsvg.svg"
                 alt="Salebiz"
                 width={120}
                 height={36}
@@ -170,7 +170,7 @@ export default async function HomePage() {
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border/50">
                       <Image
-                        src="/Salebiz.png"
+                        src="/Salebizsvg.svg"
                         alt="Salebiz"
                         width={110}
                         height={33}
@@ -632,7 +632,7 @@ export default async function HomePage() {
               <div className="xs:col-span-2 sm:col-span-1 flex flex-col gap-3">
                 <Link href="/" aria-label="Salebiz home" className="transition-opacity duration-200 hover:opacity-75 w-fit">
                   <Image
-                    src="/Salebiz.png"
+                    src="/Salebizsvg.svg"
                     alt="Salebiz"
                     width={110}
                     height={33}

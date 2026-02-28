@@ -15,7 +15,7 @@
 
 ## Logo
 
-- **Location:** `public/Salebiz.png` (used in header, auth pages, and dashboard sidebars).
+- **Location:** `public/Salebizsvg.svg` (used in header, auth pages, and dashboard sidebars).
 - **Minimum size:** 120px width for header; 32px height for favicon/small use.
 - **Backgrounds:** Logo is used across light and dark UI; for dark backgrounds consider an inverted/white variant if needed.
 

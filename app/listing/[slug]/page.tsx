@@ -65,7 +65,7 @@ export default async function ListingPage({ params }: Props) {
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-3xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
-            <Image src="/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
+            <Image src="/Salebizsvg.svg" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
