@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   LayoutDashboard,
@@ -11,6 +13,7 @@ import {
   FileIcon,
   MailIcon,
   LogoutIcon,
+  ExternalLink,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -82,6 +85,7 @@ function UserAvatar({
 }
 
 export function AppSidebar({ user }: { user: SidebarUser }) {
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const pathname = usePathname();
   const displayName = user.name?.trim() || user.email || "Account";
 
@@ -90,10 +94,10 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" tooltip="Salebiz Broker">
+            <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
               <Link href="/dashboard" className="flex items-center gap-2">
                 <Image
-                  src="/Salebiz.png"
+                  src="/Salebizsvg.svg"
                   alt="Salebiz"
                   width={100}
                   height={30}
@@ -115,19 +119,19 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                   ? pathname === "/dashboard"
                   : pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={item.label}
-                  >
-                    <Link href={item.href} prefetch={false}>
-                      <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -176,20 +180,38 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                 </DropdownMenuItem>
                 {user.profileSlug && (
                   <DropdownMenuItem asChild>
-                    <Link href={`/broker/${encodeURIComponent(user.profileSlug)}`} target="_blank" rel="noopener noreferrer">
-                      <HugeiconsIcon icon={UserIcon} strokeWidth={2} className="size-4" />
+                    <Link
+                      href={`/broker/${encodeURIComponent(user.profileSlug)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <HugeiconsIcon icon={ExternalLink} strokeWidth={2} className="size-4" />
                       View public profile
                     </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => signOut({ callbackUrl: "/" })}>
+                <DropdownMenuItem variant="destructive" onSelect={() => setLogoutOpen(true)}>
                   <HugeiconsIcon icon={LogoutIcon} strokeWidth={2} className="size-4" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
+          {user.profileSlug && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="View public profile">
+                <Link
+                  href={`/broker/${encodeURIComponent(user.profileSlug)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <HugeiconsIcon icon={ExternalLink} strokeWidth={2} />
+                  <span>View public profile</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <div className="flex w-full items-center gap-2 p-2">
               <ThemeSwitcher />
@@ -198,6 +220,11 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
     </Sidebar>
   );
 }

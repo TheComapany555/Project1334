@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EnquiryForm } from "./enquiry-form";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -64,7 +65,7 @@ export default async function ListingPage({ params }: Props) {
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-3xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
-            <Image src="/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
+            <Image src="/Salebizsvg.svg" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
@@ -130,17 +131,23 @@ export default async function ListingPage({ params }: Props) {
           </Card>
         )}
 
-        {/* Highlights */}
+        {/* Tags / Highlights */}
         {highlights.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {highlights.map((h) => (
-              <Badge
-                key={h.id}
-                variant={h.accent === "warning" ? "destructive" : h.accent === "primary" ? "default" : "secondary"}
-              >
-                {h.label}
-              </Badge>
-            ))}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Tags
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {highlights.map((h) => (
+                <Badge
+                  key={h.id}
+                  variant={h.accent === "warning" ? "warning" : h.accent === "primary" ? "default" : "secondary"}
+                  className="border-0"
+                >
+                  {h.label}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
 
@@ -238,6 +245,9 @@ export default async function ListingPage({ params }: Props) {
             </CardContent>
           </Card>
         )}
+
+        {/* Enquiry form */}
+        <EnquiryForm listingId={listing.id} />
       </main>
     </div>
   );
