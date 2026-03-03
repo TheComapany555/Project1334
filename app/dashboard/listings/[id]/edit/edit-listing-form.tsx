@@ -140,7 +140,7 @@ export function EditListingForm({ listing }: Props) {
     setSaving(false);
     if (result.ok) {
       toast.success("Listing updated.");
-      router.refresh();
+      router.replace("/dashboard/listings");
     } else {
       toast.error(result.error ?? "Failed to update.");
     }

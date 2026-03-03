@@ -53,7 +53,7 @@ export async function getListingHighlights(): Promise<ListingHighlight[]> {
   return (data ?? []) as ListingHighlight[];
 }
 
-export async function getListingsByBroker(): Promise<Listing[]> {
+export async function getListingsByBroker(): Promise<(Listing & { listing_highlights?: ListingHighlight[] })[]> {
   const { userId } = await requireBroker();
   const supabase = createServiceRoleClient();
   const { data: listings, error } = await supabase
@@ -67,10 +67,32 @@ export async function getListingsByBroker(): Promise<Listing[]> {
     .order("updated_at", { ascending: false });
   if (error) return [];
   const list = (listings ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  const listingIds = list.map((l) => l.id);
+  const highlightsByListing: Record<string, ListingHighlight[]> = {};
+  if (listingIds.length > 0) {
+    const { data: mapRows } = await supabase
+      .from("listing_highlight_map")
+      .select("listing_id, highlight_id")
+      .in("listing_id", listingIds);
+    const highlightIds = [...new Set((mapRows ?? []).map((r) => r.highlight_id))];
+    const { data: highlights } = await supabase
+      .from("listing_highlights")
+      .select("id, label, accent, active")
+      .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
+    const highlightMap = new Map((highlights ?? []).map((h) => [h.id, h as ListingHighlight]));
+    for (const row of mapRows ?? []) {
+      const h = highlightMap.get(row.highlight_id);
+      if (h) {
+        if (!highlightsByListing[row.listing_id]) highlightsByListing[row.listing_id] = [];
+        highlightsByListing[row.listing_id].push(h);
+      }
+    }
+  }
   return list.map((l) => ({
     ...l,
     listing_images: l.listing_images ?? [],
     category: l.category ?? null,
+    listing_highlights: highlightsByListing[l.id] ?? [],
   }));
 }
 
@@ -109,6 +131,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
 export type SearchListingsParams = {
   keyword?: string | null;
   category?: string | null;
+  highlight_id?: string | null;
   state?: string | null;
   suburb?: string | null;
   price_min?: number | null;
@@ -147,7 +170,8 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
     `,
       { count: "exact" }
     )
-    .eq("status", "published");
+    .eq("status", "published")
+    .is("admin_removed_at", null);
 
   if (params.keyword?.trim()) {
     const k = params.keyword.trim();
@@ -163,6 +187,17 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       .eq("active", true)
       .single();
     if (cat?.id) query = query.eq("category_id", cat.id);
+  }
+  if (params.highlight_id?.trim()) {
+    const { data: mapRows } = await supabase
+      .from("listing_highlight_map")
+      .select("listing_id")
+      .eq("highlight_id", params.highlight_id.trim());
+    const listingIds = (mapRows ?? []).map((r) => r.listing_id);
+    if (listingIds.length === 0) {
+      return { listings: [], total: 0, page, page_size: pageSize, total_pages: 0 };
+    }
+    query = query.in("id", listingIds);
   }
   if (params.state?.trim()) query = query.eq("state", params.state.trim());
   if (params.suburb?.trim()) query = query.ilike("suburb", `%${params.suburb.trim()}%`);
@@ -181,10 +216,32 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   const total = count ?? 0;
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  const listingIds = list.map((l) => l.id);
+
+  const highlightsByListing: Record<string, ListingHighlight[]> = {};
+  if (listingIds.length > 0) {
+    const { data: mapRows } = await supabase
+      .from("listing_highlight_map")
+      .select("listing_id, highlight_id")
+      .in("listing_id", listingIds);
+    const highlightIds = [...new Set((mapRows ?? []).map((r) => r.highlight_id))];
+    const { data: highlights } = await supabase
+      .from("listing_highlights")
+      .select("id, label, accent, active")
+      .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
+    const highlightMap = new Map((highlights ?? []).map((h) => [h.id, h as ListingHighlight]));
+    for (const row of mapRows ?? []) {
+      const h = highlightMap.get(row.highlight_id);
+      if (h && !highlightsByListing[row.listing_id]) highlightsByListing[row.listing_id] = [];
+      if (h) highlightsByListing[row.listing_id].push(h);
+    }
+  }
+
   const listings = list.map((l) => ({
     ...l,
     listing_images: l.listing_images ?? [],
     category: l.category ?? null,
+    listing_highlights: highlightsByListing[l.id] ?? [],
   }));
 
   return {
@@ -208,6 +265,7 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
     `)
     .eq("broker_id", brokerId)
     .eq("status", "published")
+    .is("admin_removed_at", null)
     .order("published_at", { ascending: false });
   if (error) return [];
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
@@ -230,6 +288,7 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
     `)
     .eq("slug", slug)
     .eq("status", "published")
+    .is("admin_removed_at", null)
     .single();
   if (error || !data) return null;
   const row = data as Listing & {

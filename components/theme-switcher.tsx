@@ -32,7 +32,7 @@ export function ThemeSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Toggle theme">
+        <Button variant="outline" size="icon-sm" aria-label="Toggle theme">
           {resolvedTheme === "dark" ? (
             <HugeiconsIcon icon={MoonIcon} strokeWidth={2} className="size-4" />
           ) : (

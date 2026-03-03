@@ -26,10 +26,11 @@ export const authOptions: NextAuthOptions = {
         if (!userRow.email_verified_at) return null;
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, status")
           .eq("id", userRow.id)
           .single();
         const role = (profile?.role as "broker" | "admin") ?? "broker";
+        if (role === "broker" && profile?.status !== "active") return null;
         return {
           id: userRow.id,
           email: userRow.email,
@@ -68,6 +69,7 @@ export const authOptions: NextAuthOptions = {
         await supabase.from("profiles").insert({
           id: user.id,
           role: "broker",
+          status: "pending",
           updated_at: new Date().toISOString(),
         });
       }

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   LayoutDashboard,
@@ -83,6 +85,7 @@ function UserAvatar({
 }
 
 export function AdminAppSidebar({ user }: { user: SidebarUser }) {
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const pathname = usePathname();
   const displayName = user.name?.trim() || user.email || "Account";
 
@@ -94,7 +97,7 @@ export function AdminAppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz Admin">
               <Link href="/admin" className="flex items-center gap-2">
                 <Image
-                  src="/Salebiz.png"
+                  src="/Salebizsvg.svg"
                   alt="Salebiz"
                   width={100}
                   height={30}
@@ -182,7 +185,7 @@ export function AdminAppSidebar({ user }: { user: SidebarUser }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => signOut({ callbackUrl: "/" })}>
+                <DropdownMenuItem variant="destructive" onSelect={() => setLogoutOpen(true)}>
                   <HugeiconsIcon icon={LogoutIcon} strokeWidth={2} className="size-4" />
                   Sign out
                 </DropdownMenuItem>
@@ -205,6 +208,11 @@ export function AdminAppSidebar({ user }: { user: SidebarUser }) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <LogoutConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => signOut({ callbackUrl: "/" })}
+      />
     </Sidebar>
   );
 }

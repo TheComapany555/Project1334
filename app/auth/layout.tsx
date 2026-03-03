@@ -17,7 +17,7 @@ export default function AuthLayout({
         <ThemeSwitcher />
       </div>
       <Link href="/" className="mb-6 shrink-0" aria-label="Salebiz home">
-        <Image src="/Salebiz.png" alt="Salebiz" width={140} height={42} className="h-9 w-auto object-contain sm:h-10" priority />
+        <Image src="/Salebizsvg.svg" alt="Salebiz" width={140} height={42} className="h-9 w-auto object-contain sm:h-10" priority />
       </Link>
       <div className="w-full max-w-md min-w-0">{children}</div>
     </div>

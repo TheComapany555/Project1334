@@ -181,11 +181,8 @@ export default function NewListingPage() {
       }
     }
     setSubmitting(false);
-    if (result.ok) {
-      toast.success(isDraft ? "Draft saved." : "Listing published.");
-      router.push(listingId ? `/dashboard/listings/${listingId}/edit` : "/dashboard/listings");
-      router.refresh();
-    }
+    toast.success(isDraft ? "Draft saved." : "Listing published.");
+    router.replace("/dashboard/listings");
   }
 
   if (loading) {
