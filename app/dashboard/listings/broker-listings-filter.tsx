@@ -9,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import { ListingsTable } from "@/app/dashboard/listings/listings-table";
 
 const STATUS_OPTIONS: { value: "" | ListingStatus; label: string }[] = [
@@ -36,6 +43,8 @@ export function BrokerListingsWithFilter({
   const [statusFilter, setStatusFilter] = useState<"" | ListingStatus>("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [highlightFilter, setHighlightFilter] = useState("");
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [highlightQuery, setHighlightQuery] = useState("");
 
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
@@ -51,12 +60,12 @@ export function BrokerListingsWithFilter({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
         <Select
           value={statusFilter || "_all"}
           onValueChange={(v) => setStatusFilter((v === "_all" ? "" : v) as "" | ListingStatus)}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -67,40 +76,64 @@ export function BrokerListingsWithFilter({
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={categoryFilter || "_all"}
-          onValueChange={(v) => setCategoryFilter(v === "_all" ? "" : v)}
+        <Combobox
+          value={categoryFilter || ""}
+          onValueChange={(v) => setCategoryFilter(v ?? "")}
+          onInputValueChange={(v, details) => {
+            setCategoryQuery(details.reason === "input-change" ? v : "");
+          }}
+          itemToStringLabel={(v: string) => {
+            if (!v) return "All categories";
+            return categories.find((c) => c.id === v)?.name ?? v;
+          }}
         >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_all">All categories</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={highlightFilter || "_all"}
-          onValueChange={(v) => setHighlightFilter(v === "_all" ? "" : v)}
+          <ComboboxInput placeholder="All categories" className="w-full sm:w-[180px]" />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxItem value="">All categories</ComboboxItem>
+              {categories
+                .filter((c) => !categoryQuery || c.name.toLowerCase().includes(categoryQuery.toLowerCase()))
+                .map((c) => (
+                  <ComboboxItem key={c.id} value={c.id}>
+                    {c.name}
+                  </ComboboxItem>
+                ))}
+            </ComboboxList>
+            {categoryQuery && categories.filter((c) => c.name.toLowerCase().includes(categoryQuery.toLowerCase())).length === 0 && (
+              <p className="text-muted-foreground py-2 text-center text-sm">No categories found</p>
+            )}
+          </ComboboxContent>
+        </Combobox>
+        <Combobox
+          value={highlightFilter || ""}
+          onValueChange={(v) => setHighlightFilter(v ?? "")}
+          onInputValueChange={(v, details) => {
+            setHighlightQuery(details.reason === "input-change" ? v : "");
+          }}
+          itemToStringLabel={(v: string) => {
+            if (!v) return "All tags";
+            return highlights.find((h) => h.id === v)?.label ?? v;
+          }}
         >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Tag" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_all">All tags</SelectItem>
-            {highlights.map((h) => (
-              <SelectItem key={h.id} value={h.id}>
-                {h.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <ComboboxInput placeholder="All tags" className="w-full sm:w-[160px]" />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxItem value="">All tags</ComboboxItem>
+              {highlights
+                .filter((h) => !highlightQuery || h.label.toLowerCase().includes(highlightQuery.toLowerCase()))
+                .map((h) => (
+                  <ComboboxItem key={h.id} value={h.id}>
+                    {h.label}
+                  </ComboboxItem>
+                ))}
+            </ComboboxList>
+            {highlightQuery && highlights.filter((h) => h.label.toLowerCase().includes(highlightQuery.toLowerCase())).length === 0 && (
+              <p className="text-muted-foreground py-2 text-center text-sm">No tags found</p>
+            )}
+          </ComboboxContent>
+        </Combobox>
         {(statusFilter || categoryFilter || highlightFilter) && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground text-center sm:text-left">
             Showing {filteredListings.length} of {listings.length}
           </span>
         )}

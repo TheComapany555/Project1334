@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/admin/page-header";
 import { BrokerListingsWithFilter } from "@/app/dashboard/listings/broker-listings-filter";
 import { PlusIcon, Building2Icon } from "lucide-react";
 
@@ -34,29 +35,22 @@ export default async function ListingsPage() {
   return (
     <div className="space-y-8">
 
-      {/* ── Page header ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Listings
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create, publish, and manage your business listings.
-          </p>
-        </div>
-
-        <Button asChild className="w-full sm:w-auto gap-1.5">
-          <Link href="/dashboard/listings/new">
-            {/* swap icon import to match your icon library */}
-            <PlusIcon className="h-4 w-4" />
-            Add listing
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Listings"
+        description="Create, publish, and manage your business listings."
+        action={
+          <Button asChild className="w-full sm:w-auto gap-1.5">
+            <Link href="/dashboard/listings/new">
+              <PlusIcon className="h-4 w-4" />
+              Add listing
+            </Link>
+          </Button>
+        }
+      />
 
       {/* ── Summary stats ── */}
       {total > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="py-4">
             <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
               <span className="text-2xl font-semibold">{total}</span>
@@ -65,13 +59,13 @@ export default async function ListingsPage() {
           </Card>
           <Card className="py-4">
             <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-              <span className="text-2xl font-semibold text-emerald-600">{published}</span>
+              <span className="text-2xl font-semibold text-primary">{published}</span>
               <span className="text-xs text-muted-foreground">Published</span>
             </CardContent>
           </Card>
           <Card className="py-4">
             <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-              <span className="text-2xl font-semibold text-amber-500">{drafts}</span>
+              <span className="text-2xl font-semibold text-[var(--warning)]">{drafts}</span>
               <span className="text-xs text-muted-foreground">Drafts</span>
             </CardContent>
           </Card>

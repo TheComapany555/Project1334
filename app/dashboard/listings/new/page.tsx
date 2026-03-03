@@ -33,6 +33,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
@@ -91,6 +98,7 @@ export default function NewListingPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<{ file: File; url: string }[]>([]);
+  const [categoryQuery, setCategoryQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
@@ -255,17 +263,33 @@ export default function NewListingPage() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select
+                <Combobox
                   value={watch("category_id") ?? ""}
                   onValueChange={(v) => setValue("category_id", v || null)}
+                  onInputValueChange={(v, details) => {
+                    setCategoryQuery(details.reason === "input-change" ? v : "");
+                  }}
+                  itemToStringLabel={(v: string) => {
+                    if (!v) return "";
+                    return categories.find((c) => c.id === v)?.name ?? v;
+                  }}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInput placeholder="Select category" className="w-full" />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      {categories
+                        .filter((c) => !categoryQuery || c.name.toLowerCase().includes(categoryQuery.toLowerCase()))
+                        .map((c) => (
+                          <ComboboxItem key={c.id} value={c.id}>
+                            {c.name}
+                          </ComboboxItem>
+                        ))}
+                    </ComboboxList>
+                    {categoryQuery && categories.filter((c) => c.name.toLowerCase().includes(categoryQuery.toLowerCase())).length === 0 && (
+                      <p className="text-muted-foreground py-2 text-center text-sm">No categories found</p>
+                    )}
+                  </ComboboxContent>
+                </Combobox>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

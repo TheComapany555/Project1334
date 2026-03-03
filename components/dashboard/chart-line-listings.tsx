@@ -69,32 +69,32 @@ export function ChartLineListings({ data, footer }: ChartLineListingsProps) {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-4">
-        <div className="flex items-start justify-between gap-4">
+      <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Listings over time</CardTitle>
-            <CardDescription className="mt-0.5">
-              New listings added and status breakdown — last 6 months
+            <CardTitle className="text-sm">Listings over time</CardTitle>
+            <CardDescription className="mt-0.5 text-xs">
+              Status breakdown — last 6 months
             </CardDescription>
           </div>
           {trendUp !== null && (
             <div
-              className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full shrink-0 ${
+              className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
                 trendUp
                   ? "bg-success/15 text-success dark:bg-success/20"
                   : "bg-muted text-muted-foreground"
               }`}
             >
-              <TrendingUp className={`h-3.5 w-3.5 ${!trendUp ? "rotate-180" : ""}`} />
-              {trendUp ? "Up" : "Down"} this month
+              <TrendingUp className={`h-3 w-3 ${!trendUp ? "rotate-180" : ""}`} />
+              {trendUp ? "Up" : "Down"}
             </div>
           )}
         </div>
       </CardHeader>
 
-      <CardContent className="px-5 pt-5 pb-2">
+      <CardContent className="px-3 pt-3 pb-1">
         {!hasData ? (
-          <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center">
+          <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 text-center">
             <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-muted-foreground/40" />
             </div>
@@ -106,11 +106,11 @@ export function ChartLineListings({ data, footer }: ChartLineListingsProps) {
             </div>
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="min-h-[260px] w-full">
+          <ChartContainer config={chartConfig} className="min-h-[120px] w-full">
             <LineChart
               accessibilityLayer
               data={data}
-              margin={{ top: 12, left: 0, right: 16, bottom: 0 }}
+              margin={{ top: 8, left: 0, right: 8, bottom: 0 }}
             >
               <CartesianGrid
                 vertical={false}
@@ -122,41 +122,41 @@ export function ChartLineListings({ data, footer }: ChartLineListingsProps) {
                 dataKey="month"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={10}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickMargin={8}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                 tickFormatter={(v) =>
                   typeof v === "string" ? v.slice(0, 3) : String(v)
                 }
               />
               <YAxis
-                width={30}
+                width={28}
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickMargin={6}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                 domain={[0, yMax]}
                 allowDecimals={false}
-                tickCount={Math.min(yMax + 1, 6)}
+                tickCount={Math.min(yMax + 1, 5)}
               />
               <ChartTooltip
                 cursor={{ stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" }}
                 content={
                   <ChartTooltipContent
                     indicator="line"
-                    className="rounded-xl shadow-lg border-border/60"
+                    className="rounded-lg shadow-lg border-border/60"
                   />
                 }
               />
-              <ChartLegend content={<ChartLegendContent className="text-xs mt-2" />} />
+              <ChartLegend content={<ChartLegendContent className="text-[10px] mt-1" />} />
               {(["added", "published", "draft", "other"] as const).map((key) => (
                 <Line
                   key={key}
                   dataKey={key}
                   type="monotone"
                   stroke={`var(--color-${key})`}
-                  strokeWidth={2}
-                  dot={{ fill: `var(--color-${key})`, r: 3, strokeWidth: 0 }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--background)" }}
+                  strokeWidth={1.5}
+                  dot={{ fill: `var(--color-${key})`, r: 2, strokeWidth: 0 }}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--background)" }}
                   connectNulls
                 />
               ))}
@@ -166,9 +166,9 @@ export function ChartLineListings({ data, footer }: ChartLineListingsProps) {
       </CardContent>
 
       {(footer?.trend || footer?.description) && (
-        <div className="px-5 pb-4 pt-1 flex flex-col gap-1 border-t border-border/40 mt-2">
+        <div className="px-4 pb-3 pt-1 flex flex-col gap-0.5 border-t border-border/40 mt-1">
           {footer.trend && (
-            <p className="text-sm font-medium leading-none">{footer.trend}</p>
+            <p className="text-xs font-medium leading-none">{footer.trend}</p>
           )}
           {footer.description && (
             <p className="text-xs text-muted-foreground leading-relaxed">

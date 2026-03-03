@@ -1,6 +1,6 @@
 "use client";
 
-import { FilterBar, FilterBarSelect, FilterBarClear } from "@/components/admin/filter-bar";
+import { FilterBar, FilterBarSelect, FilterBarCombobox, FilterBarClear } from "@/components/admin/filter-bar";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 
 const REASON_OPTIONS = Object.entries(ENQUIRY_REASON_LABELS).map(([value, label]) => ({
@@ -20,7 +20,7 @@ export function EnquiriesFilterBar({ brokerOptions }: Props) {
         placeholder="All reasons"
         options={REASON_OPTIONS}
       />
-      <FilterBarSelect
+      <FilterBarCombobox
         paramName="broker_id"
         placeholder="All brokers"
         options={brokerOptions}

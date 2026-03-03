@@ -38,7 +38,7 @@ export function NavMain({
               <SidebarMenuButton
                 asChild
                 tooltip="Add listing"
-                className="h-9 rounded-lg gap-2.5 bg-[#1a5c38] text-white hover:bg-[#144a2d] hover:text-white active:bg-[#144a2d] active:text-white font-medium shadow-sm transition-colors duration-150"
+                className="h-9 rounded-lg gap-2.5 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground font-medium shadow-sm transition-colors duration-150"
               >
                 <Link href="/dashboard/listings/new">
                   <HugeiconsIcon icon={PlusSignCircleIcon} strokeWidth={2} className="size-4 shrink-0" />
@@ -57,7 +57,7 @@ export function NavMain({
                 className={cn(
                   "h-9 rounded-lg gap-2.5 transition-colors duration-150",
                   pathname === "/dashboard/enquiries" || pathname.startsWith("/dashboard/enquiries/")
-                    ? "bg-[#1a5c38]/10 text-[#1a5c38] dark:bg-[#4ade80]/10 dark:text-[#4ade80] font-medium"
+                    ? "bg-primary/10 text-primary font-medium"
                     : "hover:bg-sidebar-accent"
                 )}
               >
@@ -92,7 +92,7 @@ export function NavMain({
                     className={cn(
                       "h-9 rounded-lg gap-2.5 transition-colors duration-150",
                       isActive
-                        ? "bg-[#1a5c38]/10 text-[#1a5c38] dark:bg-[#4ade80]/10 dark:text-[#4ade80] font-medium"
+                        ? "bg-primary/10 text-primary font-medium"
                         : "hover:bg-sidebar-accent"
                     )}
                   >
@@ -100,7 +100,7 @@ export function NavMain({
                       {item.icon}
                       <span>{item.title}</span>
                       {isActive && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#1a5c38] dark:bg-[#4ade80] shrink-0 group-data-[collapsible=icon]:hidden" />
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary shrink-0 group-data-[collapsible=icon]:hidden" />
                       )}
                     </Link>
                   </SidebarMenuButton>

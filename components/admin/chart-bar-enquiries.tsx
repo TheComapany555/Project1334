@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   Card,
   CardContent,
@@ -20,16 +20,15 @@ import type { EnquiriesChartDataPoint } from "@/lib/chart-data";
 const chartConfig = {
   enquiries: {
     label: "Enquiries",
-    color: "var(--primary)",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
-type ChartLineEnquiriesProps = {
+type ChartBarEnquiriesProps = {
   data: EnquiriesChartDataPoint[];
-  footer?: { description?: string };
 };
 
-export function ChartLineEnquiries({ data, footer }: ChartLineEnquiriesProps) {
+export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
   const hasData =
     data.length > 0 && data.some((d) => d.enquiries > 0);
   const yMax = hasData
@@ -40,9 +39,9 @@ export function ChartLineEnquiries({ data, footer }: ChartLineEnquiriesProps) {
     <Card className="shadow-sm">
       <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-3">
         <div>
-          <CardTitle className="text-sm">Enquiries</CardTitle>
+          <CardTitle className="text-sm">Enquiries trend</CardTitle>
           <CardDescription className="mt-0.5 text-xs">
-            Last 6 months
+            Monthly enquiries — last 6 months
           </CardDescription>
         </div>
       </CardHeader>
@@ -56,23 +55,17 @@ export function ChartLineEnquiries({ data, footer }: ChartLineEnquiriesProps) {
             <div>
               <p className="text-sm font-medium text-foreground">No data yet</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Enquiry activity will appear here.
+                Enquiry data will appear here.
               </p>
             </div>
           </div>
         ) : (
           <ChartContainer config={chartConfig} className="min-h-[120px] w-full">
-            <AreaChart
+            <BarChart
               accessibilityLayer
               data={data}
               margin={{ top: 8, left: 0, right: 8, bottom: 0 }}
             >
-              <defs>
-                <linearGradient id="fillEnquiries" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-enquiries)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--color-enquiries)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
               <CartesianGrid
                 vertical={false}
                 strokeDasharray="3 3"
@@ -100,36 +93,23 @@ export function ChartLineEnquiries({ data, footer }: ChartLineEnquiriesProps) {
                 tickCount={Math.min(yMax + 1, 5)}
               />
               <ChartTooltip
-                cursor={{ stroke: "var(--border)", strokeWidth: 1, strokeDasharray: "4 4" }}
+                cursor={{ fill: "var(--muted)", opacity: 0.2 }}
                 content={
                   <ChartTooltipContent
-                    indicator="line"
                     className="rounded-lg shadow-lg border-border/60"
                   />
                 }
               />
-              <Area
+              <Bar
                 dataKey="enquiries"
-                type="monotone"
-                stroke="var(--color-enquiries)"
-                strokeWidth={1.5}
-                fill="url(#fillEnquiries)"
-                dot={{ fill: "var(--color-enquiries)", r: 2.5, strokeWidth: 0 }}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--background)" }}
-                connectNulls
+                fill="var(--color-enquiries)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={24}
               />
-            </AreaChart>
+            </BarChart>
           </ChartContainer>
         )}
       </CardContent>
-
-      {footer?.description && (
-        <div className="px-4 pb-3 pt-1 border-t border-border/40 mt-1">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {footer.description}
-          </p>
-        </div>
-      )}
     </Card>
   );
 }

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { submitEnquiry } from "@/lib/actions/enquiries";
+import { Loader2, CheckCircle2, Send, Mail, User, Phone } from "lucide-react";
 
 const REASON_OPTIONS = [
   { value: "general", label: "General enquiry" },
@@ -57,12 +58,26 @@ export function EnquiryForm({ listingId }: Props) {
   if (submitted) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-2">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+            </div>
+          </div>
           <CardTitle>Enquiry sent</CardTitle>
-          <CardDescription>
+          <CardDescription className="leading-relaxed">
             Thanks for your interest. The broker will contact you using the details you provided.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setSubmitted(false)}
+          >
+            Send another enquiry
+          </Button>
+        </CardContent>
       </Card>
     );
   }
@@ -107,35 +122,57 @@ export function EnquiryForm({ listingId }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="enquiry-name">Your name (optional)</Label>
-              <Input
-                id="enquiry-name"
-                name="contact_name"
-                type="text"
-                placeholder="Name"
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="enquiry-name"
+                  name="contact_name"
+                  type="text"
+                  placeholder="Name"
+                  className="pl-9"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="enquiry-email">Your email *</Label>
-              <Input
-                id="enquiry-email"
-                name="contact_email"
-                type="email"
-                required
-                placeholder="you@example.com"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="enquiry-email"
+                  name="contact_email"
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="enquiry-phone">Phone (optional)</Label>
-            <Input
-              id="enquiry-phone"
-              name="contact_phone"
-              type="tel"
-              placeholder="Phone number"
-            />
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="enquiry-phone"
+                name="contact_phone"
+                type="tel"
+                placeholder="Phone number"
+                className="pl-9"
+              />
+            </div>
           </div>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Sending…" : "Send enquiry"}
+          <Button type="submit" disabled={submitting} className="w-full gap-2">
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending…
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Send enquiry
+              </>
+            )}
           </Button>
         </form>
       </CardContent>

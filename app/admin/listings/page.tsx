@@ -14,8 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/admin/page-header";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { ListingActions } from "./listing-actions";
+import { FileText } from "lucide-react";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-AU", {
@@ -30,12 +32,10 @@ export default async function AdminListingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
-        <p className="text-muted-foreground mt-1">
-          Moderate listings. Removed listings are hidden from search and public pages.
-        </p>
-      </div>
+      <PageHeader
+        title="Listings"
+        description="Moderate listings. Removed listings are hidden from search and public pages."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Moderate listings</CardTitle>
@@ -45,9 +45,15 @@ export default async function AdminListingsPage() {
         </CardHeader>
         <CardContent>
           {listings.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No listings yet.
-            </p>
+            <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                <FileText className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">No listings yet</p>
+                <p className="text-sm text-muted-foreground">Listings will appear here once brokers create them.</p>
+              </div>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -70,25 +76,14 @@ export default async function AdminListingsPage() {
                         {l.broker?.name ?? l.broker?.company ?? "—"}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            l.status === "published"
-                              ? "success"
-                              : l.status === "sold"
-                                ? "destructive"
-                                : l.status === "draft" || l.status === "under_offer"
-                                  ? "warning"
-                                  : "secondary"
-                          }
-                          className="border-0"
-                        >
-                          {l.status.replace("_", " ")}
-                        </Badge>
+                        <StatusBadge status={l.status} className="border-0" />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={isRemoved ? "destructive" : "success"} className="border-0">
-                          {isRemoved ? "Removed" : "Visible"}
-                        </Badge>
+                        <StatusBadge
+                          status={isRemoved ? "removed" : "active"}
+                          label={isRemoved ? "Removed" : "Visible"}
+                          className="border-0"
+                        />
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDate(l.created_at)}

@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/admin/page-header";
 import { CategoriesManager } from "./categories-manager";
 
 export default async function AdminCategoriesPage() {
@@ -13,12 +14,10 @@ export default async function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage listing categories. Inactive categories are hidden from brokers.
-        </p>
-      </div>
+      <PageHeader
+        title="Categories"
+        description="Manage listing categories. Inactive categories are hidden from brokers."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Manage categories</CardTitle>

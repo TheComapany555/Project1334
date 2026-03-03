@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
+import { verificationEmail, passwordResetEmail, adminBrokerSignupEmail } from "@/lib/email-templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -66,7 +67,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
     from: EMAIL_FROM,
     to: email,
     subject: "Verify your Salebiz account",
-    html: getVerificationEmailHtml(verifyUrl, name ?? "there"),
+    html: verificationEmail(verifyUrl, name ?? "there"),
   }).catch(() => {}); // don't block registration if email fails
 
   return { ok: true };
@@ -100,11 +101,7 @@ export async function verifyEmailToken(token: string): Promise<{ ok: boolean; er
       from: EMAIL_FROM,
       to: adminEmail,
       subject: "Salebiz: New broker signup pending approval",
-      html: `
-        <p>A new broker has verified their email and is waiting for approval.</p>
-        <p><strong>Email:</strong> ${brokerEmail}</p>
-        <p><a href="${adminDashboardUrl}">Review and approve in Admin → Brokers</a></p>
-      `,
+      html: adminBrokerSignupEmail(brokerEmail, adminDashboardUrl),
     }).catch(() => {});
   }
 
@@ -149,7 +146,7 @@ export async function requestPasswordReset(formData: FormData): Promise<{ ok: bo
     from: EMAIL_FROM,
     to: email,
     subject: "Reset your Salebiz password",
-    html: getPasswordResetEmailHtml(resetUrl),
+    html: passwordResetEmail(resetUrl),
   }).catch(() => {});
 
   return { ok: true };
@@ -181,33 +178,3 @@ export async function resetPasswordWithToken(
   return { ok: true };
 }
 
-function getVerificationEmailHtml(verifyUrl: string, name: string): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#333;">
-  <p style="color:#024424;font-weight:bold;">Salebiz</p>
-  <p>Hi ${name},</p>
-  <p>Please verify your email by clicking the link below:</p>
-  <p><a href="${verifyUrl}" style="color:#024424;">Verify my email</a></p>
-  <p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
-  <p style="color:#666;font-size:12px;">Salebiz.com.au</p>
-</body>
-</html>`;
-}
-
-function getPasswordResetEmailHtml(resetUrl: string): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#333;">
-  <p style="color:#024424;font-weight:bold;">Salebiz</p>
-  <p>You requested a password reset. Click the link below to set a new password:</p>
-  <p><a href="${resetUrl}" style="color:#024424;">Reset password</a></p>
-  <p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
-  <p style="color:#666;font-size:12px;">Salebiz.com.au</p>
-</body>
-</html>`;
-}

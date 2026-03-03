@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
 const brokerNav = [
@@ -52,38 +53,6 @@ type SidebarUser = {
   photoUrl?: string | null;
 };
 
-function UserAvatar({
-  name,
-  email,
-  photoUrl,
-  className,
-}: {
-  name: string | null;
-  email: string;
-  photoUrl?: string | null;
-  className?: string;
-}) {
-  if (photoUrl) {
-    return (
-      <span className={cn("relative flex size-8 shrink-0 overflow-hidden rounded-full", className)}>
-        <Image src={photoUrl} alt="" fill className="object-cover" unoptimized />
-      </span>
-    );
-  }
-  const initial = (name?.trim() || email).charAt(0).toUpperCase();
-  return (
-    <span
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-sm font-medium",
-        className
-      )}
-      aria-hidden
-    >
-      {initial}
-    </span>
-  );
-}
-
 export function AppSidebar({ user }: { user: SidebarUser }) {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const pathname = usePathname();
@@ -97,7 +66,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
               <Link href="/dashboard" className="flex items-center gap-2">
                 <Image
-                  src="/Salebizsvg.svg"
+                  src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                   alt="Salebiz"
                   width={100}
                   height={30}

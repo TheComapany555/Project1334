@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ChartLineEnquiries } from "@/components/dashboard/chart-line-enquiries";
+import { PageHeader } from "@/components/admin/page-header";
 import { EnquiriesTable } from "./enquiries-table";
 import { Inbox } from "lucide-react";
 
@@ -27,30 +28,27 @@ export default async function EnquiriesPage() {
   const enquiriesChartData = buildEnquiriesChartData(enquiries);
 
   return (
-    <div className="space-y-8">
-      {/* ── Page header ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Enquiries
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Messages from buyers interested in your listings.
-          </p>
-        </div>
-        {total > 0 && newThisWeek > 0 && (
-          <Badge className="w-fit sm:mt-1 gap-1.5" variant="success">
-            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80 animate-pulse" />
-            {newThisWeek} new this week
-          </Badge>
-        )}
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Enquiries"
+        description="Messages from buyers interested in your listings."
+        action={
+          total > 0 && newThisWeek > 0 ? (
+            <Badge className="w-fit gap-1.5" variant="success">
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80 animate-pulse" />
+              {newThisWeek} new this week
+            </Badge>
+          ) : undefined
+        }
+      />
 
       {/* ── Enquiries chart ── */}
-      <ChartLineEnquiries
-        data={enquiriesChartData}
-        footer={{ description: "Enquiries received per month — last 6 months" }}
-      />
+      <div className="max-w-xl">
+        <ChartLineEnquiries
+          data={enquiriesChartData}
+          footer={{ description: "Enquiries received per month — last 6 months" }}
+        />
+      </div>
 
       {/* ── Main card with list + detail sidebar ── */}
       <Card>

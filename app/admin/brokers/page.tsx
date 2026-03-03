@@ -14,8 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/admin/page-header";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { BrokerActions } from "./broker-actions";
+import { Users } from "lucide-react";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-AU", {
@@ -30,12 +32,10 @@ export default async function AdminBrokersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Brokers</h1>
-        <p className="text-muted-foreground mt-1">
-          Approve new signups, or enable/disable broker access. Pending and disabled brokers cannot sign in.
-        </p>
-      </div>
+      <PageHeader
+        title="Brokers"
+        description="Approve new signups, or enable/disable broker access. Pending and disabled brokers cannot sign in."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Manage brokers</CardTitle>
@@ -45,9 +45,15 @@ export default async function AdminBrokersPage() {
         </CardHeader>
         <CardContent>
           {brokers.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No brokers yet.
-            </p>
+            <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                <Users className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">No brokers yet</p>
+                <p className="text-sm text-muted-foreground">Brokers will appear here once they sign up.</p>
+              </div>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -67,18 +73,7 @@ export default async function AdminBrokersPage() {
                     <TableCell>{b.name ?? "—"}</TableCell>
                     <TableCell>{b.company ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          b.status === "active"
-                            ? "success"
-                            : b.status === "pending"
-                              ? "warning"
-                              : "secondary"
-                        }
-                        className="border-0"
-                      >
-                        {b.status === "active" ? "Active" : b.status === "pending" ? "Pending" : "Disabled"}
-                      </Badge>
+                      <StatusBadge status={b.status} className="border-0" />
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDate(b.created_at)}

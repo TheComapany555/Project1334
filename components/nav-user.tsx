@@ -59,9 +59,9 @@ export function NavUser({
                 "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               )}
             >
-              <Avatar className="h-8 w-8 rounded-full ring-2 ring-[#1a5c38]/20 dark:ring-[#4ade80]/20 shrink-0">
+              <Avatar className="h-8 w-8 rounded-full ring-2 ring-primary/20 shrink-0">
                 <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="rounded-full bg-[#1a5c38]/15 text-[#1a5c38] dark:bg-[#4ade80]/15 dark:text-[#4ade80] text-sm font-semibold">
+                <AvatarFallback className="rounded-full bg-primary/15 text-primary text-sm font-semibold">
                   {initial}
                 </AvatarFallback>
               </Avatar>
@@ -88,9 +88,9 @@ export function NavUser({
             {/* User info header */}
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-3 px-3 py-3">
-                <Avatar className="h-10 w-10 rounded-full ring-2 ring-[#1a5c38]/20 dark:ring-[#4ade80]/20 shrink-0">
+                <Avatar className="h-10 w-10 rounded-full ring-2 ring-primary/20 shrink-0">
                   <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                  <AvatarFallback className="rounded-full bg-[#1a5c38]/15 text-[#1a5c38] dark:bg-[#4ade80]/15 dark:text-[#4ade80] font-semibold">
+                  <AvatarFallback className="rounded-full bg-primary/15 text-primary font-semibold">
                     {initial}
                   </AvatarFallback>
                 </Avatar>

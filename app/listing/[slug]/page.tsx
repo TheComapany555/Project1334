@@ -3,8 +3,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getListingBySlug } from "@/lib/actions/listings";
+import { getListingBySlugAdmin } from "@/lib/actions/admin-listings";
+import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import {
   Card,
   CardContent,
@@ -13,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MapPin, DollarSign, TrendingUp, BarChart3, FileText } from "lucide-react";
 import { EnquiryForm } from "./enquiry-form";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -51,7 +56,17 @@ function formatPrice(listing: { price_type: string; asking_price: number | null 
 
 export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
-  const listing = await getListingBySlug(slug);
+
+  // Try public view first; if not found, try admin view (no status filter)
+  let listing = await getListingBySlug(slug);
+  let isAdminPreview = false;
+  if (!listing) {
+    const session = await getSession();
+    if (session?.user?.role === "admin") {
+      listing = await getListingBySlugAdmin(slug) as typeof listing;
+      isAdminPreview = !!listing;
+    }
+  }
   if (!listing) notFound();
 
   const broker = listing.broker;
@@ -65,7 +80,7 @@ export default async function ListingPage({ params }: Props) {
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-3xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center shrink-0 font-semibold text-foreground" aria-label="Salebiz home">
-            <Image src="/Salebizsvg.svg" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
+            <Image src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg" alt="" width={100} height={30} className="h-7 w-auto object-contain sm:h-8" />
           </Link>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
@@ -77,6 +92,24 @@ export default async function ListingPage({ params }: Props) {
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
+
+        {/* Admin preview banner */}
+        {isAdminPreview && (
+          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+            <span className="font-medium">Admin preview</span>
+            <span className="text-muted-foreground">— This listing is not publicly visible.</span>
+            <StatusBadge status={listing.status} className="ml-auto border-0" />
+          </div>
+        )}
+
+        {/* Breadcrumb */}
+        <PageBreadcrumb
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Browse", href: "/search" },
+            { label: listing.title },
+          ]}
+        />
 
         {/* Title block */}
         <div className="space-y-1.5">
@@ -93,7 +126,10 @@ export default async function ListingPage({ params }: Props) {
           </h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
             {locationText && (
-              <p className="text-muted-foreground text-sm">{locationText}</p>
+              <p className="text-muted-foreground text-sm inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {locationText}
+              </p>
             )}
             {formatPrice(listing) && locationText && (
               <span className="text-muted-foreground/40 text-sm">·</span>
@@ -185,24 +221,33 @@ export default async function ListingPage({ params }: Props) {
           <CardContent>
             <dl className="divide-y divide-border">
               {listing.revenue != null && (
-                <div className="flex items-center justify-between py-2.5 text-sm">
-                  <dt className="text-muted-foreground">Revenue</dt>
+                <div className="flex items-center justify-between py-3 text-sm">
+                  <dt className="text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground/70" />
+                    Revenue
+                  </dt>
                   <dd className="font-medium text-foreground">
                     {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.revenue))}
                   </dd>
                 </div>
               )}
               {listing.profit != null && (
-                <div className="flex items-center justify-between py-2.5 text-sm">
-                  <dt className="text-muted-foreground">Profit</dt>
+                <div className="flex items-center justify-between py-3 text-sm">
+                  <dt className="text-muted-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-muted-foreground/70" />
+                    Profit
+                  </dt>
                   <dd className="font-medium text-foreground">
                     {new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.profit))}
                   </dd>
                 </div>
               )}
               {listing.lease_details && (
-                <div className="flex items-center justify-between py-2.5 text-sm">
-                  <dt className="text-muted-foreground">Lease</dt>
+                <div className="flex items-center justify-between py-3 text-sm">
+                  <dt className="text-muted-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground/70" />
+                    Lease
+                  </dt>
                   <dd className="font-medium text-foreground text-right max-w-[60%]">{listing.lease_details}</dd>
                 </div>
               )}

@@ -1,11 +1,15 @@
 import Link from "next/link"
 import { getListingsByBroker } from "@/lib/actions/listings"
+import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
 import { ChartLineListings } from "@/components/dashboard/chart-line-listings"
-import { buildListingsChartData } from "@/lib/chart-data"
+import { ChartLineEnquiries } from "@/components/dashboard/chart-line-enquiries"
+import { ChartDonut } from "@/components/admin/chart-donut"
+import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-data"
 import { PageHeader } from "@/components/admin/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { StatusBadge } from "@/components/shared/status-badge"
+import type { ChartConfig } from "@/components/ui/chart"
 import {
   FileText,
   FileCheck2,
@@ -16,44 +20,22 @@ import {
   Pencil,
 } from "lucide-react"
 
-function statusBadge(status: string) {
-  const s = status.replace("_", " ")
-  switch (status) {
-    case "published":
-      return (
-        <Badge variant="success" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "draft":
-      return (
-        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "under_offer":
-      return (
-        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "sold":
-      return (
-        <Badge variant="destructive" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    default:
-      return (
-        <Badge variant="outline" className="text-xs font-medium capitalize text-muted-foreground">
-          {s}
-        </Badge>
-      )
-  }
-}
+const listingPieConfig = {
+  Published: { label: "Published", color: "var(--success)" },
+  Draft: { label: "Draft", color: "var(--warning)" },
+  Other: { label: "Other", color: "var(--muted-foreground)" },
+} satisfies ChartConfig
+
+const enquiryPieConfig = {
+  "This week": { label: "This week", color: "var(--primary)" },
+  Older: { label: "Older", color: "var(--muted-foreground)" },
+} satisfies ChartConfig
 
 export default async function DashboardPage() {
-  const listings = await getListingsByBroker()
+  const [listings, enquiries] = await Promise.all([
+    getListingsByBroker(),
+    getEnquiriesByBroker(),
+  ])
   const total = listings.length
   const published = listings.filter((l) => l.status === "published").length
   const draft = listings.filter((l) => l.status === "draft").length
@@ -95,7 +77,14 @@ export default async function DashboardPage() {
   ]
 
   const chartData = buildListingsChartData(listings)
+  const enquiriesChartData = buildEnquiriesChartData(enquiries)
   const recent = listings.slice(0, 5)
+
+  const enquiriesThisWeek = enquiries.filter((e) => {
+    const diff = Date.now() - new Date(e.created_at).getTime()
+    return diff < 7 * 24 * 60 * 60 * 1000
+  }).length
+  const enquiriesOlder = enquiries.length - enquiriesThisWeek
 
   return (
     <div className="space-y-6">
@@ -134,13 +123,42 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Chart ── */}
-      <ChartLineListings
-        data={chartData}
-        footer={{
-          description: "New listings added and status breakdown for the last 6 months",
-        }}
-      />
+      {/* ── Pie charts ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ChartDonut
+          title="Listing status"
+          config={listingPieConfig}
+          segments={[
+            { name: "Published", value: published, color: "var(--success)" },
+            { name: "Draft", value: draft, color: "var(--warning)" },
+            { name: "Other", value: other, color: "var(--muted-foreground)" },
+          ]}
+        />
+        <ChartDonut
+          title="Enquiries"
+          config={enquiryPieConfig}
+          segments={[
+            { name: "This week", value: enquiriesThisWeek, color: "var(--primary)" },
+            { name: "Older", value: enquiriesOlder, color: "var(--muted-foreground)" },
+          ]}
+        />
+      </div>
+
+      {/* ── Time-series charts ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartLineListings
+          data={chartData}
+          footer={{
+            description: "Listings status breakdown — last 6 months",
+          }}
+        />
+        <ChartLineEnquiries
+          data={enquiriesChartData}
+          footer={{
+            description: "Enquiries received per month",
+          }}
+        />
+      </div>
 
       {/* ── Recent listings ── */}
       <Card className="shadow-sm">
@@ -198,7 +216,7 @@ export default async function DashboardPage() {
                       <span className="text-sm font-medium truncate">{listing.title}</span>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
-                      {statusBadge(listing.status)}
+                      <StatusBadge status={listing.status} className="text-xs font-medium capitalize border-0" />
                       <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </Link>
