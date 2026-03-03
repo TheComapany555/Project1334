@@ -1,3 +1,4 @@
+import * as React from "react";
 import Link from "next/link";
 import {
   Breadcrumb,
@@ -20,16 +21,18 @@ export function PageBreadcrumb({ items }: { items: Crumb[] }) {
         {items.map((item, i) => {
           const isLast = i === items.length - 1;
           return (
-            <BreadcrumbItem key={item.label}>
-              {isLast || !item.href ? (
-                <BreadcrumbPage>{item.label}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <Link href={item.href}>{item.label}</Link>
-                </BreadcrumbLink>
-              )}
+            <React.Fragment key={item.label}>
+              <BreadcrumbItem>
+                {isLast || !item.href ? (
+                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    <Link href={item.href}>{item.label}</Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
               {!isLast && <BreadcrumbSeparator />}
-            </BreadcrumbItem>
+            </React.Fragment>
           );
         })}
       </BreadcrumbList>
