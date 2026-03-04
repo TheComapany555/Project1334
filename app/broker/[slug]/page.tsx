@@ -87,7 +87,7 @@ export default async function BrokerProfilePage({ params }: Props) {
             aria-label="Salebiz home"
           >
             <Image
-              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
               alt="Salebiz"
               width={100}
               height={30}
