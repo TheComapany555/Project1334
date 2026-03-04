@@ -1,4 +1,10 @@
-import type { ListingsChartDataPoint } from "@/components/dashboard/chart-line-listings";
+export type ListingsChartDataPoint = {
+  month: string;
+  added: number;
+  published: number;
+  draft: number;
+  other: number;
+};
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",

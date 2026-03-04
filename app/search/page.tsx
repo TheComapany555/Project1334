@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
 
@@ -141,14 +142,14 @@ export default async function SearchPage({ searchParams }: Props) {
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
+        <div className="container mx-auto max-w-6xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
           <Link
             href="/"
             className="flex items-center shrink-0"
             aria-label="Salebiz home"
           >
             <Image
-              src="/Salebizsvg.svg"
+              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
               alt="Salebiz"
               width={100}
               height={30}
@@ -175,11 +176,12 @@ export default async function SearchPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <main className="container flex-1 px-4 py-8 sm:py-10 max-w-6xl">
+      <main className="container mx-auto flex-1 px-4 py-8 sm:py-10 max-w-6xl">
         <div className="space-y-8">
 
-          {/* ── Page heading ── */}
+          {/* ── Breadcrumb + Page heading ── */}
           <div className="space-y-3">
+            <PageBreadcrumb items={[{ label: "Home", href: "/" }, { label: "Browse listings" }]} />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="space-y-1">
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -242,7 +244,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
       {/* ── Footer ── */}
       <footer className="border-t border-border py-6 mt-auto">
-        <div className="container max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="container mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-foreground transition-colors">

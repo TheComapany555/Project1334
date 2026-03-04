@@ -4,7 +4,7 @@ import type { Listing } from "@/lib/types/listings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,14 +62,14 @@ export function SearchResults({
   // ── Empty state ──
   if (listings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed bg-muted/20 px-6 py-20 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Building2 className="h-8 w-8 text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-20 text-center">
+        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+          <SearchX className="h-7 w-7 text-muted-foreground" />
         </div>
-        <div className="space-y-1 max-w-xs">
-          <p className="font-medium">No listings found</p>
-          <p className="text-sm text-muted-foreground">
-            Try broadening your search or removing some filters.
+        <div className="space-y-1.5 max-w-xs">
+          <p className="text-lg font-semibold">No listings found</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Try broadening your search or removing some filters to see more results.
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -153,15 +153,16 @@ export function SearchResults({
                   {listing.listing_highlights && listing.listing_highlights.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {listing.listing_highlights.slice(0, 4).map((h) => (
-                        <span
+                        <Badge
                           key={h.id}
-                          className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                          variant="secondary"
+                          className="px-1.5 py-0 text-[10px] font-medium h-5"
                         >
                           {h.label}
-                        </span>
+                        </Badge>
                       ))}
                       {listing.listing_highlights.length > 4 && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground self-center">
                           +{listing.listing_highlights.length - 4}
                         </span>
                       )}

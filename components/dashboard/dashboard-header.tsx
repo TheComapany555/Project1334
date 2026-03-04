@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { UserIcon, LogoutIcon } from "@hugeicons/core-free-icons";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 type SidebarUser = {
   name: string | null;
@@ -26,36 +27,6 @@ type SidebarUser = {
   profileSlug?: string;
   photoUrl?: string | null;
 };
-
-function UserAvatar({
-  name,
-  email,
-  photoUrl,
-  className,
-}: {
-  name: string | null;
-  email: string;
-  photoUrl?: string | null;
-  className?: string;
-}) {
-  const base = "shrink-0 overflow-hidden rounded-full";
-  if (photoUrl) {
-    return (
-      <span className={`relative flex size-8 ${base} ${className ?? ""}`.trim()}>
-        <Image src={photoUrl} alt="" fill className="object-cover" unoptimized />
-      </span>
-    );
-  }
-  const initial = (name?.trim() || email).charAt(0).toUpperCase();
-  return (
-    <span
-      className={`flex size-8 items-center justify-center bg-primary text-primary-foreground text-sm font-medium ${base} ${className ?? ""}`.trim()}
-      aria-hidden
-    >
-      {initial}
-    </span>
-  );
-}
 
 type Props = {
   title?: string;

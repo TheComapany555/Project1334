@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +124,66 @@ export function FilterBarSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+type FilterBarComboboxProps = {
+  paramName: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  className?: string;
+};
+
+export function FilterBarCombobox({
+  paramName,
+  placeholder,
+  options,
+  className,
+}: FilterBarComboboxProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const value = searchParams.get(paramName) ?? "";
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function onValueChange(val: string | null) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (val) next.set(paramName, val);
+    else next.delete(paramName);
+    next.delete("page");
+    router.push(`?${next.toString()}`);
+  }
+
+  const filtered = searchQuery
+    ? options.filter((o) => o.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    : options;
+
+  return (
+    <Combobox
+      value={value || ""}
+      onValueChange={(v) => onValueChange(v || null)}
+      onInputValueChange={(v, details) => {
+        setSearchQuery(details.reason === "input-change" ? v : "");
+      }}
+      itemToStringLabel={(v: string) => {
+        if (!v) return placeholder;
+        return options.find((o) => o.value === v)?.label ?? v;
+      }}
+    >
+      <ComboboxInput placeholder={placeholder} className={cn("w-[200px]", className)} />
+      <ComboboxContent>
+        <ComboboxList>
+          <ComboboxItem value="">{placeholder}</ComboboxItem>
+          {filtered.map((opt) => (
+            <ComboboxItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </ComboboxItem>
+          ))}
+        </ComboboxList>
+        {filtered.length === 0 && (
+          <p className="text-muted-foreground py-2 text-center text-sm">No results found</p>
+        )}
+      </ComboboxContent>
+    </Combobox>
   );
 }
 

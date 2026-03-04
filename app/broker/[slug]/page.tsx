@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// Using lucide-react — swap to heroicons if preferred
+import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import {
   Phone,
   Mail,
@@ -87,7 +87,7 @@ export default async function BrokerProfilePage({ params }: Props) {
             aria-label="Salebiz home"
           >
             <Image
-              src="/Salebizsvg.svg"
+              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
               alt="Salebiz"
               width={100}
               height={30}
@@ -104,6 +104,15 @@ export default async function BrokerProfilePage({ params }: Props) {
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-12 space-y-6">
+
+        {/* Breadcrumb */}
+        <PageBreadcrumb
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Browse", href: "/search" },
+            { label: displayName },
+          ]}
+        />
 
         {/* ── Hero card ── */}
         <Card className="overflow-hidden">

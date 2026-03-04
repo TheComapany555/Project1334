@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AlertTriangle, ArrowRight, ArrowLeft } from "lucide-react";
 
 function AuthErrorContentInner() {
   const searchParams = useSearchParams();
@@ -33,16 +34,27 @@ function AuthErrorContentInner() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Sign in error</CardTitle>
+      <CardHeader className="text-center">
+        <div className="flex justify-center mb-2">
+          <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="h-7 w-7 text-destructive" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl font-bold tracking-tight">Sign in error</CardTitle>
         <CardDescription>{message}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Button asChild className="w-full">
-          <Link href="/auth/login">Try again</Link>
+        <Button asChild className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground">
+          <Link href="/auth/login">
+            Try again
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
         </Button>
-        <Button asChild variant="outline" className="w-full">
-          <Link href="/">Back to home</Link>
+        <Button asChild variant="outline" className="w-full h-11">
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to home
+          </Link>
         </Button>
       </CardContent>
     </Card>

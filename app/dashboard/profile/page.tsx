@@ -102,8 +102,8 @@ function SectionHeader({
   return (
     <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-4">
       <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-[#1a5c38]/10 dark:bg-[#1a5c38]/20 flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-[#1a5c38] dark:text-[#4ade80]" />
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-primary" />
         </div>
         <div>
           <CardTitle className="text-sm font-semibold">{title}</CardTitle>
@@ -297,7 +297,7 @@ export default function ProfilePage() {
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-3xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div className="space-y-1.5">
             <Skeleton className="h-7 w-32" />
@@ -321,7 +321,7 @@ export default function ProfilePage() {
   const currentSlug = watch("slug");
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl mx-auto w-full">
       {/* ── Page header ── */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
@@ -513,7 +513,7 @@ export default function ProfilePage() {
                   href={`/broker/${encodeURIComponent(currentSlug.trim())}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#1a5c38] dark:text-[#4ade80] hover:underline font-mono"
+                  className="text-primary hover:underline font-mono"
                 >
                   /broker/{currentSlug.trim()}
                 </Link>
@@ -579,7 +579,7 @@ export default function ProfilePage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-[#1a5c38] hover:bg-[#144a2d] text-white shadow-sm"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
           >
             {isSubmitting ? (
               <>

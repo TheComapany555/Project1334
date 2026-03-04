@@ -71,9 +71,9 @@ export function SiteHeader({
                 className="ml-auto h-9 flex items-center gap-2 rounded-full pl-1.5 pr-2.5 hover:bg-muted transition-colors"
                 aria-label="Account menu"
               >
-                <Avatar className="h-7 w-7 rounded-full ring-2 ring-[#1a5c38]/20 dark:ring-[#4ade80]/20 shrink-0">
+                <Avatar className="h-7 w-7 rounded-full ring-2 ring-primary/20 shrink-0">
                   <AvatarImage src={user.photoUrl ?? undefined} alt="" />
-                  <AvatarFallback className="rounded-full bg-[#1a5c38]/15 text-[#1a5c38] dark:bg-[#4ade80]/15 dark:text-[#4ade80] text-xs font-semibold">
+                  <AvatarFallback className="rounded-full bg-primary/15 text-primary text-xs font-semibold">
                     {initial}
                   </AvatarFallback>
                 </Avatar>
@@ -88,9 +88,9 @@ export function SiteHeader({
               {/* User info header */}
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-3 px-3 py-3">
-                  <Avatar className="h-10 w-10 rounded-full ring-2 ring-[#1a5c38]/20 dark:ring-[#4ade80]/20 shrink-0">
+                  <Avatar className="h-10 w-10 rounded-full ring-2 ring-primary/20 shrink-0">
                     <AvatarImage src={user.photoUrl ?? undefined} alt="" />
-                    <AvatarFallback className="rounded-full bg-[#1a5c38]/15 text-[#1a5c38] dark:bg-[#4ade80]/15 dark:text-[#4ade80] font-semibold">
+                    <AvatarFallback className="rounded-full bg-primary/15 text-primary font-semibold">
                       {initial}
                     </AvatarFallback>
                   </Avatar>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries";
 import { buildEnquiriesChartData } from "@/lib/chart-data";
+import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
+import { CHART_COLORS } from "@/lib/chart-theme";
 import {
   Card,
   CardContent,
@@ -11,9 +13,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ChartLineEnquiries } from "@/components/dashboard/chart-line-enquiries";
+import { ChartBarEnquiriesBroker } from "@/components/dashboard/chart-bar-enquiries-broker";
+import { ChartDonut } from "@/components/admin/chart-donut";
+import { PageHeader } from "@/components/admin/page-header";
 import { EnquiriesTable } from "./enquiries-table";
 import { Inbox } from "lucide-react";
+
+const REASON_COLORS: Record<string, string> = {
+  "General enquiry": CHART_COLORS.primary,
+  "Request viewing": CHART_COLORS.info,
+  "Make an offer": CHART_COLORS.warning,
+  Other: CHART_COLORS.purple,
+};
 
 export default async function EnquiriesPage() {
   const enquiries = await getEnquiriesByBroker();
@@ -26,31 +37,44 @@ export default async function EnquiriesPage() {
 
   const enquiriesChartData = buildEnquiriesChartData(enquiries);
 
-  return (
-    <div className="space-y-8">
-      {/* ── Page header ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Enquiries
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Messages from buyers interested in your listings.
-          </p>
-        </div>
-        {total > 0 && newThisWeek > 0 && (
-          <Badge className="w-fit sm:mt-1 gap-1.5" variant="success">
-            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80 animate-pulse" />
-            {newThisWeek} new this week
-          </Badge>
-        )}
-      </div>
+  // Group enquiries by reason for donut chart
+  const reasonCounts = new Map<string, number>();
+  for (const e of enquiries) {
+    const label = (e.reason && ENQUIRY_REASON_LABELS[e.reason]) || "Other";
+    reasonCounts.set(label, (reasonCounts.get(label) || 0) + 1);
+  }
+  const reasonSegments = Array.from(reasonCounts.entries()).map(([name, value]) => ({
+    name,
+    value,
+    color: REASON_COLORS[name] ?? CHART_COLORS.muted,
+  }));
 
-      {/* ── Enquiries chart ── */}
-      <ChartLineEnquiries
-        data={enquiriesChartData}
-        footer={{ description: "Enquiries received per month — last 6 months" }}
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Enquiries"
+        description="Messages from buyers interested in your listings."
+        action={
+          total > 0 && newThisWeek > 0 ? (
+            <Badge className="w-fit gap-1.5" variant="success">
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80 animate-pulse" />
+              {newThisWeek} new this week
+            </Badge>
+          ) : undefined
+        }
       />
+
+      {/* ── Enquiries charts ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ChartBarEnquiriesBroker
+          data={enquiriesChartData}
+          footer={{ description: "Enquiries received per month — last 6 months" }}
+        />
+        <ChartDonut
+          title="Enquiries by reason"
+          segments={reasonSegments}
+        />
+      </div>
 
       {/* ── Main card with list + detail sidebar ── */}
       <Card>

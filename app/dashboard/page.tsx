@@ -1,11 +1,15 @@
 import Link from "next/link"
 import { getListingsByBroker } from "@/lib/actions/listings"
-import { ChartLineListings } from "@/components/dashboard/chart-line-listings"
-import { buildListingsChartData } from "@/lib/chart-data"
+import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
+import { ChartBarListings } from "@/components/dashboard/chart-bar-listings"
+import { ChartBarEnquiriesBroker } from "@/components/dashboard/chart-bar-enquiries-broker"
+import { ChartDonut } from "@/components/admin/chart-donut"
+import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-data"
+import { CHART_COLORS } from "@/lib/chart-theme"
 import { PageHeader } from "@/components/admin/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { StatusBadge } from "@/components/shared/status-badge"
 import {
   FileText,
   FileCheck2,
@@ -16,44 +20,11 @@ import {
   Pencil,
 } from "lucide-react"
 
-function statusBadge(status: string) {
-  const s = status.replace("_", " ")
-  switch (status) {
-    case "published":
-      return (
-        <Badge variant="success" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "draft":
-      return (
-        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "under_offer":
-      return (
-        <Badge variant="warning" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    case "sold":
-      return (
-        <Badge variant="destructive" className="text-xs font-medium capitalize border-0">
-          {s}
-        </Badge>
-      )
-    default:
-      return (
-        <Badge variant="outline" className="text-xs font-medium capitalize text-muted-foreground">
-          {s}
-        </Badge>
-      )
-  }
-}
-
 export default async function DashboardPage() {
-  const listings = await getListingsByBroker()
+  const [listings, enquiries] = await Promise.all([
+    getListingsByBroker(),
+    getEnquiriesByBroker(),
+  ])
   const total = listings.length
   const published = listings.filter((l) => l.status === "published").length
   const draft = listings.filter((l) => l.status === "draft").length
@@ -95,7 +66,14 @@ export default async function DashboardPage() {
   ]
 
   const chartData = buildListingsChartData(listings)
+  const enquiriesChartData = buildEnquiriesChartData(enquiries)
   const recent = listings.slice(0, 5)
+
+  const enquiriesThisWeek = enquiries.filter((e) => {
+    const diff = Date.now() - new Date(e.created_at).getTime()
+    return diff < 7 * 24 * 60 * 60 * 1000
+  }).length
+  const enquiriesOlder = enquiries.length - enquiriesThisWeek
 
   return (
     <div className="space-y-6">
@@ -134,13 +112,40 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Chart ── */}
-      <ChartLineListings
-        data={chartData}
-        footer={{
-          description: "New listings added and status breakdown for the last 6 months",
-        }}
-      />
+      {/* ── Pie charts ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ChartDonut
+          title="Listing status"
+          segments={[
+            { name: "Published", value: published, color: CHART_COLORS.primary },
+            { name: "Draft", value: draft, color: CHART_COLORS.warning },
+            { name: "Other", value: other, color: CHART_COLORS.purple },
+          ]}
+        />
+        <ChartDonut
+          title="Enquiries"
+          segments={[
+            { name: "This week", value: enquiriesThisWeek, color: CHART_COLORS.info },
+            { name: "Older", value: enquiriesOlder, color: CHART_COLORS.purple },
+          ]}
+        />
+      </div>
+
+      {/* ── Time-series charts ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartBarListings
+          data={chartData}
+          footer={{
+            description: "Listings status breakdown — last 6 months",
+          }}
+        />
+        <ChartBarEnquiriesBroker
+          data={enquiriesChartData}
+          footer={{
+            description: "Enquiries received per month",
+          }}
+        />
+      </div>
 
       {/* ── Recent listings ── */}
       <Card className="shadow-sm">
@@ -198,7 +203,7 @@ export default async function DashboardPage() {
                       <span className="text-sm font-medium truncate">{listing.title}</span>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
-                      {statusBadge(listing.status)}
+                      <StatusBadge status={listing.status} className="text-xs font-medium capitalize border-0" />
                       <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </Link>

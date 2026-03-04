@@ -46,6 +46,46 @@ export async function getAllListingsForAdmin(): Promise<ListingForAdmin[]> {
   }));
 }
 
+/**
+ * Fetch a listing by slug without status/removal filters — admin only.
+ */
+export async function getListingBySlugAdmin(slug: string) {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select(`
+      *,
+      broker:profiles!broker_id(slug, name, company, photo_url),
+      category:categories(id, name, slug),
+      listing_images(id, url, sort_order)
+    `)
+    .eq("slug", slug)
+    .single();
+  if (error || !data) return null;
+  const row = data as Record<string, unknown> & {
+    id: string;
+    broker?:
+      | { slug: string; name: string | null; company: string | null; photo_url: string | null }[]
+      | { slug: string; name: string | null; company: string | null; photo_url: string | null };
+  };
+  const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
+  const { data: highlightRows } = await supabase
+    .from("listing_highlight_map")
+    .select("highlight_id")
+    .eq("listing_id", row.id);
+  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
+  const { data: highlights } = await supabase
+    .from("listing_highlights")
+    .select("id, label, accent, active")
+    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
+  return {
+    ...row,
+    broker: broker ?? undefined,
+    listing_highlights: highlights ?? [],
+  };
+}
+
 export async function adminRemoveListing(listingId: string): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();

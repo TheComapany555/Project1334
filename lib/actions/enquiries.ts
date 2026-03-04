@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@/lib/types/enquiries";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
+import { enquiryNotificationEmail } from "@/lib/email-templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -69,16 +70,16 @@ export async function submitEnquiry(
       from: EMAIL_FROM,
       to: brokerEmail,
       subject: `New enquiry: ${listing.title}`,
-      html: `
-        <p>You received a new enquiry for your listing <strong>${listing.title}</strong>.</p>
-        <p><strong>Reason:</strong> ${reasonLabel}</p>
-        <p><strong>From:</strong> ${contactName || contactEmail}</p>
-        <p><strong>Email:</strong> ${contactEmail}</p>
-        ${contactPhone ? `<p><strong>Phone:</strong> ${contactPhone}</p>` : ""}
-        <p><strong>Message:</strong></p>
-        <p>${message.replace(/\n/g, "<br>")}</p>
-        <p><a href="${listingUrl}">View listing</a> | <a href="${dashboardUrl}">View in dashboard</a></p>
-      `,
+      html: enquiryNotificationEmail({
+        listingTitle: listing.title,
+        reasonLabel,
+        contactName,
+        contactEmail,
+        contactPhone,
+        message,
+        listingUrl,
+        dashboardUrl,
+      }),
     }).catch(() => {});
   }
 
