@@ -4,13 +4,20 @@
 
 ## Colors
 
-| Name       | Hex       | Usage                          |
-|------------|-----------|--------------------------------|
-| Primary    | `#024424` | CTAs, links, key UI emphasis   |
-| Secondary  | `#005c00` | Secondary buttons, accents    |
+Professional palette derived from primary forest green (OKLCH hue 155). Use CSS variables in app; hex below for reference (e.g. emails).
 
-- Use primary for main actions (Submit, Sign in, primary buttons).
-- Use secondary for secondary actions and highlight pills (e.g. Under Management, Long Lease).
+| Name       | Usage                                      |
+|------------|--------------------------------------------|
+| Primary    | CTAs, links, focus ring, main emphasis     |
+| Secondary  | Secondary buttons, subtle surfaces, badges  |
+| Accent     | Hover states, active nav, highlights      |
+| Success    | Confirmations, positive states (green)     |
+| Warning    | Caution, pending (amber)                   |
+| Destructive| Errors, remove actions (red)              |
+| Info       | Informational (blue)                      |
+
+- **Primary** (forest green): main actions — Submit, Sign in, primary buttons. In app: `var(--primary)`.
+- **Secondary** (sage): secondary actions, pills (e.g. Under Management). In app: `var(--secondary)`.
 - Ensure sufficient contrast on backgrounds (min 4.5:1 for text).
 
 ## Logo
@@ -21,9 +28,8 @@
 
 ## Tailwind / CSS
 
-Brand colors are available as:
+All colors are defined in `app/globals.css` (light and dark). Use theme tokens:
 
-- `--color-primary: #024424`
-- `--color-secondary: #005c00`
-
-Use `var(--color-primary)` or Tailwind theme tokens that map to these in `globals.css`.
+- `bg-primary`, `text-primary`, `border-primary`, etc.
+- `bg-secondary`, `text-secondary`, `accent`, `muted`, `destructive`, `success`, `warning`, `info`
+- Or `var(--primary)`, `var(--secondary)` for custom use.

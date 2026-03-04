@@ -1,7 +1,7 @@
-/** Branded email templates for Salebiz.com.au */
+/** Branded email templates for Salebiz.com.au — hex matches app primary/secondary */
 
-const BRAND_PRIMARY = "#024424";
-const BRAND_SECONDARY = "#005c00";
+const BRAND_PRIMARY = "#0d5c2f";
+const BRAND_SECONDARY = "#0d4a2a";
 
 const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png";
 
