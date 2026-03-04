@@ -1,15 +1,15 @@
 import Link from "next/link"
 import { getListingsByBroker } from "@/lib/actions/listings"
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
-import { ChartLineListings } from "@/components/dashboard/chart-line-listings"
-import { ChartLineEnquiries } from "@/components/dashboard/chart-line-enquiries"
+import { ChartBarListings } from "@/components/dashboard/chart-bar-listings"
+import { ChartBarEnquiriesBroker } from "@/components/dashboard/chart-bar-enquiries-broker"
 import { ChartDonut } from "@/components/admin/chart-donut"
 import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-data"
+import { CHART_COLORS } from "@/lib/chart-theme"
 import { PageHeader } from "@/components/admin/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
-import type { ChartConfig } from "@/components/ui/chart"
 import {
   FileText,
   FileCheck2,
@@ -19,17 +19,6 @@ import {
   ArrowRight,
   Pencil,
 } from "lucide-react"
-
-const listingPieConfig = {
-  Published: { label: "Published", color: "var(--success)" },
-  Draft: { label: "Draft", color: "var(--warning)" },
-  Other: { label: "Other", color: "var(--muted-foreground)" },
-} satisfies ChartConfig
-
-const enquiryPieConfig = {
-  "This week": { label: "This week", color: "var(--primary)" },
-  Older: { label: "Older", color: "var(--muted-foreground)" },
-} satisfies ChartConfig
 
 export default async function DashboardPage() {
   const [listings, enquiries] = await Promise.all([
@@ -127,32 +116,30 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <ChartDonut
           title="Listing status"
-          config={listingPieConfig}
           segments={[
-            { name: "Published", value: published, color: "var(--success)" },
-            { name: "Draft", value: draft, color: "var(--warning)" },
-            { name: "Other", value: other, color: "var(--muted-foreground)" },
+            { name: "Published", value: published, color: CHART_COLORS.primary },
+            { name: "Draft", value: draft, color: CHART_COLORS.warning },
+            { name: "Other", value: other, color: CHART_COLORS.purple },
           ]}
         />
         <ChartDonut
           title="Enquiries"
-          config={enquiryPieConfig}
           segments={[
-            { name: "This week", value: enquiriesThisWeek, color: "var(--primary)" },
-            { name: "Older", value: enquiriesOlder, color: "var(--muted-foreground)" },
+            { name: "This week", value: enquiriesThisWeek, color: CHART_COLORS.info },
+            { name: "Older", value: enquiriesOlder, color: CHART_COLORS.purple },
           ]}
         />
       </div>
 
       {/* ── Time-series charts ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartLineListings
+        <ChartBarListings
           data={chartData}
           footer={{
             description: "Listings status breakdown — last 6 months",
           }}
         />
-        <ChartLineEnquiries
+        <ChartBarEnquiriesBroker
           data={enquiriesChartData}
           footer={{
             description: "Enquiries received per month",

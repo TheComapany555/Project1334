@@ -5,32 +5,16 @@ import { getAllEnquiries } from "@/lib/actions/enquiries";
 import { getAllListingsForAdmin } from "@/lib/actions/admin-listings";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatCard } from "@/components/admin/stat-card";
-import { ChartLineListings } from "@/components/dashboard/chart-line-listings";
+import { ChartBarListings } from "@/components/dashboard/chart-bar-listings";
 import { ChartDonut } from "@/components/admin/chart-donut";
 import { ChartBarEnquiries } from "@/components/admin/chart-bar-enquiries";
+import { ChartRadialOverview } from "@/components/admin/chart-radial-overview";
 import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-data";
+import { CHART_COLORS } from "@/lib/chart-theme";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
 import { Users, FileText, Mail, FolderTree } from "lucide-react";
-import type { ChartConfig } from "@/components/ui/chart";
-
-const brokerChartConfig = {
-  Active: { label: "Active", color: "var(--success)" },
-  Pending: { label: "Pending", color: "var(--warning)" },
-  Disabled: { label: "Disabled", color: "var(--muted-foreground)" },
-} satisfies ChartConfig;
-
-const listingChartConfig = {
-  Published: { label: "Published", color: "var(--success)" },
-  Draft: { label: "Draft", color: "var(--warning)" },
-  Removed: { label: "Removed", color: "var(--destructive)" },
-} satisfies ChartConfig;
-
-const enquiryChartConfig = {
-  "Last 7 days": { label: "Last 7 days", color: "var(--primary)" },
-  Older: { label: "Older", color: "var(--muted-foreground)" },
-} satisfies ChartConfig;
 
 export default async function AdminPage() {
   const [session, stats, { enquiries: recentEnquiries }, { enquiries: allEnquiries }, allListings] = await Promise.all([
@@ -100,39 +84,42 @@ export default async function AdminPage() {
         />
       </div>
 
-      {/* ── Donut breakdown charts ── */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* ── Radial overview + Donut breakdown charts ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ChartRadialOverview
+          brokers={totalBrokers}
+          listings={totalListings}
+          enquiries={stats.enquiriesTotal}
+          categories={stats.categoriesActive}
+        />
         <ChartDonut
           title="Brokers"
-          config={brokerChartConfig}
           segments={[
-            { name: "Active", value: stats.brokersActive, color: "var(--success)" },
-            { name: "Pending", value: stats.brokersPending, color: "var(--warning)" },
-            { name: "Disabled", value: stats.brokersDisabled, color: "var(--muted-foreground)" },
+            { name: "Active", value: stats.brokersActive, color: CHART_COLORS.primary },
+            { name: "Pending", value: stats.brokersPending, color: CHART_COLORS.warning },
+            { name: "Disabled", value: stats.brokersDisabled, color: CHART_COLORS.purple },
           ]}
         />
         <ChartDonut
           title="Listings"
-          config={listingChartConfig}
           segments={[
-            { name: "Published", value: stats.listingsPublished, color: "var(--success)" },
-            { name: "Draft", value: stats.listingsDraft, color: "var(--warning)" },
-            { name: "Removed", value: stats.listingsRemoved, color: "var(--destructive)" },
+            { name: "Published", value: stats.listingsPublished, color: CHART_COLORS.primary },
+            { name: "Draft", value: stats.listingsDraft, color: CHART_COLORS.warning },
+            { name: "Removed", value: stats.listingsRemoved, color: CHART_COLORS.muted },
           ]}
         />
         <ChartDonut
           title="Enquiries"
-          config={enquiryChartConfig}
           segments={[
-            { name: "Last 7 days", value: stats.enquiriesLast7Days, color: "var(--primary)" },
-            { name: "Older", value: enquiriesOlder, color: "var(--muted-foreground)" },
+            { name: "Last 7 days", value: stats.enquiriesLast7Days, color: CHART_COLORS.info },
+            { name: "Older", value: enquiriesOlder, color: CHART_COLORS.purple },
           ]}
         />
       </div>
 
       {/* ── Time-series charts ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartLineListings
+        <ChartBarListings
           data={listingsChartData}
           footer={{
             description: "Listings across all brokers — last 6 months",

@@ -1,8 +1,12 @@
 import { getAllEnquiries } from "@/lib/actions/enquiries";
 import { getBrokersForAdmin } from "@/lib/actions/admin-brokers";
+import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
+import { buildEnquiriesChartData } from "@/lib/chart-data";
 import { PageHeader } from "@/components/admin/page-header";
 import { EmptyState } from "@/components/admin/empty-state";
 import { Pagination } from "@/components/admin/pagination";
+import { ChartBarEnquiries } from "@/components/admin/chart-bar-enquiries";
+import { ChartDonut } from "@/components/admin/chart-donut";
 import {
   Card,
   CardContent,
@@ -16,6 +20,13 @@ import { Inbox } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
+const REASON_COLORS: Record<string, string> = {
+  "General enquiry": "oklch(0.45 0.12 155)",
+  "Request viewing": "oklch(0.55 0.14 220)",
+  "Make an offer": "oklch(0.7 0.15 75)",
+  Other: "oklch(0.55 0.15 290)",
+};
+
 type Props = { searchParams: Promise<{ page?: string; reason?: string; broker_id?: string }> };
 
 export default async function AdminEnquiriesPage({ searchParams }: Props) {
@@ -24,9 +35,10 @@ export default async function AdminEnquiriesPage({ searchParams }: Props) {
   const reason = params.reason?.trim() || null;
   const broker_id = params.broker_id?.trim() || null;
 
-  const [brokers, { enquiries, total }] = await Promise.all([
+  const [brokers, { enquiries, total }, { enquiries: allEnquiries }] = await Promise.all([
     getBrokersForAdmin(),
     getAllEnquiries({ page, pageSize: PAGE_SIZE, reason, broker_id }),
+    getAllEnquiries({ page: 1, pageSize: 500 }),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
@@ -35,12 +47,37 @@ export default async function AdminEnquiriesPage({ searchParams }: Props) {
     label: b.name || b.company || b.email || b.id,
   }));
 
+  // Chart data
+  const enquiriesChartData = buildEnquiriesChartData(
+    allEnquiries.map((e) => ({ created_at: e.created_at }))
+  );
+
+  const reasonCounts = new Map<string, number>();
+  for (const e of allEnquiries) {
+    const label = (e.reason && ENQUIRY_REASON_LABELS[e.reason]) || "Other";
+    reasonCounts.set(label, (reasonCounts.get(label) || 0) + 1);
+  }
+  const reasonSegments = Array.from(reasonCounts.entries()).map(([name, value]) => ({
+    name,
+    value,
+    color: REASON_COLORS[name] || "oklch(0.6 0.18 15)",
+  }));
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Enquiries"
         description="All enquiries across brokers. Use filters to narrow by reason or broker."
       />
+
+      {/* ── Charts ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ChartBarEnquiries data={enquiriesChartData} />
+        <ChartDonut
+          title="Enquiries by reason"
+          segments={reasonSegments}
+        />
+      </div>
 
       <Card className="overflow-hidden shadow-sm">
         <CardHeader className="border-b bg-muted/30 px-4 py-4 sm:px-6">

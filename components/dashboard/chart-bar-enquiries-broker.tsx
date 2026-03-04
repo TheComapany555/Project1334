@@ -20,19 +20,20 @@ import { Mail } from "lucide-react";
 import type { EnquiriesChartDataPoint } from "@/lib/chart-data";
 import { CHART_BAR_HEIGHT, CHART_COLORS } from "@/lib/chart-theme";
 
-type ChartBarEnquiriesProps = {
+type ChartBarEnquiriesBrokerProps = {
   data: EnquiriesChartDataPoint[];
+  footer?: { description?: string };
 };
 
-export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
+export function ChartBarEnquiriesBroker({ data, footer }: ChartBarEnquiriesBrokerProps) {
   const hasData = data.length > 0 && data.some((d) => d.enquiries > 0);
   const yMax = hasData ? Math.max(1, ...data.map((d) => d.enquiries)) : 1;
 
   return (
     <Card className="shadow-sm overflow-hidden">
       <CardHeader className="border-b border-border/60 bg-muted/30 px-3 py-2">
-        <CardTitle className="text-xs font-semibold">Enquiries trend</CardTitle>
-        <CardDescription className="text-[10px]">Monthly — last 6 months</CardDescription>
+        <CardTitle className="text-xs font-semibold">Enquiries</CardTitle>
+        <CardDescription className="text-[10px]">Last 6 months</CardDescription>
       </CardHeader>
 
       <CardContent className="px-2 pt-1.5 pb-2">
@@ -94,6 +95,14 @@ export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
           </ResponsiveContainer>
         )}
       </CardContent>
+
+      {footer?.description && (
+        <div className="px-3 pb-2 pt-0.5 border-t border-border/40">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            {footer.description}
+          </p>
+        </div>
+      )}
     </Card>
   );
 }
