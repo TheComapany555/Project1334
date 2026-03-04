@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   title: "Salebiz | Business for Sale",
   description: "Buy and sell businesses across Australia",
   icons: {
-    icon: "/Salebizsvg.svg",
-    apple: "/Salebizsvg.svg",
+    icon: "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg",
+    apple: "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg",
   },
 };
 

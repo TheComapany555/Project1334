@@ -15,7 +15,7 @@
 
 ## Logo
 
-- **Location:** `public/Salebizsvg.svg` (used in header, auth pages, and dashboard sidebars).
+- **Location:** Vercel Blob storage — SVG: `Salebizsvg.svg`, PNG (emails): `Salebiz.png`. Used in header, auth pages, dashboard sidebars, and email templates.
 - **Minimum size:** 120px width for header; 32px height for favicon/small use.
 - **Backgrounds:** Logo is used across light and dark UI; for dark backgrounds consider an inverted/white variant if needed.
 
