@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AdminAppSidebar } from "@/components/dashboard/admin-app-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 
 export default async function AdminLayout({
   children,
@@ -21,12 +22,14 @@ export default async function AdminLayout({
     photoUrl: navInfo.photo_url ?? undefined,
   };
   return (
-    <SidebarProvider>
-      <AdminAppSidebar user={user} />
-      <SidebarInset>
-        <DashboardHeader user={user} />
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <DashboardLoader>
+      <SidebarProvider>
+        <AdminAppSidebar user={user} />
+        <SidebarInset>
+          <DashboardHeader user={user} />
+          <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
+        </SidebarInset>
+      </SidebarProvider>
+    </DashboardLoader>
   );
 }
