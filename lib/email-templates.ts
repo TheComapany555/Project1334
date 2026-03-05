@@ -3,7 +3,7 @@
 const BRAND_PRIMARY = "#0d5c2f";
 const BRAND_SECONDARY = "#0d4a2a";
 
-const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png";
+const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg";
 
 /* ------------------------------------------------------------------ */
 /*  Base layout                                                        */

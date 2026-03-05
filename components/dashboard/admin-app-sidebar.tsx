@@ -66,7 +66,7 @@ export function AdminAppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz Admin">
               <Link href="/admin" className="flex items-center gap-2">
                 <Image
-                  src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
+                  src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                   alt="Salebiz"
                   width={100}
                   height={30}

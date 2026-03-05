@@ -48,7 +48,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <Link href="/dashboard" aria-label="Salebiz home">
-                <Image src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png" alt="" width={100} height={30} className="h-7 w-auto object-contain" />
+                <Image src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg" alt="" width={100} height={30} className="h-7 w-auto object-contain" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
