@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
 import { searchListings, getCategories, getListingHighlights } from "@/lib/actions/listings";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { PublicHeader } from "@/components/public-header";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
@@ -140,41 +138,7 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
 
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto max-w-6xl flex h-14 sm:h-16 items-center justify-between gap-4 px-4">
-          <Link
-            href="/"
-            className="flex items-center shrink-0"
-            aria-label="Salebiz home"
-          >
-            <Image
-              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
-              alt="Salebiz"
-              width={100}
-              height={30}
-              className="h-7 w-auto object-contain sm:h-8"
-            />
-          </Link>
-          <div className="flex items-center gap-2">
-            <ThemeSwitcher />
-            {session?.user ? (
-              <Button size="sm" asChild>
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                  <Link href="/auth/register">Create account</Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/auth/login">Sign in</Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <PublicHeader session={session} maxWidth="max-w-6xl" />
 
       <main className="container mx-auto flex-1 px-4 py-8 sm:py-10 max-w-6xl">
         <div className="space-y-8">

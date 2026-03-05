@@ -165,10 +165,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 }
 
