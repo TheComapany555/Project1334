@@ -46,7 +46,7 @@ export function DashboardLoader({ children }: { children: React.ReactNode }) {
           }`}
         >
           <Image
-            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
+            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
             alt="Salebiz"
             width={140}
             height={42}

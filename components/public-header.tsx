@@ -50,7 +50,7 @@ export function PublicHeader({
           aria-label="Salebiz home"
         >
           <Image
-            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
+            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
             alt="Salebiz"
             width={120}
             height={36}
@@ -114,7 +114,7 @@ export function PublicHeader({
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border/50">
                       <Image
-                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
+                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                         alt="Salebiz"
                         width={110}
                         height={33}
@@ -236,7 +236,7 @@ export function PublicHeader({
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border/50">
                       <Image
-                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png"
+                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                         alt="Salebiz"
                         width={110}
                         height={33}
