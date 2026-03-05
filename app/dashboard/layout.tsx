@@ -30,6 +30,8 @@ export default async function DashboardLayout({
     role: session.user.role,
     profileSlug: navInfo.slug ?? undefined,
     photoUrl: navInfo.photo_url ?? undefined,
+    agencyRole: session.user.agencyRole ?? null,
+    agencyName: session.user.agencyName ?? null,
   };
 
   return (

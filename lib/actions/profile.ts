@@ -27,6 +27,12 @@ export type ProfilePublic = ProfileFormData & {
   photo_url: string | null;
   created_at: string;
   updated_at: string;
+  agency?: {
+    id: string;
+    name: string;
+    slug: string | null;
+    logo_url: string | null;
+  } | null;
 };
 
 async function requireBroker() {
@@ -79,12 +85,27 @@ export async function getProfileBySlug(slug: string): Promise<ProfilePublic | nu
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, company, phone, email_public, website, bio, slug, social_links, logo_url, photo_url, role, created_at, updated_at")
+    .select("id, name, company, phone, email_public, website, bio, slug, social_links, logo_url, photo_url, role, agency_id, created_at, updated_at")
     .eq("slug", slug)
     .eq("role", "broker")
     .single();
   if (error || !data) return null;
-  return data as ProfilePublic;
+
+  let agency: ProfilePublic["agency"] = null;
+  if (data.agency_id) {
+    const { data: agencyData } = await supabase
+      .from("agencies")
+      .select("id, name, slug, logo_url")
+      .eq("id", data.agency_id)
+      .single();
+    if (agencyData) agency = agencyData;
+  }
+
+  return {
+    ...data,
+    social_links: (data.social_links as ProfileFormData["social_links"]) ?? null,
+    agency,
+  } as ProfilePublic;
 }
 
 export async function checkSlugAvailable(slug: string, excludeUserId?: string): Promise<boolean> {

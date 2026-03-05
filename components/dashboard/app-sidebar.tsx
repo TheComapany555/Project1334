@@ -14,6 +14,7 @@ import {
   MailIcon,
   LogoutIcon,
   ExternalLink,
+  UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -45,12 +46,18 @@ const brokerNav = [
   { label: "Enquiries", href: "/dashboard/enquiries", icon: MailIcon },
 ] as const;
 
+const ownerOnlyNav = [
+  { label: "Team", href: "/dashboard/team", icon: UserMultipleIcon },
+] as const;
+
 type SidebarUser = {
   name: string | null;
   email: string;
   role: "broker" | "admin";
   profileSlug?: string;
   photoUrl?: string | null;
+  agencyRole?: "owner" | "member" | null;
+  agencyName?: string | null;
 };
 
 export function AppSidebar({ user }: { user: SidebarUser }) {
@@ -72,7 +79,9 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                   height={30}
                   className="h-7 w-auto object-contain"
                 />
-                <span className="text-xs font-medium text-muted-foreground">Broker</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {user.agencyName ?? "Broker"}
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -87,6 +96,23 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                 const isActive = isDashboardRoot
                   ? pathname === "/dashboard"
                   : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+              {user.agencyRole === "owner" && ownerOnlyNav.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

@@ -93,7 +93,11 @@ async function requireBroker() {
   if (!session?.user?.id || session.user.role !== "broker") {
     throw new Error("Unauthorized");
   }
-  return { userId: session.user.id };
+  return {
+    userId: session.user.id,
+    agencyId: session.user.agencyId ?? null,
+    agencyRole: session.user.agencyRole ?? null,
+  };
 }
 
 async function requireAdmin() {
@@ -106,18 +110,35 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
-/** Broker: list enquiries for current user. */
+/** Broker: list enquiries. Agency owners see all agency enquiries. */
 export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("enquiries")
     .select(`
       *,
       listing:listings(id, title, slug)
-    `)
-    .eq("broker_id", userId)
-    .order("created_at", { ascending: false });
+    `);
+
+  if (agencyId && agencyRole === "owner") {
+    // Agency owners see enquiries for all brokers in the agency
+    const { data: agencyProfiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("agency_id", agencyId);
+    const brokerIds = (agencyProfiles ?? []).map((p) => p.id);
+    if (brokerIds.length > 0) {
+      query = query.in("broker_id", brokerIds);
+    } else {
+      query = query.eq("broker_id", userId);
+    }
+  } else {
+    query = query.eq("broker_id", userId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) return [];
   const rows = (data ?? []) as (Enquiry & { listing?: { id: string; title: string; slug: string }[] })[];
   return rows.map((r) => ({

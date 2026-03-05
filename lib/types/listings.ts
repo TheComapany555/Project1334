@@ -26,6 +26,7 @@ export type ListingImage = {
 export type Listing = {
   id: string;
   broker_id: string;
+  agency_id: string | null;
   slug: string;
   title: string;
   category_id: string | null;

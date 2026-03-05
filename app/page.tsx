@@ -314,13 +314,13 @@ export default async function HomePage() {
 
           {recentListings.length > 0 ? (
             <>
-              {/* Responsive grid: 1 col mobile, 2 col tablet, 4 col desktop */}
-              <ul className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Mobile: horizontal swipe. Tablet+: grid */}
+              <ul className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
                 {recentListings.map((listing) => (
-                  <li key={listing.id}>
+                  <li key={listing.id} className="min-w-[75vw] snap-start sm:min-w-0">
                     <ListingCard
                       listing={listing}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      sizes="(max-width: 640px) 75vw, (max-width: 1024px) 50vw, 25vw"
                     />
                   </li>
                 ))}

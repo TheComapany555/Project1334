@@ -29,7 +29,12 @@ async function requireBroker() {
   if (!session?.user?.id || session.user.role !== "broker") {
     throw new Error("Unauthorized");
   }
-  return { session, userId: session.user.id };
+  return {
+    session,
+    userId: session.user.id,
+    agencyId: session.user.agencyId ?? null,
+    agencyRole: session.user.agencyRole ?? null,
+  };
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -54,17 +59,25 @@ export async function getListingHighlights(): Promise<ListingHighlight[]> {
 }
 
 export async function getListingsByBroker(): Promise<(Listing & { listing_highlights?: ListingHighlight[] })[]> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: listings, error } = await supabase
+
+  // Agency owners see all agency listings; members see only their own
+  let query = supabase
     .from("listings")
     .select(`
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
-    `)
-    .eq("broker_id", userId)
-    .order("updated_at", { ascending: false });
+    `);
+
+  if (agencyId && agencyRole === "owner") {
+    query = query.eq("agency_id", agencyId);
+  } else {
+    query = query.eq("broker_id", userId);
+  }
+
+  const { data: listings, error } = await query.order("updated_at", { ascending: false });
   if (error) return [];
   const list = (listings ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
   const listingIds = list.map((l) => l.id);
@@ -97,18 +110,26 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
 }
 
 export async function getListingById(id: string): Promise<Listing | null> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("listings")
     .select(`
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
     `)
-    .eq("id", id)
-    .eq("broker_id", userId)
-    .single();
+    .eq("id", id);
+
+  // Agency owners can access any listing in their agency
+  if (agencyId && agencyRole === "owner") {
+    query = query.eq("agency_id", agencyId);
+  } else {
+    query = query.eq("broker_id", userId);
+  }
+
+  const { data, error } = await query.single();
   if (error || !data) return null;
   const row = data as Listing & { listing_images?: ListingImage[]; category?: Category | null };
   const { data: highlightRows } = await supabase
@@ -332,7 +353,7 @@ export async function createListing(form: {
   highlight_ids: string[];
   status: "draft" | "published";
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId } = await requireBroker();
   const supabase = createServiceRoleClient();
   const slug = generateListingSlug(form.title);
   const published_at = form.status === "published" ? new Date().toISOString() : null;
@@ -340,6 +361,7 @@ export async function createListing(form: {
     .from("listings")
     .insert({
       broker_id: userId,
+      agency_id: agencyId,
       slug,
       title: form.title.trim(),
       category_id: form.category_id || null,
@@ -388,14 +410,16 @@ export async function updateListing(
     highlight_ids?: string[];
   }
 ): Promise<{ ok: boolean; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: existing } = await supabase
-    .from("listings")
-    .select("id")
-    .eq("id", id)
-    .eq("broker_id", userId)
-    .single();
+
+  let existingQuery = supabase.from("listings").select("id").eq("id", id);
+  if (agencyId && agencyRole === "owner") {
+    existingQuery = existingQuery.eq("agency_id", agencyId);
+  } else {
+    existingQuery = existingQuery.eq("broker_id", userId);
+  }
+  const { data: existing } = await existingQuery.single();
   if (!existing) return { ok: false, error: "Listing not found." };
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (form.title !== undefined) payload.title = form.title.trim();
@@ -411,7 +435,8 @@ export async function updateListing(
   if (form.lease_details !== undefined) payload.lease_details = form.lease_details?.trim() || null;
   if (form.summary !== undefined) payload.summary = form.summary?.trim() || null;
   if (form.description !== undefined) payload.description = form.description?.trim() || null;
-  const { error } = await supabase.from("listings").update(payload).eq("id", id).eq("broker_id", userId);
+  // Already verified ownership above via existingQuery
+  const { error } = await supabase.from("listings").update(payload).eq("id", id);
   if (error) return { ok: false, error: error.message };
   if (form.highlight_ids !== undefined) {
     await supabase.from("listing_highlight_map").delete().eq("listing_id", id);
@@ -425,14 +450,16 @@ export async function updateListing(
 }
 
 export async function updateListingStatus(id: string, status: ListingStatus): Promise<{ ok: boolean; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("id, status")
-    .eq("id", id)
-    .eq("broker_id", userId)
-    .single();
+
+  let statusQuery = supabase.from("listings").select("id, status").eq("id", id);
+  if (agencyId && agencyRole === "owner") {
+    statusQuery = statusQuery.eq("agency_id", agencyId);
+  } else {
+    statusQuery = statusQuery.eq("broker_id", userId);
+  }
+  const { data: listing } = await statusQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
   const current = listing.status as ListingStatus;
   const allowed: Record<ListingStatus, ListingStatus[]> = {
@@ -450,30 +477,38 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
     updated_at: new Date().toISOString(),
   };
   if (status === "published") payload.published_at = new Date().toISOString();
-  const { error } = await supabase.from("listings").update(payload).eq("id", id).eq("broker_id", userId);
+  // Already verified ownership via statusQuery
+  const { error } = await supabase.from("listings").update(payload).eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 export async function deleteListing(id: string): Promise<{ ok: boolean; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data } = await supabase.from("listings").select("id, status").eq("id", id).eq("broker_id", userId).single();
+  let delQuery = supabase.from("listings").select("id, status").eq("id", id);
+  if (agencyId && agencyRole === "owner") {
+    delQuery = delQuery.eq("agency_id", agencyId);
+  } else {
+    delQuery = delQuery.eq("broker_id", userId);
+  }
+  const { data } = await delQuery.single();
   if (!data) return { ok: false, error: "Listing not found." };
-  const { error } = await supabase.from("listings").delete().eq("id", id).eq("broker_id", userId);
+  const { error } = await supabase.from("listings").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 export async function uploadListingImage(listingId: string, formData: FormData): Promise<{ ok: boolean; url?: string; id?: string; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("id")
-    .eq("id", listingId)
-    .eq("broker_id", userId)
-    .single();
+  let imgListingQuery = supabase.from("listings").select("id").eq("id", listingId);
+  if (agencyId && agencyRole === "owner") {
+    imgListingQuery = imgListingQuery.eq("agency_id", agencyId);
+  } else {
+    imgListingQuery = imgListingQuery.eq("broker_id", userId);
+  }
+  const { data: listing } = await imgListingQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
   const { count } = await supabase.from("listing_images").select("id", { count: "exact", head: true }).eq("listing_id", listingId);
   if ((count ?? 0) >= MAX_IMAGES_PER_LISTING) return { ok: false, error: `Maximum ${MAX_IMAGES_PER_LISTING} images per listing.` };
@@ -500,14 +535,15 @@ export async function uploadListingImage(listingId: string, formData: FormData):
 }
 
 export async function deleteListingImage(listingId: string, imageId: string): Promise<{ ok: boolean; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("id")
-    .eq("id", listingId)
-    .eq("broker_id", userId)
-    .single();
+  let ownerQuery = supabase.from("listings").select("id").eq("id", listingId);
+  if (agencyId && agencyRole === "owner") {
+    ownerQuery = ownerQuery.eq("agency_id", agencyId);
+  } else {
+    ownerQuery = ownerQuery.eq("broker_id", userId);
+  }
+  const { data: listing } = await ownerQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
   const { data: img } = await supabase
     .from("listing_images")
@@ -522,14 +558,15 @@ export async function deleteListingImage(listingId: string, imageId: string): Pr
 }
 
 export async function reorderListingImages(listingId: string, imageIds: string[]): Promise<{ ok: boolean; error?: string }> {
-  const { userId } = await requireBroker();
+  const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("id")
-    .eq("id", listingId)
-    .eq("broker_id", userId)
-    .single();
+  let reorderQuery = supabase.from("listings").select("id").eq("id", listingId);
+  if (agencyId && agencyRole === "owner") {
+    reorderQuery = reorderQuery.eq("agency_id", agencyId);
+  } else {
+    reorderQuery = reorderQuery.eq("broker_id", userId);
+  }
+  const { data: listing } = await reorderQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
   for (let i = 0; i < imageIds.length; i++) {
     await supabase.from("listing_images").update({ sort_order: i }).eq("id", imageIds[i]).eq("listing_id", listingId);

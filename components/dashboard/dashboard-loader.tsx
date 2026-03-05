@@ -16,14 +16,18 @@ export function DashboardLoader({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const key = "salebiz_dash_loaded";
+    if (typeof window === "undefined") return;
+
     if (sessionStorage.getItem(key)) {
+      // Already shown this session (e.g. after Strict Mode remount) — skip loader
+      setShowLoader(false);
       setDone(true);
       return;
     }
 
     // First dashboard visit this session — show loader
-    setShowLoader(true);
     sessionStorage.setItem(key, "1");
+    setShowLoader(true);
 
     const fadeTimer = setTimeout(() => setFadeOut(true), 400);
     const doneTimer = setTimeout(() => {
