@@ -186,6 +186,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
     .select(
       `
       *,
+      broker:profiles!broker_id(name, photo_url),
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
     `,
@@ -236,7 +237,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   const total = count ?? 0;
-  const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null; broker?: { name: string | null; photo_url: string | null } | { name: string | null; photo_url: string | null }[] })[];
   const listingIds = list.map((l) => l.id);
 
   const highlightsByListing: Record<string, ListingHighlight[]> = {};
@@ -258,12 +259,16 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
     }
   }
 
-  const listings = list.map((l) => ({
-    ...l,
-    listing_images: l.listing_images ?? [],
-    category: l.category ?? null,
-    listing_highlights: highlightsByListing[l.id] ?? [],
-  }));
+  const listings = list.map((l) => {
+    const broker = Array.isArray(l.broker) ? l.broker[0] : l.broker;
+    return {
+      ...l,
+      broker: broker ?? undefined,
+      listing_images: l.listing_images ?? [],
+      category: l.category ?? null,
+      listing_highlights: highlightsByListing[l.id] ?? [],
+    };
+  });
 
   return {
     listings,

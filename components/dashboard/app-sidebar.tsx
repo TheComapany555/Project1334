@@ -15,6 +15,7 @@ import {
   LogoutIcon,
   ExternalLink,
   UserMultipleIcon,
+  Building03Icon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -47,6 +48,7 @@ const brokerNav = [
 ] as const;
 
 const ownerOnlyNav = [
+  { label: "Agency", href: "/dashboard/agency", icon: Building03Icon },
   { label: "Team", href: "/dashboard/team", icon: UserMultipleIcon },
 ] as const;
 

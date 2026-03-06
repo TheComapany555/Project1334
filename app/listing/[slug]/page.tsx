@@ -59,10 +59,10 @@ export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
 
   // Try public view first; if not found, try admin view (no status filter)
+  const session = await getSession();
   let listing = await getListingBySlug(slug);
   let isAdminPreview = false;
   if (!listing) {
-    const session = await getSession();
     if (session?.user?.role === "admin") {
       listing = await getListingBySlugAdmin(slug) as typeof listing;
       isAdminPreview = !!listing;
@@ -78,7 +78,7 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader maxWidth="max-w-3xl" />
+      <PublicHeader session={session} maxWidth="max-w-3xl" />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
 

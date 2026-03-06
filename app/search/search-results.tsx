@@ -1,10 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Listing } from "@/lib/types/listings";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX } from "lucide-react";
+import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX, User } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,10 +103,10 @@ export function SearchResults({
           const isPOA = price === "POA";
 
           return (
-            <li key={listing.id}>
+            <li key={listing.id} className="h-full">
               <Link
                 href={`/listing/${listing.slug}`}
-                className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {/* Thumbnail */}
                 <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
@@ -138,10 +139,31 @@ export function SearchResults({
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-4 gap-3">
+                  {listing.broker && (
+                    <div className="flex items-center gap-2">
+                      <Avatar size="sm">
+                        {listing.broker.photo_url && (
+                          <AvatarImage src={listing.broker.photo_url} alt="" />
+                        )}
+                        <AvatarFallback>
+                          <User className="h-3 w-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {listing.broker.name ?? "Broker"}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <p className="font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                       {listing.title}
                     </p>
+                    {listing.summary && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {listing.summary}
+                      </p>
+                    )}
                     {location && (
                       <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <MapPin className="h-3 w-3 shrink-0" />
@@ -169,9 +191,11 @@ export function SearchResults({
                     </div>
                   )}
 
+                  <div className="mt-auto pt-3">
                   <Separator />
+                  </div>
 
-                  <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center justify-between">
                     <span
                       className={`text-sm font-semibold ${
                         isPOA ? "text-muted-foreground" : "text-foreground"

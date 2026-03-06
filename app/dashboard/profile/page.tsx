@@ -49,7 +49,6 @@ import {
 
 const schema = z.object({
   name: z.string().min(1, "Name is required").max(200).optional().or(z.literal("")),
-  company: z.string().max(200).optional(),
   phone: z.string().max(50).optional(),
   email_public: z.string().email("Use a valid email").optional().or(z.literal("")),
   website: z.string().url("Use a valid URL").optional().or(z.literal("")),
@@ -69,7 +68,6 @@ type FormData = z.infer<typeof schema>;
 
 const emptyForm: FormData = {
   name: "",
-  company: "",
   phone: "",
   email_public: "",
   website: "",
@@ -199,6 +197,7 @@ export default function ProfilePage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [agency, setAgency] = useState<{ id: string; name: string; role: string } | null>(null);
 
   const {
     register,
@@ -217,8 +216,8 @@ export default function ProfilePage() {
       .then((data) => {
         if (!mounted || !data) return;
         setValue("name", data.name ?? "");
-        setValue("company", data.company ?? "");
         setValue("phone", data.phone ?? "");
+        if (data.agency) setAgency(data.agency);
         setValue("email_public", data.email_public ?? "");
         setValue("website", data.website ?? "");
         setValue("bio", data.bio ?? "");
@@ -242,7 +241,6 @@ export default function ProfilePage() {
   async function onSubmit(data: FormData) {
     const formData = new FormData();
     formData.set("name", data.name || "");
-    formData.set("company", data.company || "");
     formData.set("phone", data.phone || "");
     formData.set("email_public", data.email_public || "");
     formData.set("website", data.website || "");
@@ -380,7 +378,7 @@ export default function ProfilePage() {
         <Card className="shadow-sm">
           <SectionHeader
             icon={User}
-            title="Personal & company info"
+            title="Personal info"
             description="This information appears on your public broker profile."
           />
           <CardContent className="px-5 py-5 space-y-4">
@@ -401,18 +399,28 @@ export default function ProfilePage() {
                 <FieldError message={errors.name?.message} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="company" className="text-sm font-medium">
-                  Company
-                </Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <Input
-                    id="company"
-                    placeholder="Company name"
-                    className="pl-9 h-10"
-                    {...register("company")}
-                  />
-                </div>
+                <Label className="text-sm font-medium">Agency</Label>
+                {agency ? (
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border bg-muted/40">
+                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm text-foreground truncate">{agency.name}</span>
+                    {agency.role === "owner" ? (
+                      <Link
+                        href="/dashboard/agency"
+                        className="ml-auto text-xs text-primary hover:underline shrink-0"
+                      >
+                        Manage
+                      </Link>
+                    ) : (
+                      <span className="ml-auto text-[10px] text-muted-foreground shrink-0">Member</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-dashed border-border bg-muted/20">
+                    <Building2 className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    <span className="text-sm text-muted-foreground">No agency</span>
+                  </div>
+                )}
               </div>
             </div>
 
