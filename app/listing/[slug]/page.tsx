@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MapPin, DollarSign, TrendingUp, BarChart3, FileText, Sparkles, PhoneCall } from "lucide-react";
 import { EnquiryForm } from "./enquiry-form";
-import { ListingMap } from "./listing-map";
+import { LocationMap } from "@/components/location-map";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -73,8 +73,7 @@ export default async function ListingPage({ params }: Props) {
   const broker = listing.broker;
   const images = listing.listing_images ?? [];
   const highlights = listing.listing_highlights ?? [];
-  const locationParts = [listing.suburb, listing.state, listing.postcode].filter(Boolean);
-  const locationText = locationParts.length ? locationParts.join(", ") : listing.location_text ?? "";
+  const locationText = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ") || "";
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -258,7 +257,7 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Interactive Map */}
         {locationText && (
-          <ListingMap location={locationText} />
+          <LocationMap location={locationText} />
         )}
 
         {/* Broker */}

@@ -44,6 +44,7 @@ import {
   ComboboxList,
   ComboboxItem,
 } from "@/components/ui/combobox";
+import { FieldError } from "@/components/ui/field-error";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
@@ -243,8 +244,8 @@ export function EditListingForm({ listing }: Props) {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
-              <Input id="title" {...register("title")} />
-              {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+              <Input id="title" {...register("title")} className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""} />
+              <FieldError message={errors.title?.message} />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>

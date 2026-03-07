@@ -37,9 +37,9 @@ import {
   Instagram,
   Loader2,
   Camera,
-  AlertCircle,
   Save,
 } from "lucide-react";
+import { FieldError } from "@/components/ui/field-error";
 
 const schema = z.object({
   name: z.string().min(1, "Agency name is required").max(200),
@@ -50,12 +50,12 @@ const schema = z.object({
     .optional()
     .or(z.literal("")),
   phone: z.string().max(50).optional(),
-  email: z.string().email("Use a valid email").optional().or(z.literal("")),
-  website: z.string().url("Use a valid URL").optional().or(z.literal("")),
+  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  website: z.string().url("Enter a valid URL").optional().or(z.literal("")),
   bio: z.string().max(2000).optional(),
-  social_linkedin: z.string().url().optional().or(z.literal("")),
-  social_facebook: z.string().url().optional().or(z.literal("")),
-  social_instagram: z.string().url().optional().or(z.literal("")),
+  social_linkedin: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  social_facebook: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  social_instagram: z.string().url("Enter a valid URL").optional().or(z.literal("")),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -71,16 +71,6 @@ const emptyForm: FormData = {
   social_facebook: "",
   social_instagram: "",
 };
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-      <AlertCircle className="h-3 w-3 shrink-0" />
-      {message}
-    </p>
-  );
-}
 
 function SectionHeader({
   icon: Icon,

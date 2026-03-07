@@ -79,9 +79,9 @@ function formatPrice(listing: Listing): string {
   return "—";
 }
 
-type Props = { listings: Listing[]; brokerSlug?: string };
+type Props = { listings: Listing[]; brokerSlug?: string; isAgencyOwner?: boolean };
 
-export function ListingsTable({ listings, brokerSlug }: Props) {
+export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -130,6 +130,7 @@ export function ListingsTable({ listings, brokerSlug }: Props) {
           <TableRow>
             <TableHead className="w-[80px]">Image</TableHead>
             <TableHead>Title</TableHead>
+            {isAgencyOwner && <TableHead>Broker</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>Price</TableHead>
@@ -163,6 +164,11 @@ export function ListingsTable({ listings, brokerSlug }: Props) {
                 <TableCell>
                   <span className="font-medium">{listing.title}</span>
                 </TableCell>
+                {isAgencyOwner && (
+                  <TableCell className="text-sm text-muted-foreground">
+                    {listing.broker?.name ?? "—"}
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
