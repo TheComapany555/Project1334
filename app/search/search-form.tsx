@@ -107,7 +107,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <form onSubmit={handleSubmit} className="border border-border bg-card overflow-hidden">
       {/* Primary filters */}
       <div className="p-4 sm:p-6 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -223,7 +223,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
         </div>
 
         <CollapsibleContent>
-          <div className="border-t border-border bg-muted/30 p-4 sm:p-6 space-y-4">
+          <div className="border-t border-border bg-muted/40 p-4 sm:p-6 space-y-4">
             {/* Location */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Location</p>
@@ -282,7 +282,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
       </Collapsible>
 
       {/* Actions */}
-      <div className="border-t border-border bg-muted/20 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2">
+      <div className="border-t border-border bg-muted/40 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={isPending} className="gap-2">
           {isPending ? (
             <>

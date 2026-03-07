@@ -77,13 +77,13 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader session={session} maxWidth="max-w-3xl" />
+      <PublicHeader session={session} maxWidth="max-w-6xl" />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10 space-y-6">
 
         {/* Admin preview banner */}
         {isAdminPreview && (
-          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+          <div className="flex items-center gap-2 border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
             <span className="font-medium">Admin preview</span>
             <span className="text-muted-foreground">— This listing is not publicly visible.</span>
             <StatusBadge status={listing.status} className="ml-auto border-0" />
@@ -170,7 +170,7 @@ export default async function ListingPage({ params }: Props) {
                 {highlights.map((h) => (
                   <li
                     key={h.id}
-                    className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-background px-3 py-2.5 text-sm"
+                    className="flex items-center gap-2.5 border border-border bg-background px-3 py-2.5 text-sm"
                   >
                     <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       h.accent === "primary" ? "bg-primary/15 text-primary" :

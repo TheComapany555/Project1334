@@ -101,7 +101,7 @@ export default async function DashboardPage() {
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((card) => (
-          <Card key={card.title} className="shadow-sm">
+          <Card key={card.title}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1 min-w-0">
@@ -156,8 +156,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Recent listings ── */}
-      <Card className="shadow-sm">
-        <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-4">
+      <Card>
+        <CardHeader className="border-b border-border bg-muted/40 px-5 py-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base">Recent listings</CardTitle>
@@ -197,7 +197,7 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-            <ul className="divide-y divide-border/60">
+            <ul className="divide-y divide-border">
               {recent.map((listing) => (
                 <li key={listing.id}>
                   <Link

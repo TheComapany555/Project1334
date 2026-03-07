@@ -85,7 +85,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
   return (
     <Link
       href={`/listing/${listing.slug}`}
-      className="group flex flex-col h-full border border-border/60 bg-card overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="group flex flex-col h-full border border-border bg-card overflow-hidden transition-all duration-200 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {/* Image */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted shrink-0">
@@ -160,7 +160,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
             </div>
           )}
 
-        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border/40">
+        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border">
           <p className="text-sm font-bold text-foreground">
             {formatPrice(listing)}
           </p>
@@ -264,7 +264,7 @@ export default async function HomePage() {
                   method="get"
                   className="mt-7 sm:mt-9 mx-auto max-w-2xl"
                 >
-                  <div className="flex flex-col sm:flex-row gap-2 p-2 border border-border/60 bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
+                  <div className="flex flex-col sm:flex-row gap-2 p-2 border border-border bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
                     <div className="flex flex-1 items-center gap-3 px-3 sm:px-4 py-2.5 bg-muted/40">
                       <Search
                         className="h-4 w-4 text-muted-foreground shrink-0"
@@ -305,7 +305,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── Stats bar ────────────────────────────────────────────────────── */}
-        <section className="border-y border-border/50 bg-muted/30">
+        <section className="border-y border-border bg-muted/30">
           <MotionDiv
             initial="hidden"
             whileInView="visible"
@@ -456,7 +456,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── Why Salebiz ─────────────────────────────────────────────────── */}
-        <section className="border-t border-border/50 bg-muted/20">
+        <section className="border-t border-border bg-muted/20">
           <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
             <MotionDiv
               initial="hidden"
@@ -486,7 +486,7 @@ export default async function HomePage() {
                   key={f.title}
                   variants={fadeUp}
                   transition={{ duration: 0.4 }}
-                  className="group border border-border/60 bg-card p-5 sm:p-7 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
+                  className="group border border-border bg-card p-5 sm:p-7 transition-all duration-200 hover:border-primary/30 cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
                 >
                   <div className="h-11 w-11 sm:h-12 sm:w-12 bg-primary/10 flex items-center justify-center shrink-0 sm:mb-5 transition-colors duration-200 group-hover:bg-primary/15">
                     <f.icon className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-primary" />
@@ -514,7 +514,7 @@ export default async function HomePage() {
               viewport={{ once: true, amount: 0.3 }}
               variants={fadeUp}
               transition={{ duration: 0.5 }}
-              className="relative overflow-hidden bg-primary px-5 py-12 sm:px-14 sm:py-14 text-center shadow-2xl shadow-primary/25"
+              className="relative overflow-hidden bg-primary px-5 py-12 sm:px-14 sm:py-14 text-center"
             >
               {/* Dot pattern */}
               <div
@@ -574,7 +574,7 @@ export default async function HomePage() {
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border/50 bg-muted/20">
+      <footer className="border-t border-border bg-muted/20">
         <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-14">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12">
             {/* Brand */}

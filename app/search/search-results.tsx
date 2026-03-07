@@ -63,7 +63,7 @@ export function SearchResults({
   // ── Empty state ──
   if (listings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4  border border-dashed border-border bg-muted/20 px-6 py-20 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 border border-dashed border-border bg-muted/20 px-6 py-20 text-center">
         <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
           <SearchX className="h-7 w-7 text-muted-foreground" />
         </div>
@@ -106,7 +106,7 @@ export function SearchResults({
             <li key={listing.id} className="h-full">
               <Link
                 href={`/listing/${listing.slug}`}
-                className="group flex flex-col h-full  border border-border bg-card overflow-hidden transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex flex-col h-full border border-border bg-card overflow-hidden transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {/* Thumbnail */}
                 <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">

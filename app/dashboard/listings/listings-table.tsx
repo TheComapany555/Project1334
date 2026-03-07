@@ -108,7 +108,7 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
 
   if (listings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 py-12 sm:py-16 text-center">
+      <div className="flex flex-col items-center justify-center border border-dashed bg-muted/40 px-4 py-12 sm:py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
           <HugeiconsIcon icon={Edit02Icon} className="size-6 text-muted-foreground" />
         </div>
