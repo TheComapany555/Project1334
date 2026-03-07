@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-client";
 import { getProfileBySlug } from "@/lib/actions/profile";
 import { getPublishedListingsByBrokerId } from "@/lib/actions/listings";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,10 @@ function formatPrice(listing: {
 
 export default async function BrokerProfilePage({ params }: Props) {
   const { slug } = await params;
-  const profile = await getProfileBySlug(slug);
+  const [session, profile] = await Promise.all([
+    getSession(),
+    getProfileBySlug(slug),
+  ]);
   if (!profile) notFound();
 
   const listings = await getPublishedListingsByBrokerId(profile.id);
@@ -78,7 +82,7 @@ export default async function BrokerProfilePage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader maxWidth="max-w-3xl" />
+      <PublicHeader session={session} maxWidth="max-w-3xl" />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-12 space-y-6">
 
@@ -316,6 +320,11 @@ export default async function BrokerProfilePage({ params }: Props) {
                           <p className="font-medium text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">
                             {listing.title}
                           </p>
+                          {listing.summary && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {listing.summary}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between gap-2">
                             {listing.category && (
                               <span className="text-xs text-muted-foreground truncate">

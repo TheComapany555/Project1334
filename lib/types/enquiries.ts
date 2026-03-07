@@ -2,6 +2,7 @@ export type EnquiryReason =
   | "general"
   | "request_viewing"
   | "make_offer"
+  | "request_callback"
   | "other";
 
 export type Enquiry = {
@@ -28,5 +29,6 @@ export const ENQUIRY_REASON_LABELS: Record<string, string> = {
   general: "General enquiry",
   request_viewing: "Request viewing",
   make_offer: "Make an offer",
+  request_callback: "Request call back",
   other: "Other",
 };

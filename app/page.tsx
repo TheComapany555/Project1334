@@ -5,6 +5,7 @@ import { searchListings, getListingHighlights } from "@/lib/actions/listings";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
@@ -18,6 +19,7 @@ import {
   ChevronRight,
   Star,
   Search,
+  User,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,9 +103,31 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
 
       {/* Body */}
       <div className="flex flex-col flex-1 p-3.5 sm:p-4">
+        {listing.broker && (
+          <div className="flex items-center gap-2 mb-2">
+            <Avatar size="sm">
+              {listing.broker.photo_url && (
+                <AvatarImage src={listing.broker.photo_url} alt="" />
+              )}
+              <AvatarFallback>
+                <User className="h-3 w-3" />
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-muted-foreground truncate">
+              {listing.broker.name ?? "Broker"}
+            </span>
+          </div>
+        )}
+
         <p className="font-semibold text-sm leading-snug line-clamp-2 text-foreground transition-colors duration-200 group-hover:text-primary">
           {listing.title}
         </p>
+
+        {listing.summary && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1.5">
+            {listing.summary}
+          </p>
+        )}
 
         {location && (
           <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
@@ -126,7 +150,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
             </div>
           )}
 
-        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border/40 mt-3">
+        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border/40">
           <p className="text-sm font-bold text-foreground">
             {formatPrice(listing)}
           </p>
@@ -314,13 +338,13 @@ export default async function HomePage() {
 
           {recentListings.length > 0 ? (
             <>
-              {/* Responsive grid: 1 col mobile, 2 col tablet, 4 col desktop */}
-              <ul className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Mobile: horizontal swipe. Tablet+: grid */}
+              <ul className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
                 {recentListings.map((listing) => (
-                  <li key={listing.id}>
+                  <li key={listing.id} className="min-w-[75vw] snap-start sm:min-w-0 sm:h-full">
                     <ListingCard
                       listing={listing}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      sizes="(max-width: 640px) 75vw, (max-width: 1024px) 50vw, 25vw"
                     />
                   </li>
                 ))}

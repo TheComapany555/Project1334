@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,23 +18,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { register as registerAction } from "@/lib/actions/auth";
+import {
+  validateInvitationToken,
+  acceptInvitation,
+  type InvitationInfo,
+} from "@/lib/actions/auth";
 import {
   Loader2,
   AlertCircle,
-  Mail,
-  Lock,
   User,
-  Building2,
+  Lock,
   ArrowRight,
   CheckCircle2,
+  Building2,
+  XCircle,
 } from "lucide-react";
 
 const schema = z
   .object({
     name: z.string().min(1, "Name is required").max(100),
-    company: z.string().min(1, "Agency / company name is required").max(200),
-    email: z.string().email("Enter a valid email"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirm: z.string(),
   })
@@ -44,7 +47,12 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
-export default function RegisterPage() {
+export default function JoinPage() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+
+  const [loading, setLoading] = useState(true);
+  const [info, setInfo] = useState<InvitationInfo | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,37 +62,59 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    validateInvitationToken(token).then((result) => {
+      setInfo(result);
+      setLoading(false);
+    });
+  }, [token]);
+
   async function onSubmit(data: FormData) {
     setError(null);
     const formData = new FormData();
-    formData.set("email", data.email);
-    formData.set("password", data.password);
     formData.set("name", data.name);
-    formData.set("company", data.company);
-    const result = await registerAction(formData);
+    formData.set("password", data.password);
+    const result = await acceptInvitation(token, formData);
     if (result.ok) {
       setSuccess(true);
-      toast.success("Account created. Check your email to verify.");
+      toast.success("Account created! You can now sign in.");
       return;
     }
     setError(result.error);
     toast.error(result.error);
   }
 
-  /* ── Success state ── */
-  if (success) {
+  // Loading state
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-14">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Invalid or missing token
+  if (!token || !info) {
     return (
       <Card>
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <CheckCircle2 className="h-7 w-7 text-primary" />
+            <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <XCircle className="h-7 w-7 text-destructive" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Invalid Invitation
+          </CardTitle>
           <CardDescription className="leading-relaxed max-w-xs mx-auto">
-            We sent a verification link to your email. Click it to verify your
-            account, then sign in.
+            This invitation link is invalid or has already been used. Please ask
+            the agency owner to send a new invitation.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,14 +132,104 @@ export default function RegisterPage() {
     );
   }
 
-  /* ── Register form ── */
+  // Expired invitation
+  if (info.expired) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-2">
+            <div className="h-14 w-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Invitation Expired
+          </CardTitle>
+          <CardDescription className="leading-relaxed max-w-xs mx-auto">
+            This invitation to join <strong>{info.agencyName}</strong> has
+            expired. Please ask the agency owner to resend the invitation.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            asChild
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+          >
+            <Link href="/auth/login">
+              Go to sign in
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Success state
+  if (success) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-2">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            You&apos;re all set!
+          </CardTitle>
+          <CardDescription className="leading-relaxed max-w-xs mx-auto">
+            Your account has been created and you&apos;ve joined{" "}
+            <strong>{info.agencyName}</strong>. Sign in to start managing
+            listings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            asChild
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+          >
+            <Link href="/auth/login">
+              Sign in
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Join form
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
-        <CardDescription>Register your agency on Salebiz.com.au</CardDescription>
+        <CardTitle className="text-2xl font-bold tracking-tight">
+          Join {info.agencyName}
+        </CardTitle>
+        <CardDescription>
+          {info.inviterName ? (
+            <>
+              <strong>{info.inviterName}</strong> invited you to join as a broker
+            </>
+          ) : (
+            <>You&apos;ve been invited to join as a broker</>
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Agency badge */}
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{info.agencyName}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {info.email}
+            </p>
+          </div>
+        </div>
+
         {/* Error alert */}
         {error && (
           <Alert
@@ -143,54 +263,6 @@ export default function RegisterPage() {
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 {errors.name.message}
-              </p>
-            )}
-          </div>
-
-          {/* Company / Agency name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="company" className="text-sm font-medium">
-              Agency / company name
-            </Label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                id="company"
-                type="text"
-                autoComplete="organization"
-                placeholder="Your business or agency name"
-                className={`pl-9 h-11 ${errors.company ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                {...register("company")}
-              />
-            </div>
-            {errors.company && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.company.message}
-              </p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email address
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                className={`pl-9 h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                {...register("email")}
-              />
-            </div>
-            {errors.email && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.email.message}
               </p>
             )}
           </div>
@@ -256,7 +328,7 @@ export default function RegisterPage() {
               </>
             ) : (
               <>
-                Create account
+                Join & create account
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}

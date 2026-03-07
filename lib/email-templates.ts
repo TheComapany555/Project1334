@@ -3,7 +3,7 @@
 const BRAND_PRIMARY = "#0d5c2f";
 const BRAND_SECONDARY = "#0d4a2a";
 
-const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg";
+const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png";
 
 /* ------------------------------------------------------------------ */
 /*  Base layout                                                        */
@@ -271,5 +271,45 @@ export function enquiryNotificationEmail(opts: {
         </td>
       </tr>
     </table>
+  `);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Email: Broker Invitation (to invited broker)                       */
+/* ------------------------------------------------------------------ */
+
+export function brokerInvitationEmail(opts: {
+  agencyName: string;
+  inviterName: string | null;
+  joinUrl: string;
+  expiresInDays: number;
+}): string {
+  const { agencyName, inviterName, joinUrl, expiresInDays } = opts;
+  const invitedBy = inviterName ? `<strong>${inviterName}</strong> has` : "You have been";
+
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      You&#8217;re Invited!
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Join <strong>${agencyName}</strong> on Salebiz.com.au
+    </p>
+
+    <p style="margin:0 0 8px 0;">
+      ${invitedBy} invited you to join <strong>${agencyName}</strong> as a broker on Salebiz.
+    </p>
+    <p style="margin:0 0 4px 0;">
+      Click the button below to create your account and start managing listings.
+    </p>
+
+    ${ctaButton(joinUrl, "Accept Invitation")}
+
+    <p style="margin:0 0 4px 0;font-size:13px;color:#888888;">
+      This invitation will expire in <strong>${expiresInDays} days</strong>. If you weren&#8217;t expecting this, you can safely ignore this email.
+    </p>
+
+    <p style="margin:16px 0 0 0;font-size:12px;color:#aaaaaa;word-break:break-all;">
+      Or copy this link: ${joinUrl}
+    </p>
   `);
 }

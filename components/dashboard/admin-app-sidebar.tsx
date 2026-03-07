@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 
 const adminNav = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
-  { label: "Brokers", href: "/admin/brokers", icon: UserIcon },
+  { label: "Agencies", href: "/admin/brokers", icon: UserIcon },
   { label: "Listings", href: "/admin/listings", icon: FileIcon },
   { label: "Categories", href: "/admin/categories", icon: FolderIcon },
   { label: "Enquiries", href: "/admin/enquiries", icon: MailIcon },

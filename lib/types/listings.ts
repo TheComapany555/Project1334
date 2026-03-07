@@ -26,6 +26,7 @@ export type ListingImage = {
 export type Listing = {
   id: string;
   broker_id: string;
+  agency_id: string | null;
   slug: string;
   title: string;
   category_id: string | null;
@@ -47,6 +48,7 @@ export type Listing = {
   category?: Category | null;
   listing_images?: ListingImage[];
   listing_highlights?: ListingHighlight[];
+  broker?: { name: string | null; photo_url: string | null };
 };
 
 /** For broker's own listing edit - includes highlight_ids for form. */

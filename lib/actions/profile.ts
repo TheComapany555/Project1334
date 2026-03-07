@@ -27,6 +27,12 @@ export type ProfilePublic = ProfileFormData & {
   photo_url: string | null;
   created_at: string;
   updated_at: string;
+  agency?: {
+    id: string;
+    name: string;
+    slug: string | null;
+    logo_url: string | null;
+  } | null;
 };
 
 async function requireBroker() {
@@ -37,18 +43,32 @@ async function requireBroker() {
   return { session, userId: session.user.id };
 }
 
-export async function getProfileForEdit(): Promise<ProfileFormData & { photo_url: string | null; logo_url: string | null } | null> {
+export async function getProfileForEdit(): Promise<ProfileFormData & { photo_url: string | null; logo_url: string | null; agency?: { id: string; name: string; role: string } | null } | null> {
   const { userId } = await requireBroker();
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("name, company, phone, email_public, website, bio, slug, social_links, photo_url, logo_url")
+    .select("name, company, phone, email_public, website, bio, slug, social_links, photo_url, logo_url, agency_id, agency_role")
     .eq("id", userId)
     .single();
   if (error || !data) return null;
+
+  let agency: { id: string; name: string; role: string } | null = null;
+  if (data.agency_id) {
+    const { data: agencyData } = await supabase
+      .from("agencies")
+      .select("id, name")
+      .eq("id", data.agency_id)
+      .single();
+    if (agencyData) {
+      agency = { id: agencyData.id, name: agencyData.name, role: data.agency_role ?? "member" };
+    }
+  }
+
   return {
     ...data,
     social_links: (data.social_links as ProfileFormData["social_links"]) ?? null,
+    agency,
   };
 }
 
@@ -79,12 +99,27 @@ export async function getProfileBySlug(slug: string): Promise<ProfilePublic | nu
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, company, phone, email_public, website, bio, slug, social_links, logo_url, photo_url, role, created_at, updated_at")
+    .select("id, name, company, phone, email_public, website, bio, slug, social_links, logo_url, photo_url, role, agency_id, created_at, updated_at")
     .eq("slug", slug)
     .eq("role", "broker")
     .single();
   if (error || !data) return null;
-  return data as ProfilePublic;
+
+  let agency: ProfilePublic["agency"] = null;
+  if (data.agency_id) {
+    const { data: agencyData } = await supabase
+      .from("agencies")
+      .select("id, name, slug, logo_url")
+      .eq("id", data.agency_id)
+      .single();
+    if (agencyData) agency = agencyData;
+  }
+
+  return {
+    ...data,
+    social_links: (data.social_links as ProfileFormData["social_links"]) ?? null,
+    agency,
+  } as ProfilePublic;
 }
 
 export async function checkSlugAvailable(slug: string, excludeUserId?: string): Promise<boolean> {
@@ -101,7 +136,6 @@ export async function updateProfile(formData: FormData): Promise<{ ok: boolean; 
   const supabase = createServiceRoleClient();
 
   const name = (formData.get("name") as string)?.trim() || null;
-  const company = (formData.get("company") as string)?.trim() || null;
   const phone = (formData.get("phone") as string)?.trim() || null;
   const email_public = (formData.get("email_public") as string)?.trim() || null;
   const website = (formData.get("website") as string)?.trim() || null;
@@ -134,7 +168,6 @@ export async function updateProfile(formData: FormData): Promise<{ ok: boolean; 
     .from("profiles")
     .update({
       name,
-      company,
       phone,
       email_public,
       website,

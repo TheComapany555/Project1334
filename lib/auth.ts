@@ -26,16 +26,42 @@ export const authOptions: NextAuthOptions = {
         if (!userRow.email_verified_at) return null;
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role, status")
+          .select("role, status, agency_id, agency_role")
           .eq("id", userRow.id)
           .single();
         const role = (profile?.role as "broker" | "admin") ?? "broker";
-        if (role === "broker" && profile?.status !== "active") return null;
+
+        if (role === "broker") {
+          if (profile?.agency_id) {
+            // Agency-based broker: agency must be active
+            const { data: agency } = await supabase
+              .from("agencies")
+              .select("status, name")
+              .eq("id", profile.agency_id)
+              .single();
+            if (!agency || agency.status !== "active") return null;
+            return {
+              id: userRow.id,
+              email: userRow.email,
+              emailVerified: userRow.email_verified_at ? new Date(userRow.email_verified_at) : null,
+              role,
+              agencyId: profile.agency_id,
+              agencyRole: profile.agency_role as "owner" | "member" | null,
+              agencyName: agency.name,
+            };
+          }
+          // Legacy broker without agency: must have active status
+          if (profile?.status !== "active") return null;
+        }
+
         return {
           id: userRow.id,
           email: userRow.email,
           emailVerified: userRow.email_verified_at ? new Date(userRow.email_verified_at) : null,
           role,
+          agencyId: profile?.agency_id ?? null,
+          agencyRole: (profile?.agency_role as "owner" | "member" | null) ?? null,
+          agencyName: null,
         };
       },
     }),
@@ -46,6 +72,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.emailVerified = user.emailVerified;
+        token.agencyId = user.agencyId;
+        token.agencyRole = user.agencyRole;
+        token.agencyName = user.agencyName;
       }
       return token;
     },
@@ -54,6 +83,9 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as "broker" | "admin";
         session.user.emailVerified = token.emailVerified as Date | null | undefined;
+        session.user.agencyId = (token.agencyId as string) ?? null;
+        session.user.agencyRole = (token.agencyRole as "owner" | "member") ?? null;
+        session.user.agencyName = (token.agencyName as string) ?? null;
       }
       return session;
     },

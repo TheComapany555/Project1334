@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getSession } from "@/lib/auth-client"
 import { getListingsByBroker } from "@/lib/actions/listings"
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
 import { ChartBarListings } from "@/components/dashboard/chart-bar-listings"
@@ -21,6 +22,10 @@ import {
 } from "lucide-react"
 
 export default async function DashboardPage() {
+  const session = await getSession()
+  const isAgencyOwner = session?.user?.agencyRole === "owner"
+  const agencyName = session?.user?.agencyName
+
   const [listings, enquiries] = await Promise.all([
     getListingsByBroker(),
     getEnquiriesByBroker(),
@@ -78,8 +83,11 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Overview"
-        description="Manage your listings, profile, and enquiries."
+        title={isAgencyOwner ? `${agencyName ?? "Agency"} Overview` : "Overview"}
+        description={isAgencyOwner
+          ? "Agency-wide overview of listings, enquiries, and team activity."
+          : "Manage your listings, profile, and enquiries."
+        }
         action={
           <Button asChild size="sm" className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
             <Link href="/dashboard/listings/new">

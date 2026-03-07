@@ -17,8 +17,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, DollarSign, TrendingUp, BarChart3, FileText } from "lucide-react";
+import { MapPin, DollarSign, TrendingUp, BarChart3, FileText, Sparkles, PhoneCall } from "lucide-react";
 import { EnquiryForm } from "./enquiry-form";
+import { ListingMap } from "./listing-map";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -58,10 +59,10 @@ export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
 
   // Try public view first; if not found, try admin view (no status filter)
+  const session = await getSession();
   let listing = await getListingBySlug(slug);
   let isAdminPreview = false;
   if (!listing) {
-    const session = await getSession();
     if (session?.user?.role === "admin") {
       listing = await getListingBySlugAdmin(slug) as typeof listing;
       isAdminPreview = !!listing;
@@ -77,7 +78,7 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader maxWidth="max-w-3xl" />
+      <PublicHeader session={session} maxWidth="max-w-3xl" />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10 space-y-6">
 
@@ -155,24 +156,36 @@ export default async function ListingPage({ params }: Props) {
           </Card>
         )}
 
-        {/* Tags / Highlights */}
+        {/* Why This Business? — highlight selling points */}
         {highlights.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Tags
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {highlights.map((h) => (
-                <Badge
-                  key={h.id}
-                  variant={h.accent === "warning" ? "warning" : h.accent === "primary" ? "default" : "secondary"}
-                  className="border-0"
-                >
-                  {h.label}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <Card className="border-primary/20 bg-primary/[0.03]">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <Sparkles className="h-5 w-5" />
+                Why this business?
+              </CardTitle>
+              <CardDescription>Key selling points</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {highlights.map((h) => (
+                  <li
+                    key={h.id}
+                    className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-background px-3 py-2.5 text-sm"
+                  >
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      h.accent === "primary" ? "bg-primary/15 text-primary" :
+                      h.accent === "warning" ? "bg-warning/15 text-[var(--warning-foreground)]" :
+                      "bg-muted text-muted-foreground"
+                    }`}>
+                      ✓
+                    </span>
+                    <span className="font-medium text-foreground">{h.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         )}
 
         {/* Summary */}
@@ -243,6 +256,11 @@ export default async function ListingPage({ params }: Props) {
           </CardContent>
         </Card>
 
+        {/* Interactive Map */}
+        {locationText && (
+          <ListingMap location={locationText} />
+        )}
+
         {/* Broker */}
         {broker?.slug && (
           <Card>
@@ -280,7 +298,7 @@ export default async function ListingPage({ params }: Props) {
         )}
 
         {/* Enquiry form */}
-        <EnquiryForm listingId={listing.id} />
+        <EnquiryForm listingId={listing.id} listingTitle={listing.title} />
       </main>
     </div>
   );
