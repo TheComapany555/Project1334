@@ -4,8 +4,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { resendInvitation, revokeInvitation } from "@/lib/actions/agencies";
-import { Loader2, RotateCw, X } from "lucide-react";
+import { Loader2, RotateCw, X, UserMinus } from "lucide-react";
 
 export function ResendButton({ invitationId }: { invitationId: string }) {
   const [loading, setLoading] = useState(false);
@@ -96,21 +106,18 @@ export function RemoveBrokerButton({
   brokerId: string;
   brokerName: string | null;
 }) {
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleRemove() {
-    const confirmed = window.confirm(
-      `Remove ${brokerName ?? "this broker"} from your agency? They will lose access to all agency listings.`
-    );
-    if (!confirmed) return;
-
     setLoading(true);
     try {
       const { removeAgencyBroker } = await import("@/lib/actions/agencies");
       const result = await removeAgencyBroker(brokerId);
       if (result.ok) {
         toast.success("Broker removed from agency");
+        setOpen(false);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -123,21 +130,57 @@ export function RemoveBrokerButton({
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleRemove}
-      disabled={loading}
-      className="h-8 px-2 text-xs text-destructive hover:text-destructive"
-    >
-      {loading ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <>
-          <X className="h-3.5 w-3.5 mr-1" />
-          Remove
-        </>
-      )}
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={loading}
+        className="h-8 px-2 text-xs text-destructive hover:text-destructive"
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <>
+            <X className="h-3.5 w-3.5 mr-1" />
+            Remove
+          </>
+        )}
+      </Button>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove broker?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove{" "}
+              <strong>{brokerName ?? "this broker"}</strong>{" "}
+              from your agency? They will lose access to all agency listings.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removing…
+                </>
+              ) : (
+                <>
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Remove broker
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -10,6 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
 import {
+  MotionDiv,
+  MotionSection,
+  MotionH1,
+  MotionP,
+  MotionUl,
+  MotionLi,
+  fadeUp,
+  staggerContainer,
+} from "@/components/motion";
+import {
   ArrowRight,
   TrendingUp,
   MapPin,
@@ -70,12 +80,12 @@ const FEATURES = [
 // ─── Listing Card (shared between mobile scroll + desktop grid) ───────────────
 function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
   const thumb = listing.listing_images?.[0]?.url;
-  const location = [listing.suburb, listing.state].filter(Boolean).join(", ");
+  const location = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
 
   return (
     <Link
       href={`/listing/${listing.slug}`}
-      className="group flex flex-col h-full rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="group flex flex-col h-full border border-border bg-card overflow-hidden transition-all duration-200 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {/* Image */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted shrink-0">
@@ -142,7 +152,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
               {listing.listing_highlights.slice(0, 3).map((h) => (
                 <span
                   key={h.id}
-                  className="inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className="inline-flex bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
                 >
                   {h.label}
                 </span>
@@ -150,12 +160,12 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
             </div>
           )}
 
-        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border/40">
+        <div className="mt-auto pt-3 flex items-center justify-between border-t border-border">
           <p className="text-sm font-bold text-foreground">
             {formatPrice(listing)}
           </p>
           <span className="text-[11px] text-primary flex items-center gap-0.5 font-medium">
-            View <ArrowRight className="h-3 w-3" />
+            View <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
           </span>
         </div>
       </div>
@@ -198,104 +208,148 @@ export default async function HomePage() {
             aria-hidden
           />
 
-          <div className="container px-4 sm:px-6 max-w-7xl mx-auto pt-12 pb-12 sm:pt-24 sm:pb-20 md:pt-32 md:pb-28">
+          <div className="container px-4 sm:px-6 max-w-7xl mx-auto pt-14 pb-14 sm:pt-28 sm:pb-24 md:pt-36 md:pb-32">
             <div className="mx-auto max-w-4xl text-center">
               {/* Live badge */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/8 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-primary mb-5 sm:mb-7">
+              <MotionDiv
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+                className="inline-flex items-center gap-2 border border-primary/20 bg-primary/8 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-primary mb-6 sm:mb-8"
+              >
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                 </span>
                 Australia&apos;s leading business marketplace
-              </div>
+              </MotionDiv>
 
               {/* Heading */}
-              <h1 className="text-[2rem] leading-[1.1] font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-[4.25rem] text-foreground">
+              <MotionH1
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.12 }}
+                className="text-[2.25rem] leading-[1.08] font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-[4.5rem] text-foreground"
+              >
                 Find your next{" "}
                 <span className="relative inline-block">
                   <span className="relative z-10 text-primary">business</span>
                   <span
-                    className="absolute inset-x-0 bottom-0.5 sm:bottom-1 -z-0 h-2 sm:h-3 rounded-sm bg-primary/12"
+                    className="absolute inset-x-0 bottom-0.5 sm:bottom-1 -z-0 h-2 sm:h-3 bg-primary/12"
                     aria-hidden
                   />
                 </span>{" "}
                 opportunity
-              </h1>
+              </MotionH1>
 
-              <p className="mt-4 sm:mt-6 text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              <MotionP
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="mt-5 sm:mt-7 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+              >
                 Browse thousands of established businesses for sale across
                 Australia. Connect directly with verified brokers and make your
                 move with confidence.
-              </p>
+              </MotionP>
 
               {/* Hero search */}
-              <form
-                action="/search"
-                method="get"
-                className="mt-6 sm:mt-8 mx-auto max-w-2xl"
+              <MotionDiv
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <div className="flex flex-col sm:flex-row gap-2 p-2 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
-                  <div className="flex flex-1 items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl bg-muted/40">
-                    <Search
-                      className="h-4 w-4 text-muted-foreground shrink-0"
-                      aria-hidden
-                    />
-                    <Input
-                      type="search"
-                      name="q"
-                      placeholder="Search businesses, industries…"
-                      className="flex-1 min-w-0 h-auto border-0 bg-transparent px-0 text-sm text-foreground placeholder:text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                      autoComplete="off"
-                    />
+                <form
+                  action="/search"
+                  method="get"
+                  className="mt-7 sm:mt-9 mx-auto max-w-2xl"
+                >
+                  <div className="flex flex-col sm:flex-row gap-2 p-2 border border-border bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
+                    <div className="flex flex-1 items-center gap-3 px-3 sm:px-4 py-2.5 bg-muted/40">
+                      <Search
+                        className="h-4 w-4 text-muted-foreground shrink-0"
+                        aria-hidden
+                      />
+                      <Input
+                        type="search"
+                        name="q"
+                        placeholder="Search businesses, industries…"
+                        className="flex-1 min-w-0 h-auto border-0 bg-transparent px-0 text-sm text-foreground placeholder:text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      size="lg"
+                      className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground h-11 px-6 font-semibold text-sm shadow-md shrink-0 transition-transform duration-150 active:scale-[0.98]"
+                    >
+                      Search listings
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl sm:rounded-full h-11 px-6 font-semibold text-sm shadow-md shrink-0"
-                  >
-                    Search listings
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </form>
+                </form>
+              </MotionDiv>
 
-              <p className="mt-4 sm:mt-5 text-xs text-muted-foreground flex items-center justify-center gap-1.5 text-center">
+              <MotionP
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.45 }}
+                className="mt-5 text-xs text-muted-foreground flex items-center justify-center gap-1.5 text-center"
+              >
                 <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                 Trusted by brokers and buyers across all Australian states &amp;
                 territories
-              </p>
+              </MotionP>
             </div>
           </div>
         </section>
 
         {/* ── Stats bar ────────────────────────────────────────────────────── */}
-        <section className="border-y border-border/50 bg-muted/30">
-          <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-6 sm:py-8">
-            <div className="grid grid-cols-2 gap-y-5 gap-x-4 sm:grid-cols-4 sm:gap-8">
+        <section className="border-y border-border bg-muted/30">
+          <MotionDiv
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.5 }}
+            variants={staggerContainer}
+            className="container px-4 sm:px-6 max-w-7xl mx-auto py-7 sm:py-10"
+          >
+            <div className="grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-4 sm:gap-8">
               {STATS.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                <MotionDiv
+                  key={stat.label}
+                  variants={fadeUp}
+                  transition={{ duration: 0.4 }}
+                  className="text-center"
+                >
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                     {stat.value}
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     {stat.label}
                   </p>
-                </div>
+                </MotionDiv>
               ))}
             </div>
-          </div>
+          </MotionDiv>
         </section>
 
         {/* ── Recent listings ─────────────────────────────────────────────── */}
-        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-16 md:py-20">
+        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
           {/* Section header */}
-          <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+          <MotionDiv
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={fadeUp}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col gap-4 mb-7 sm:mb-10"
+          >
             <div className="flex items-end justify-between gap-4">
               <div>
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-primary mb-1 sm:mb-1.5">
                   Latest opportunities
                 </p>
-                <h2 className="text-xl font-bold tracking-tight sm:text-3xl">
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                   Recently listed
                 </h2>
               </div>
@@ -322,7 +376,7 @@ export default async function HomePage() {
                     key={h.id}
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs rounded-full"
+                    className="h-7 text-xs"
                     asChild
                   >
                     <Link
@@ -334,38 +388,56 @@ export default async function HomePage() {
                 ))}
               </div>
             )}
-          </div>
+          </MotionDiv>
 
           {recentListings.length > 0 ? (
             <>
               {/* Mobile: horizontal swipe. Tablet+: grid */}
-              <ul className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+              <MotionUl
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.1 }}
+                variants={staggerContainer}
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4"
+              >
                 {recentListings.map((listing) => (
-                  <li key={listing.id} className="min-w-[75vw] snap-start sm:min-w-0 sm:h-full">
+                  <MotionLi
+                    key={listing.id}
+                    variants={fadeUp}
+                    transition={{ duration: 0.4 }}
+                    className="min-w-[75vw] snap-start sm:min-w-0 sm:h-full"
+                  >
                     <ListingCard
                       listing={listing}
                       sizes="(max-width: 640px) 75vw, (max-width: 1024px) 50vw, 25vw"
                     />
-                  </li>
+                  </MotionLi>
                 ))}
-              </ul>
+              </MotionUl>
 
-              <div className="mt-8 sm:mt-10 text-center">
+              <MotionDiv
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeUp}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="mt-10 sm:mt-12 text-center"
+              >
                 <Button
                   asChild
                   variant="outline"
                   size="lg"
-                  className="w-full sm:w-auto px-8 sm:px-10"
+                  className="w-full sm:w-auto px-8 sm:px-10 transition-transform duration-150 active:scale-[0.98]"
                 >
                   <Link href="/search">
                     See all listings
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-              </div>
+              </MotionDiv>
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-12 sm:py-16 text-center">
+            <div className="border border-dashed border-border bg-muted/20 px-4 py-14 sm:py-18 text-center">
               <Building2 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
               <p className="font-medium text-foreground">No listings yet</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -384,44 +456,66 @@ export default async function HomePage() {
         </section>
 
         {/* ── Why Salebiz ─────────────────────────────────────────────────── */}
-        <section className="border-t border-border/50 bg-muted/20">
-          <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-16 md:py-20">
-            <div className="text-center mb-8 sm:mb-10">
+        <section className="border-t border-border bg-muted/20">
+          <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-10 sm:mb-12"
+            >
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-primary mb-2">
                 Why choose us
               </p>
-              <h2 className="text-xl font-bold tracking-tight sm:text-3xl">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 The smarter way to buy &amp; sell
               </h2>
-            </div>
+            </MotionDiv>
 
-            <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-3">
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={staggerContainer}
+              className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-3"
+            >
               {FEATURES.map((f) => (
-                <div
+                <MotionDiv
                   key={f.title}
-                  className="group rounded-xl border border-border/60 bg-card p-5 sm:p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
+                  variants={fadeUp}
+                  transition={{ duration: 0.4 }}
+                  className="group border border-border bg-card p-5 sm:p-7 transition-all duration-200 hover:border-primary/30 cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
                 >
-                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 sm:mb-4 transition-colors duration-200 group-hover:bg-primary/15">
-                    <f.icon className="h-5 w-5 text-primary" />
+                  <div className="h-11 w-11 sm:h-12 sm:w-12 bg-primary/10 flex items-center justify-center shrink-0 sm:mb-5 transition-colors duration-200 group-hover:bg-primary/15">
+                    <f.icon className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground mb-1 sm:mb-1.5">
+                    <h3 className="font-semibold text-foreground text-[15px] mb-1.5 sm:mb-2">
                       {f.title}
                     </h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {f.description}
                     </p>
                   </div>
-                </div>
+                </MotionDiv>
               ))}
-            </div>
+            </MotionDiv>
           </div>
         </section>
 
         {/* ── Broker CTA ──────────────────────────────────────────────────── */}
         {!session?.user && (
-          <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-16 md:py-20">
-            <div className="relative overflow-hidden rounded-2xl bg-primary px-5 py-10 sm:px-14 sm:py-12 text-center shadow-2xl shadow-primary/25">
+          <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.5 }}
+              className="relative overflow-hidden bg-primary px-5 py-12 sm:px-14 sm:py-14 text-center"
+            >
               {/* Dot pattern */}
               <div
                 className="absolute inset-0 opacity-[0.07] pointer-events-none"
@@ -442,22 +536,22 @@ export default async function HomePage() {
               />
 
               <div className="relative">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 font-medium mb-4 sm:mb-5">
+                <div className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 text-xs text-white/80 font-medium mb-5 sm:mb-6">
                   <Star className="h-3 w-3 fill-white/60 text-white/60" />
                   For licensed brokers
                 </div>
-                <h2 className="text-xl sm:text-3xl md:text-4xl font-bold text-primary-foreground tracking-tight">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground tracking-tight">
                   Ready to list your business?
                 </h2>
-                <p className="mt-3 text-sm sm:text-base text-white/70 max-w-lg mx-auto leading-relaxed">
+                <p className="mt-3 sm:mt-4 text-sm sm:text-base text-white/70 max-w-lg mx-auto leading-relaxed">
                   Create your broker account and reach thousands of qualified
                   buyers across Australia. Free to get started.
                 </p>
-                <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+                <div className="mt-7 sm:mt-9 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                   <Button
                     asChild
                     size="lg"
-                    className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 shadow-lg font-semibold h-11 sm:h-12 px-6 sm:px-8"
+                    className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 shadow-lg font-semibold h-11 sm:h-12 px-6 sm:px-8 transition-transform duration-150 active:scale-[0.98]"
                   >
                     <Link href="/auth/register">
                       Create broker account
@@ -474,15 +568,15 @@ export default async function HomePage() {
                   </Button>
                 </div>
               </div>
-            </div>
+            </MotionDiv>
           </section>
         )}
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border/50 bg-muted/20">
-        <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-8 sm:py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-7 sm:gap-12">
+      <footer className="border-t border-border bg-muted/20">
+        <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-10 sm:py-14">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12">
             {/* Brand */}
             <div className="flex flex-col gap-3">
               <Link
@@ -498,14 +592,14 @@ export default async function HomePage() {
                   className="h-8 w-auto object-contain"
                 />
               </Link>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px]">
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-[240px]">
                 Australia&apos;s trusted marketplace for buying and selling
                 businesses.
               </p>
             </div>
 
             {/* Explore */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-foreground mb-1">
                 Explore
               </p>
@@ -530,7 +624,7 @@ export default async function HomePage() {
             </div>
 
             {/* Get started */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-foreground mb-1">
                 Get started
               </p>
@@ -546,7 +640,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <Separator className="mt-8 sm:mt-10 mb-5 opacity-50" />
+          <Separator className="mt-10 sm:mt-12 mb-6 opacity-50" />
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p

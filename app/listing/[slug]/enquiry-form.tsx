@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FieldError } from "@/components/ui/field-error";
 import { submitEnquiry } from "@/lib/actions/enquiries";
 import { Loader2, CheckCircle2, Send, Mail, User, Phone, PhoneCall } from "lucide-react";
 
@@ -31,19 +35,48 @@ const REASON_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
+const enquirySchema = z.object({
+  reason: z.string(),
+  message: z.string().min(10, "Message must be at least 10 characters"),
+  contact_name: z.string(),
+  contact_email: z.string().email("Enter a valid email address"),
+  contact_phone: z.string(),
+});
+
+type FormData = z.infer<typeof enquirySchema>;
+
 type Props = { listingId: string; listingTitle?: string };
 
 export function EnquiryForm({ listingId, listingTitle }: Props) {
   const [submitted, setSubmitted] = useState(false);
-  const [reason, setReason] = useState<string>("");
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [callbackMode, setCallbackMode] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(enquirySchema),
+    defaultValues: {
+      reason: "",
+      message: "",
+      contact_name: "",
+      contact_email: "",
+      contact_phone: "",
+    },
+  });
+
+  const reason = watch("reason");
 
   function handleRequestCallback() {
     setCallbackMode(true);
-    setReason("request_callback");
-    setMessage(
+    setValue("reason", "request_callback");
+    setValue(
+      "message",
       `I'd like to request a call back regarding "${listingTitle || "this listing"}". Please contact me at your earliest convenience.`
     );
     setTimeout(() => {
@@ -51,20 +84,32 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
     }, 100);
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    if (reason) formData.set("reason", reason);
+  async function onSubmit(data: FormData) {
+    // Validate callback-specific required fields
+    if (callbackMode) {
+      let hasError = false;
+      if (!data.contact_name?.trim()) {
+        setError("contact_name", { message: "Name is required for call back requests" });
+        hasError = true;
+      }
+      if (!data.contact_phone?.trim()) {
+        setError("contact_phone", { message: "Phone is required for call back requests" });
+        hasError = true;
+      }
+      if (hasError) return;
+    }
+
+    const formData = new FormData();
+    formData.set("message", data.message);
+    formData.set("contact_email", data.contact_email);
+    if (data.contact_name) formData.set("contact_name", data.contact_name);
+    if (data.contact_phone) formData.set("contact_phone", data.contact_phone);
+    if (data.reason) formData.set("reason", data.reason);
+
     const result = await submitEnquiry(listingId, formData);
-    setSubmitting(false);
     if (result.ok) {
       setSubmitted(true);
-      form.reset();
-      setReason("");
-      setMessage("");
-      setCallbackMode(false);
+      reset();
       toast.success(
         callbackMode
           ? "Call back request sent. The broker will contact you soon."
@@ -95,7 +140,10 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => setSubmitted(false)}
+            onClick={() => {
+              setSubmitted(false);
+              setCallbackMode(false);
+            }}
           >
             Send another enquiry
           </Button>
@@ -144,10 +192,16 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
               <Label htmlFor="enquiry-reason">Reason (optional)</Label>
-              <Select value={reason} onValueChange={(v) => { setReason(v); setCallbackMode(v === "request_callback"); }}>
+              <Select
+                value={reason}
+                onValueChange={(v) => {
+                  setValue("reason", v);
+                  setCallbackMode(v === "request_callback");
+                }}
+              >
                 <SelectTrigger id="enquiry-reason">
                   <SelectValue placeholder="Select a reason" />
                 </SelectTrigger>
@@ -160,26 +214,25 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-1.5">
               <Label htmlFor="enquiry-message">Message *</Label>
               <Textarea
                 id="enquiry-message"
-                name="message"
-                required
-                minLength={10}
                 placeholder={
                   callbackMode
                     ? "Any specific topics you'd like to discuss on the call..."
                     : "Tell the broker what you'd like to know or arrange..."
                 }
                 rows={4}
-                className="resize-none"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                className={`resize-none ${errors.message ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                {...register("message")}
               />
+              <FieldError message={errors.message?.message} />
             </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="enquiry-name">
                   Your name {callbackMode ? "*" : "(optional)"}
                 </Label>
@@ -187,30 +240,31 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <Input
                     id="enquiry-name"
-                    name="contact_name"
                     type="text"
-                    required={callbackMode}
                     placeholder="Name"
-                    className="pl-9"
+                    className={`pl-9 ${errors.contact_name ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    {...register("contact_name")}
                   />
                 </div>
+                <FieldError message={errors.contact_name?.message} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="enquiry-email">Your email *</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <Input
                     id="enquiry-email"
-                    name="contact_email"
                     type="email"
-                    required
                     placeholder="you@example.com"
-                    className="pl-9"
+                    className={`pl-9 ${errors.contact_email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    {...register("contact_email")}
                   />
                 </div>
+                <FieldError message={errors.contact_email?.message} />
               </div>
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-1.5">
               <Label htmlFor="enquiry-phone">
                 Phone {callbackMode ? "*" : "(optional)"}
               </Label>
@@ -218,16 +272,17 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   id="enquiry-phone"
-                  name="contact_phone"
                   type="tel"
-                  required={callbackMode}
                   placeholder="Phone number"
-                  className="pl-9"
+                  className={`pl-9 ${errors.contact_phone ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  {...register("contact_phone")}
                 />
               </div>
+              <FieldError message={errors.contact_phone?.message} />
             </div>
-            <Button type="submit" disabled={submitting} className="w-full gap-2">
-              {submitting ? (
+
+            <Button type="submit" disabled={isSubmitting} className="w-full gap-2">
+              {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Sending…

@@ -41,15 +41,22 @@ import {
   ComboboxItem,
 } from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FieldError } from "@/components/ui/field-error";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Delete02Icon,
+} from "@hugeicons/core-free-icons";
 
 const MAX_IMAGES_PER_LISTING = 10;
 const ACCEPT_IMAGES = "image/jpeg,image/png,image/webp,image/gif";
 
 const step1Schema = z.object({
   title: z.string().min(1, "Title is required").max(200),
-  category_id: z.union([z.string().uuid(), z.literal("")]).transform((v) => (v === "" ? null : v)),
+  category_id: z
+    .union([z.string().uuid(), z.literal("")])
+    .transform((v) => (v === "" ? null : v)),
   location_text: z.string().max(200).optional(),
   state: z.string().max(100).optional(),
   suburb: z.string().max(100).optional(),
@@ -97,7 +104,9 @@ export default function NewListingPage() {
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<{ file: File; url: string }[]>([]);
+  const [selectedImages, setSelectedImages] = useState<
+    { file: File; url: string }[]
+  >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,27 +115,47 @@ export default function NewListingPage() {
     defaultValues,
   });
 
-  const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = form;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    trigger,
+    formState: { errors },
+  } = form;
 
   useEffect(() => {
-    Promise.all([getCategories(), getListingHighlights()]).then(([cats, hls]) => {
-      setCategories(cats);
-      setHighlights(hls);
-      setLoading(false);
-    });
+    Promise.all([getCategories(), getListingHighlights()]).then(
+      ([cats, hls]) => {
+        setCategories(cats);
+        setHighlights(hls);
+        setLoading(false);
+      },
+    );
   }, []);
 
   async function onStep1Next() {
     const ok = await trigger([
-      "title", "category_id", "location_text", "state", "suburb", "postcode",
-      "price_type", "asking_price", "revenue", "profit", "lease_details",
+      "title",
+      "category_id",
+      "location_text",
+      "state",
+      "suburb",
+      "postcode",
+      "price_type",
+      "asking_price",
+      "revenue",
+      "profit",
+      "lease_details",
     ]);
     if (ok) setStep(2);
+    else toast.error("Please fill in all the fields before continuing.");
   }
 
   async function onStep2Next() {
     const ok = await trigger(["summary", "description"]);
     if (ok) setStep(3);
+    else toast.error("Please fill in all the fields before continuing.");
   }
 
   function onImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -230,7 +259,9 @@ export default function NewListingPage() {
           </Link>
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New listing</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            New listing
+          </h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-muted-foreground">Step {step} of 3</span>
             <div className="flex gap-1" aria-hidden>
@@ -238,7 +269,11 @@ export default function NewListingPage() {
                 <div
                   key={s}
                   className={`h-1.5 w-8 rounded-full transition-colors ${
-                    s === step ? "bg-primary" : s < step ? "bg-primary/50" : "bg-muted"
+                    s === step
+                      ? "bg-primary"
+                      : s < step
+                        ? "bg-primary/50"
+                        : "bg-muted"
                   }`}
                 />
               ))}
@@ -253,13 +288,24 @@ export default function NewListingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Basic info</CardTitle>
-              <CardDescription>Title, category, location and price details.</CardDescription>
+              <CardDescription>
+                Title, category, location and price details.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
-                <Input id="title" {...register("title")} placeholder="e.g. Profitable cafe in Sydney CBD" />
-                {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+                <Input
+                  id="title"
+                  {...register("title")}
+                  placeholder="e.g. Profitable cafe in Sydney CBD"
+                  className={
+                    errors.title
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : ""
+                  }
+                />
+                <FieldError message={errors.title?.message} />
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
@@ -267,27 +313,45 @@ export default function NewListingPage() {
                   value={watch("category_id") ?? ""}
                   onValueChange={(v) => setValue("category_id", v || null)}
                   onInputValueChange={(v, details) => {
-                    setCategoryQuery(details.reason === "input-change" ? v : "");
+                    setCategoryQuery(
+                      details.reason === "input-change" ? v : "",
+                    );
                   }}
                   itemToStringLabel={(v: string) => {
                     if (!v) return "";
                     return categories.find((c) => c.id === v)?.name ?? v;
                   }}
                 >
-                  <ComboboxInput placeholder="Select category" className="w-full" />
+                  <ComboboxInput
+                    placeholder="Select category"
+                    className="w-full"
+                  />
                   <ComboboxContent>
                     <ComboboxList>
                       {categories
-                        .filter((c) => !categoryQuery || c.name.toLowerCase().includes(categoryQuery.toLowerCase()))
+                        .filter(
+                          (c) =>
+                            !categoryQuery ||
+                            c.name
+                              .toLowerCase()
+                              .includes(categoryQuery.toLowerCase()),
+                        )
                         .map((c) => (
                           <ComboboxItem key={c.id} value={c.id}>
                             {c.name}
                           </ComboboxItem>
                         ))}
                     </ComboboxList>
-                    {categoryQuery && categories.filter((c) => c.name.toLowerCase().includes(categoryQuery.toLowerCase())).length === 0 && (
-                      <p className="text-muted-foreground py-2 text-center text-sm">No categories found</p>
-                    )}
+                    {categoryQuery &&
+                      categories.filter((c) =>
+                        c.name
+                          .toLowerCase()
+                          .includes(categoryQuery.toLowerCase()),
+                      ).length === 0 && (
+                        <p className="text-muted-foreground py-2 text-center text-sm">
+                          No categories found
+                        </p>
+                      )}
                   </ComboboxContent>
                 </Combobox>
               </div>
@@ -298,23 +362,42 @@ export default function NewListingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="suburb">Suburb</Label>
-                  <Input id="suburb" {...register("suburb")} placeholder="Sydney" />
+                  <Input
+                    id="suburb"
+                    {...register("suburb")}
+                    placeholder="Sydney"
+                  />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="postcode">Postcode</Label>
-                  <Input id="postcode" {...register("postcode")} placeholder="2000" />
+                  <Input
+                    id="postcode"
+                    {...register("postcode")}
+                    placeholder="2000"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location_text">Location (free text)</Label>
-                  <Input id="location_text" {...register("location_text")} placeholder="e.g. Sydney CBD" />
+                  <Input
+                    id="location_text"
+                    {...register("location_text")}
+                    placeholder="e.g. Sydney CBD"
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Price type</Label>
-                <Select value={watch("price_type")} onValueChange={(v) => setValue("price_type", v as "fixed" | "poa")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={watch("price_type")}
+                  onValueChange={(v) =>
+                    setValue("price_type", v as "fixed" | "poa")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fixed">Fixed price</SelectItem>
                     <SelectItem value="poa">Price on application</SelectItem>
@@ -324,27 +407,51 @@ export default function NewListingPage() {
               {priceType === "fixed" && (
                 <div className="space-y-2">
                   <Label htmlFor="asking_price">Asking price ($)</Label>
-                  <Input id="asking_price" type="number" min={0} step={1000} {...register("asking_price")} />
-                  {errors.asking_price && <p className="text-sm text-destructive">{errors.asking_price.message}</p>}
+                  <Input
+                    id="asking_price"
+                    type="number"
+                    min={0}
+                    step={1000}
+                    {...register("asking_price")}
+                  />
+                  <FieldError message={errors.asking_price?.message} />
                 </div>
               )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="revenue">Revenue ($)</Label>
-                  <Input id="revenue" type="number" min={0} {...register("revenue")} />
+                  <Input
+                    id="revenue"
+                    type="number"
+                    min={0}
+                    {...register("revenue")}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profit">Profit ($)</Label>
-                  <Input id="profit" type="number" min={0} {...register("profit")} />
+                  <Input
+                    id="profit"
+                    type="number"
+                    min={0}
+                    {...register("profit")}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lease_details">Lease details</Label>
-                <Input id="lease_details" {...register("lease_details")} placeholder="e.g. 5+5 year lease" />
+                <Input
+                  id="lease_details"
+                  {...register("lease_details")}
+                  placeholder="e.g. 5+5 year lease"
+                />
               </div>
               <div className="flex justify-end">
                 <Button type="button" onClick={onStep1Next}>
-                  Next <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" />
+                  Next{" "}
+                  <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    className="ml-2 size-4"
+                  />
                 </Button>
               </div>
             </CardContent>
@@ -356,21 +463,34 @@ export default function NewListingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Content</CardTitle>
-              <CardDescription>Summary, description and images (optional).</CardDescription>
+              <CardDescription>
+                Summary, description and images (optional).
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="summary">Summary</Label>
-                <Textarea id="summary" {...register("summary")} rows={3} placeholder="Short summary for listings list" />
+                <Textarea
+                  id="summary"
+                  {...register("summary")}
+                  rows={3}
+                  placeholder="Short summary for listings list"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Textarea id="description" {...register("description")} rows={8} placeholder="Full description of the business" />
+                <Textarea
+                  id="description"
+                  {...register("description")}
+                  rows={8}
+                  placeholder="Full description of the business"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Images</Label>
                 <p className="text-sm text-muted-foreground">
-                  Up to {MAX_IMAGES_PER_LISTING} images (JPEG, PNG, WebP, GIF). You can select multiple at once.
+                  Up to {MAX_IMAGES_PER_LISTING} images (JPEG, PNG, WebP, GIF).
+                  You can select multiple at once.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -389,13 +509,18 @@ export default function NewListingPage() {
                 >
                   Select images
                   {selectedImages.length > 0 && (
-                    <span className="ml-2 text-muted-foreground">({selectedImages.length}/{MAX_IMAGES_PER_LISTING})</span>
+                    <span className="ml-2 text-muted-foreground">
+                      ({selectedImages.length}/{MAX_IMAGES_PER_LISTING})
+                    </span>
                   )}
                 </Button>
                 {selectedImages.length > 0 && (
                   <div className="flex flex-wrap gap-3 pt-2">
                     {selectedImages.map((entry, index) => (
-                      <div key={entry.url} className="relative flex flex-col items-center gap-1">
+                      <div
+                        key={entry.url}
+                        className="relative flex flex-col items-center gap-1"
+                      >
                         <div className="relative h-20 w-28 overflow-hidden rounded-md border bg-muted">
                           <img
                             src={entry.url}
@@ -411,7 +536,10 @@ export default function NewListingPage() {
                           aria-label="Remove image"
                           onClick={() => removeSelectedImage(index)}
                         >
-                          <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                          <HugeiconsIcon
+                            icon={Delete02Icon}
+                            className="size-4"
+                          />
                         </Button>
                       </div>
                     ))}
@@ -419,11 +547,23 @@ export default function NewListingPage() {
                 )}
               </div>
               <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={() => setStep(1)}>
-                  <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-2 size-4" /> Back
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                >
+                  <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    className="mr-2 size-4"
+                  />{" "}
+                  Back
                 </Button>
                 <Button type="button" onClick={onStep2Next}>
-                  Next <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" />
+                  Next{" "}
+                  <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    className="ml-2 size-4"
+                  />
                 </Button>
               </div>
             </CardContent>
@@ -436,7 +576,8 @@ export default function NewListingPage() {
             <CardHeader>
               <CardTitle>Highlights & publish</CardTitle>
               <CardDescription>
-                Add highlight tags. Images can be added in Step 2 or changed later on the edit page.
+                Add highlight tags. Images can be added in Step 2 or changed
+                later on the edit page.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -447,13 +588,21 @@ export default function NewListingPage() {
                     const ids = watch("highlight_ids") ?? [];
                     const checked = ids.includes(h.id);
                     return (
-                      <label key={h.id} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer hover:bg-muted/50">
+                      <label
+                        key={h.id}
+                        className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                      >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => {
-                            if (e.target.checked) setValue("highlight_ids", [...ids, h.id]);
-                            else setValue("highlight_ids", ids.filter((id) => id !== h.id));
+                            if (e.target.checked)
+                              setValue("highlight_ids", [...ids, h.id]);
+                            else
+                              setValue(
+                                "highlight_ids",
+                                ids.filter((id) => id !== h.id),
+                              );
                           }}
                           className="rounded border-input"
                         />
@@ -464,14 +613,32 @@ export default function NewListingPage() {
                 </div>
               </div>
               <div className="flex justify-between pt-4">
-                <Button type="button" variant="outline" onClick={() => setStep(2)} disabled={submitting}>
-                  <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-2 size-4" /> Back
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  disabled={submitting}
+                >
+                  <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    className="mr-2 size-4"
+                  />{" "}
+                  Back
                 </Button>
                 <div className="flex gap-2">
-                  <Button type="button" variant="secondary" onClick={() => onPublish(true)} disabled={submitting}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => onPublish(true)}
+                    disabled={submitting}
+                  >
                     Save draft
                   </Button>
-                  <Button type="button" onClick={() => onPublish(false)} disabled={submitting}>
+                  <Button
+                    type="button"
+                    onClick={() => onPublish(false)}
+                    disabled={submitting}
+                  >
                     {submitting ? "Saving…" : "Publish"}
                   </Button>
                 </div>

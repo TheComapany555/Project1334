@@ -266,7 +266,7 @@ export default function RegisterPage() {
         {/* Divider */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border/60" />
+            <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center">
             <span className="bg-card px-3 text-xs text-muted-foreground">

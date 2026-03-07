@@ -63,15 +63,17 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
   const supabase = createServiceRoleClient();
 
   // Agency owners see all agency listings; members see only their own
+  const isOwner = !!(agencyId && agencyRole === "owner");
   let query = supabase
     .from("listings")
     .select(`
       *,
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      broker:profiles!broker_id(name, photo_url)
     `);
 
-  if (agencyId && agencyRole === "owner") {
+  if (isOwner) {
     query = query.eq("agency_id", agencyId);
   } else {
     query = query.eq("broker_id", userId);
@@ -79,7 +81,7 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
 
   const { data: listings, error } = await query.order("updated_at", { ascending: false });
   if (error) return [];
-  const list = (listings ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  const list = (listings ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null; broker?: { name: string | null; photo_url: string | null } | { name: string | null; photo_url: string | null }[] })[];
   const listingIds = list.map((l) => l.id);
   const highlightsByListing: Record<string, ListingHighlight[]> = {};
   if (listingIds.length > 0) {
@@ -101,12 +103,17 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
       }
     }
   }
-  return list.map((l) => ({
-    ...l,
-    listing_images: l.listing_images ?? [],
-    category: l.category ?? null,
-    listing_highlights: highlightsByListing[l.id] ?? [],
-  }));
+  return list.map((l) => {
+    const rawBroker = l.broker;
+    const broker = Array.isArray(rawBroker) ? rawBroker[0] ?? null : rawBroker ?? null;
+    return {
+      ...l,
+      listing_images: l.listing_images ?? [],
+      category: l.category ?? null,
+      listing_highlights: highlightsByListing[l.id] ?? [],
+      broker: broker ?? undefined,
+    };
+  });
 }
 
 export async function getListingById(id: string): Promise<Listing | null> {

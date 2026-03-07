@@ -43,7 +43,9 @@ export function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
-      toast.success("Email verified. Your account is pending approval—you can sign in once an admin has approved it.");
+      toast.success(
+        "Email verified. Your account is pending approval—you can sign in once an admin has approved it.",
+      );
     }
   }, [searchParams]);
 
@@ -81,13 +83,18 @@ export function LoginForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
-        <CardDescription>Sign in to your Salebiz broker account</CardDescription>
+        <CardTitle className="text-2xl font-bold tracking-tight">
+          Welcome back
+        </CardTitle>
+        <CardDescription>Sign in to your Salebiz account</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Error alert */}
         {error && (
-          <Alert variant="destructive" className="border-destructive/40 bg-destructive/5 text-destructive">
+          <Alert
+            variant="destructive"
+            className="border-destructive/40 bg-destructive/5 text-destructive"
+          >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-sm">{error}</AlertDescription>
           </Alert>
@@ -185,7 +192,7 @@ export function LoginForm() {
 
         {/* Register CTA */}
         <Button asChild variant="outline" className="w-full h-11">
-          <Link href="/auth/register">Create a broker account</Link>
+          <Link href="/auth/register">Create account</Link>
         </Button>
       </CardContent>
     </Card>

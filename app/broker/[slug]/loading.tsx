@@ -6,9 +6,9 @@ import { PublicHeaderSkeleton } from "@/components/public-header-skeleton";
 export default function BrokerProfileLoading() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeaderSkeleton maxWidth="max-w-3xl" />
+      <PublicHeaderSkeleton maxWidth="max-w-6xl" />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-12 space-y-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-12 space-y-6">
         {/* Breadcrumb */}
         <Skeleton className="h-4 w-48" />
 

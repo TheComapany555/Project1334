@@ -130,8 +130,8 @@ export default async function AdminPage() {
 
       {/* ── Recent activity + Quick links ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-3">
+        <Card>
+          <CardHeader className="border-b border-border bg-muted/40 px-5 py-3">
             <CardTitle className="text-sm">Recent activity</CardTitle>
             <CardDescription className="text-xs">
               Latest enquiries across all brokers
@@ -169,8 +169,8 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-3">
+        <Card>
+          <CardHeader className="border-b border-border bg-muted/40 px-5 py-3">
             <CardTitle className="text-sm">Quick links</CardTitle>
             <CardDescription className="text-xs">
               Manage from the sidebar or use these shortcuts.

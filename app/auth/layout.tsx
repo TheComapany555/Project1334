@@ -12,7 +12,7 @@ export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4 py-8 sm:p-6 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/40 px-4 py-8 sm:p-6 relative">
       <div className="absolute top-4 right-4">
         <ThemeSwitcher />
       </div>

@@ -249,7 +249,7 @@ export function EnquiriesTable({ enquiries }: Props) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
                     <MessageSquare className="h-3.5 w-3.5" /> Message
                   </p>
-                  <p className="whitespace-pre-wrap rounded-lg bg-muted/60 border p-3.5 text-sm leading-relaxed">
+                  <p className="whitespace-pre-wrap bg-muted/40 border p-3.5 text-sm leading-relaxed">
                     {selected.message}
                   </p>
                 </div>

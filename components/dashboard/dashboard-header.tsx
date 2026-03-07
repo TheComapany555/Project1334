@@ -39,9 +39,8 @@ export function DashboardHeader({ title, description, user }: Props) {
   const displayName = user?.name?.trim() || user?.email || "Account";
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 sm:px-6">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 sm:px-6">
       <SidebarTrigger />
-      <Separator orientation="vertical" className="h-6" />
       {title ? (
         <div className="flex flex-1 flex-col gap-0.5">
           <h1 className="text-lg font-semibold">{title}</h1>

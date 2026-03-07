@@ -5,6 +5,7 @@ import {
   getListingHighlights,
 } from "@/lib/actions/listings";
 import { getBrokerSlug } from "@/lib/actions/profile";
+import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,12 +21,15 @@ import { BrokerListingsWithFilter } from "@/app/dashboard/listings/broker-listin
 import { PlusIcon, Building2Icon } from "lucide-react";
 
 export default async function ListingsPage() {
-  const [listings, brokerSlug, categories, highlights] = await Promise.all([
+  const [listings, brokerSlug, categories, highlights, session] = await Promise.all([
     getListingsByBroker(),
     getBrokerSlug(),
     getCategories(),
     getListingHighlights(),
+    getSession(),
   ]);
+
+  const isAgencyOwner = session?.user?.agencyRole === "owner";
 
   // Derive quick stats from listings
   const total = listings.length;
@@ -121,6 +125,7 @@ export default async function ListingsPage() {
                   categories={categories}
                   highlights={highlights}
                   brokerSlug={brokerSlug ?? undefined}
+                  isAgencyOwner={isAgencyOwner}
                 />
               </div>
             </div>

@@ -43,15 +43,15 @@ import {
   ExternalLink,
   Loader2,
   Camera,
-  AlertCircle,
   Save,
 } from "lucide-react";
+import { FieldError } from "@/components/ui/field-error";
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required").max(200).optional().or(z.literal("")),
+  name: z.string().max(200).optional().or(z.literal("")),
   phone: z.string().max(50).optional(),
-  email_public: z.string().email("Use a valid email").optional().or(z.literal("")),
-  website: z.string().url("Use a valid URL").optional().or(z.literal("")),
+  email_public: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  website: z.string().url("Enter a valid URL").optional().or(z.literal("")),
   bio: z.string().max(2000).optional(),
   slug: z
     .string()
@@ -59,9 +59,9 @@ const schema = z.object({
     .regex(/^[a-z0-9-]*$/, "Only lowercase letters, numbers and hyphens")
     .optional()
     .or(z.literal("")),
-  social_linkedin: z.string().url().optional().or(z.literal("")),
-  social_facebook: z.string().url().optional().or(z.literal("")),
-  social_instagram: z.string().url().optional().or(z.literal("")),
+  social_linkedin: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  social_facebook: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  social_instagram: z.string().url("Enter a valid URL").optional().or(z.literal("")),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -78,16 +78,6 @@ const emptyForm: FormData = {
   social_instagram: "",
 };
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-      <AlertCircle className="h-3 w-3 shrink-0" />
-      {message}
-    </p>
-  );
-}
-
 function SectionHeader({
   icon: Icon,
   title,
@@ -98,9 +88,9 @@ function SectionHeader({
   description: string;
 }) {
   return (
-    <CardHeader className="border-b border-border/60 bg-muted/30 px-5 py-4">
+    <CardHeader className="border-b border-border bg-muted/40 px-5 py-4">
       <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <div className="h-8 w-8 bg-primary/10 flex items-center justify-center shrink-0">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         <div>
@@ -295,7 +285,7 @@ export default function ProfilePage() {
   /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="space-y-6 max-w-3xl mx-auto w-full">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1.5">
             <Skeleton className="h-7 w-32" />
@@ -304,7 +294,7 @@ export default function ProfilePage() {
           <Skeleton className="h-9 w-36" />
         </div>
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="shadow-sm">
+          <Card key={i}>
             <CardContent className="p-5 space-y-3">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-10 w-full" />
@@ -319,7 +309,7 @@ export default function ProfilePage() {
   const currentSlug = watch("slug");
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto w-full">
+    <div className="space-y-6">
       {/* ── Page header ── */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
@@ -344,7 +334,7 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* ── Photo & logo ── */}
-        <Card className="shadow-sm">
+        <Card>
           <SectionHeader
             icon={Camera}
             title="Photo & logo"
@@ -375,7 +365,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* ── Personal & company info ── */}
-        <Card className="shadow-sm">
+        <Card>
           <SectionHeader
             icon={User}
             title="Personal info"
@@ -494,7 +484,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* ── Profile URL ── */}
-        <Card className="shadow-sm">
+        <Card>
           <SectionHeader
             icon={Link2}
             title="Profile URL"
@@ -531,7 +521,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* ── Social links ── */}
-        <Card className="shadow-sm">
+        <Card>
           <SectionHeader
             icon={Globe}
             title="Social links"

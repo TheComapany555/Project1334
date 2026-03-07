@@ -82,9 +82,9 @@ export default async function BrokerProfilePage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader session={session} maxWidth="max-w-3xl" />
+      <PublicHeader session={session} maxWidth="max-w-6xl" />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-12 space-y-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-12 space-y-6">
 
         {/* Breadcrumb */}
         <PageBreadcrumb
@@ -296,11 +296,11 @@ export default async function BrokerProfilePage({ params }: Props) {
                     <li key={listing.id}>
                       <Link
                         href={`/listing/${listing.slug}`}
-                        className="group flex gap-4 rounded-xl border border-border bg-muted/20 p-4 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="group flex gap-4 border border-border bg-muted/20 p-4 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {/* Thumbnail */}
                         {thumb ? (
-                          <div className="relative h-[72px] w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                          <div className="relative h-[72px] w-24 shrink-0 overflow-hidden border border-border bg-muted">
                             <Image
                               src={thumb}
                               alt=""
@@ -310,7 +310,7 @@ export default async function BrokerProfilePage({ params }: Props) {
                             />
                           </div>
                         ) : (
-                          <div className="flex h-[72px] w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-border bg-muted">
+                          <div className="flex h-[72px] w-24 shrink-0 items-center justify-center border border-dashed border-border bg-muted">
                             <Building2 className="h-5 w-5 text-muted-foreground/40" />
                           </div>
                         )}
@@ -359,7 +359,7 @@ export default async function BrokerProfilePage({ params }: Props) {
 
       {/* ── Footer ── */}
       <footer className="border-t border-border py-6">
-        <div className="mx-auto max-w-3xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link href="/search" className="hover:text-foreground transition-colors">

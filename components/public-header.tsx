@@ -39,7 +39,7 @@ export function PublicHeader({
   const isAdmin = session?.user?.role === "admin";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div
         className={`mx-auto flex h-14 sm:h-16 items-center justify-between gap-2 px-4 sm:px-6 ${maxWidth}`}
       >
@@ -112,7 +112,7 @@ export function PublicHeader({
                 <SheetContent side="right" className="w-72 p-0">
                   <SheetTitle className="sr-only">Navigation menu</SheetTitle>
                   <div className="flex flex-col h-full">
-                    <div className="p-6 border-b border-border/50">
+                    <div className="p-6 border-b border-border">
                       <Image
                         src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                         alt="Salebiz"
@@ -124,7 +124,7 @@ export function PublicHeader({
                     <nav className="flex flex-col gap-1 p-4 flex-1">
                       <Link
                         href="/search"
-                        className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                       >
                         <Search className="h-4 w-4 text-muted-foreground" />
                         Browse listings
@@ -132,7 +132,7 @@ export function PublicHeader({
                       {isLoggedIn ? (
                         <Link
                           href="/dashboard"
-                          className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                         >
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           Dashboard
@@ -141,13 +141,13 @@ export function PublicHeader({
                         <>
                           <Link
                             href="/auth/login"
-                            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                           >
                             Sign in
                           </Link>
                           <Link
                             href="/auth/register"
-                            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-primary hover:bg-primary/8 transition-colors"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-primary hover:bg-primary/8 transition-colors"
                           >
                             List your business
                             <ArrowRight className="h-4 w-4 ml-auto" />
@@ -157,13 +157,13 @@ export function PublicHeader({
                       {isAdmin && (
                         <Link
                           href="/admin"
-                          className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                         >
                           Admin panel
                         </Link>
                       )}
                     </nav>
-                    <div className="p-4 border-t border-border/50 space-y-3">
+                    <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
                         <Button
                           asChild
@@ -234,7 +234,7 @@ export function PublicHeader({
                 <SheetContent side="right" className="w-72 p-0">
                   <SheetTitle className="sr-only">Navigation menu</SheetTitle>
                   <div className="flex flex-col h-full">
-                    <div className="p-6 border-b border-border/50">
+                    <div className="p-6 border-b border-border">
                       <Image
                         src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
                         alt="Salebiz"
@@ -246,7 +246,7 @@ export function PublicHeader({
                     <nav className="flex flex-col gap-1 p-4 flex-1">
                       <Link
                         href="/search"
-                        className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                       >
                         <Search className="h-4 w-4 text-muted-foreground" />
                         Browse listings
@@ -254,7 +254,7 @@ export function PublicHeader({
                       {isLoggedIn ? (
                         <Link
                           href="/dashboard"
-                          className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                         >
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           Dashboard
@@ -262,13 +262,13 @@ export function PublicHeader({
                       ) : (
                         <Link
                           href="/auth/login"
-                          className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                         >
                           Sign in
                         </Link>
                       )}
                     </nav>
-                    <div className="p-4 border-t border-border/50 space-y-3">
+                    <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
                         <Button
                           asChild
