@@ -70,13 +70,42 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const paymentId = paymentIntent.metadata?.payment_id;
+    const listingId = paymentIntent.metadata?.listing_id;
+    const packageDays = Number(paymentIntent.metadata?.package_days ?? 0);
 
-    // Update any payment with matching payment intent
-    await supabase
-      .from("payments")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("stripe_payment_intent", paymentIntent.id)
-      .eq("status", "pending");
+    if (paymentId && listingId && packageDays) {
+      // Full activation flow (in-app checkout via PaymentIntent)
+      await supabase
+        .from("payments")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", paymentId);
+
+      const now = new Date();
+      const featuredUntil = new Date(
+        now.getTime() + packageDays * 24 * 60 * 60 * 1000
+      );
+
+      await supabase
+        .from("listings")
+        .update({
+          is_featured: true,
+          featured_from: now.toISOString(),
+          featured_until: featuredUntil.toISOString(),
+          featured_package_days: packageDays,
+        })
+        .eq("id", listingId);
+    } else {
+      // Fallback: update any pending payment matching this intent
+      await supabase
+        .from("payments")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .eq("stripe_payment_intent", paymentIntent.id)
+        .eq("status", "pending");
+    }
   }
 
   return NextResponse.json({ received: true });

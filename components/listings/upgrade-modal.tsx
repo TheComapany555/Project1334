@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -12,7 +13,6 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Star, Loader2, Check } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getActiveProducts } from "@/lib/actions/products";
 import type { Product } from "@/lib/types/products";
@@ -38,6 +38,7 @@ export function UpgradeModal({
   open,
   onOpenChange,
 }: UpgradeModalProps) {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,28 +53,10 @@ export function UpgradeModal({
     }
   }, [open]);
 
-  async function handleUpgrade() {
+  function handleContinue() {
     if (!selectedProductId) return;
     setIsLoading(true);
-    try {
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId, productId: selectedProductId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to start checkout");
-        return;
-      }
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    router.push(`/checkout?listing=${listingId}&product=${selectedProductId}`);
   }
 
   return (
@@ -149,14 +132,14 @@ export function UpgradeModal({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
           <Button
-            onClick={handleUpgrade}
+            onClick={handleContinue}
             disabled={!selectedProductId || isLoading || products.length === 0}
             className="gap-1.5"
           >
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Redirecting…
+                Loading…
               </>
             ) : (
               <>
