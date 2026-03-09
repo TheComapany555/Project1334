@@ -237,9 +237,12 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   if (params.profit_min != null) query = query.gte("profit", Number(params.profit_min));
   if (params.profit_max != null) query = query.lte("profit", Number(params.profit_max));
 
+  // Featured listings always rank first, then apply user-selected sort
+  query = query.order("featured_until", { ascending: false, nullsFirst: false });
+
   const sort = params.sort ?? "newest";
   if (sort === "newest") query = query.order("published_at", { ascending: false, nullsFirst: false });
-  else if (sort === "price_asc") query = query.order("asking_price", { ascending: true, nullsFirst: true });
+  else if (sort === "price_asc") query = query.order("asking_price", { ascending: true, nullsFirst: false });
   else if (sort === "price_desc") query = query.order("asking_price", { ascending: false, nullsFirst: false });
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
@@ -299,6 +302,7 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
     .eq("broker_id", brokerId)
     .eq("status", "published")
     .is("admin_removed_at", null)
+    .order("featured_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false });
   if (error) return [];
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];

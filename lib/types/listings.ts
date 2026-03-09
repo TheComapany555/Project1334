@@ -42,6 +42,10 @@ export type Listing = {
   summary: string | null;
   description: string | null;
   status: ListingStatus;
+  is_featured: boolean;
+  featured_from: string | null;
+  featured_until: string | null;
+  featured_package_days: number | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;

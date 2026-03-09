@@ -16,6 +16,7 @@ import {
   ExternalLink,
   UserMultipleIcon,
   Building03Icon,
+  Wallet02Icon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -50,6 +51,7 @@ const brokerNav = [
 const ownerOnlyNav = [
   { label: "Agency", href: "/dashboard/agency", icon: Building03Icon },
   { label: "Team", href: "/dashboard/team", icon: UserMultipleIcon },
+  { label: "Agency Payments", href: "/dashboard/agency/payments", icon: Wallet02Icon },
 ] as const;
 
 type SidebarUser = {
@@ -114,7 +116,10 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                 );
               })}
               {user.agencyRole === "owner" && ownerOnlyNav.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isExact = item.href === "/dashboard/agency";
+                const isActive = isExact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

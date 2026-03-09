@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
 import { ListingActions } from "./listing-actions";
+import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 
 function formatDate(iso: string) {
@@ -62,6 +64,7 @@ export default async function AdminListingsPage() {
                   <TableHead>Broker</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Visibility</TableHead>
+                  <TableHead>Featured</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[180px]"></TableHead>
                 </TableRow>
@@ -85,6 +88,13 @@ export default async function AdminListingsPage() {
                           className="border-0"
                         />
                       </TableCell>
+                      <TableCell>
+                        {isFeaturedNow(l.featured_until) ? (
+                          <FeaturedBadge size="sm" />
+                        ) : (
+                          <Badge variant="outline" className="text-xs border-0">—</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDate(l.created_at)}
                       </TableCell>
@@ -93,6 +103,8 @@ export default async function AdminListingsPage() {
                           listingId={l.id}
                           slug={l.slug}
                           isRemoved={isRemoved}
+                          isFeatured={l.is_featured}
+                          featuredUntil={l.featured_until}
                         />
                       </TableCell>
                     </TableRow>

@@ -33,6 +33,7 @@ type Props = {
   highlights: ListingHighlight[];
   brokerSlug?: string;
   isAgencyOwner?: boolean;
+  canFeature?: boolean;
 };
 
 export function BrokerListingsWithFilter({
@@ -41,6 +42,7 @@ export function BrokerListingsWithFilter({
   highlights,
   brokerSlug,
   isAgencyOwner,
+  canFeature,
 }: Props) {
   const [statusFilter, setStatusFilter] = useState<"" | ListingStatus>("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -144,6 +146,7 @@ export function BrokerListingsWithFilter({
         listings={filteredListings}
         brokerSlug={brokerSlug}
         isAgencyOwner={isAgencyOwner}
+        canFeature={canFeature}
       />
     </div>
   );

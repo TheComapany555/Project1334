@@ -11,6 +11,8 @@ import {
 } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import { UpgradeModal } from "@/components/listings/upgrade-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,7 @@ import {
   Delete02Icon,
   Edit02Icon,
   MoreHorizontalIcon,
+  StarIcon,
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 
@@ -79,11 +82,12 @@ function formatPrice(listing: Listing): string {
   return "—";
 }
 
-type Props = { listings: Listing[]; brokerSlug?: string; isAgencyOwner?: boolean };
+type Props = { listings: Listing[]; brokerSlug?: string; isAgencyOwner?: boolean; canFeature?: boolean };
 
-export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
+export function ListingsTable({ listings, brokerSlug, isAgencyOwner, canFeature }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [upgradeListing, setUpgradeListing] = useState<{ id: string; title: string } | null>(null);
 
   async function onStatusChange(listingId: string, newStatus: ListingStatus) {
     const res = await updateListingStatus(listingId, newStatus);
@@ -162,7 +166,10 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="font-medium">{listing.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{listing.title}</span>
+                    {isFeaturedNow(listing.featured_until) && <FeaturedBadge size="sm" />}
+                  </div>
                 </TableCell>
                 {isAgencyOwner && (
                   <TableCell className="text-sm text-muted-foreground">
@@ -244,6 +251,17 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
                           </Link>
                         </DropdownMenuItem>
                       )}
+                      {canFeature && listing.status === "published" && !isFeaturedNow(listing.featured_until) && (
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setUpgradeListing({ id: listing.id, title: listing.title });
+                          }}
+                        >
+                          <HugeiconsIcon icon={StarIcon} className="size-4" />
+                          Upgrade to Featured
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         variant="destructive"
                         onSelect={(e) => {
@@ -285,6 +303,15 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner }: Props) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+
+      {upgradeListing && (
+        <UpgradeModal
+          listingId={upgradeListing.id}
+          listingTitle={upgradeListing.title}
+          open={!!upgradeListing}
+          onOpenChange={(open) => !open && setUpgradeListing(null)}
+        />
       )}
     </>
   );

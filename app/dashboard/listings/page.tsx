@@ -30,6 +30,7 @@ export default async function ListingsPage() {
   ]);
 
   const isAgencyOwner = session?.user?.agencyRole === "owner";
+  const canFeature = !session?.user?.agencyId || isAgencyOwner;
 
   // Derive quick stats from listings
   const total = listings.length;
@@ -126,6 +127,7 @@ export default async function ListingsPage() {
                   highlights={highlights}
                   brokerSlug={brokerSlug ?? undefined}
                   isAgencyOwner={isAgencyOwner}
+                  canFeature={canFeature}
                 />
               </div>
             </div>
