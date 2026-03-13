@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
 import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX, User } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -121,6 +122,13 @@ export function SearchResults({
                   ) : (
                     <div className="flex h-full items-center justify-center">
                       <Building2 className="h-10 w-10 text-muted-foreground/25" />
+                    </div>
+                  )}
+
+                  {/* Featured badge overlaid on image */}
+                  {isFeaturedNow(listing.featured_until) && (
+                    <div className="absolute top-2 left-2">
+                      <FeaturedBadge size="sm" />
                     </div>
                   )}
 

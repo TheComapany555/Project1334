@@ -17,6 +17,8 @@ export type ListingForAdmin = {
   title: string;
   status: string;
   admin_removed_at: string | null;
+  is_featured: boolean;
+  featured_until: string | null;
   created_at: string;
   broker?: { name: string | null; company: string | null };
 };
@@ -32,6 +34,8 @@ export async function getAllListingsForAdmin(): Promise<ListingForAdmin[]> {
       title,
       status,
       admin_removed_at,
+      is_featured,
+      featured_until,
       created_at,
       broker:profiles!broker_id(name, company)
     `)

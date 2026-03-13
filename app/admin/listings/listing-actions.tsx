@@ -21,14 +21,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { adminRemoveListing, adminRestoreListing } from "@/lib/actions/admin-listings";
-import { Loader2 } from "lucide-react";
+import { adminSetFeatured, adminRemoveFeatured, adminExtendFeatured } from "@/lib/actions/featured";
+import { Loader2, Star } from "lucide-react";
 
-type Props = { listingId: string; slug: string; isRemoved: boolean };
+type Props = {
+  listingId: string;
+  slug: string;
+  isRemoved: boolean;
+  isFeatured?: boolean;
+  featuredUntil?: string | null;
+};
 
-export function ListingActions({ listingId, slug, isRemoved }: Props) {
+export function ListingActions({ listingId, slug, isRemoved, isFeatured, featuredUntil }: Props) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [featuredOpen, setFeaturedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const isCurrentlyFeatured = isFeatured && featuredUntil && new Date(featuredUntil) > new Date();
 
   async function handleRemove() {
     setLoading(true);
@@ -82,6 +92,73 @@ export function ListingActions({ listingId, slug, isRemoved }: Props) {
               >
                 Remove from marketplace
               </DropdownMenuItem>
+            )}
+            {isCurrentlyFeatured ? (
+              <>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminExtendFeatured(listingId, 7);
+                    if (res.ok) { toast.success("Extended by 7 days"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                >
+                  <Star className="h-4 w-4" />
+                  Extend +7 days
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminExtendFeatured(listingId, 14);
+                    if (res.ok) { toast.success("Extended by 14 days"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                >
+                  <Star className="h-4 w-4" />
+                  Extend +14 days
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminRemoveFeatured(listingId);
+                    if (res.ok) { toast.success("Featured status removed"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Remove featured
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminSetFeatured(listingId, 7);
+                    if (res.ok) { toast.success("Marked as featured (7 days)"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                >
+                  <Star className="h-4 w-4" />
+                  Feature 7 days
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminSetFeatured(listingId, 14);
+                    if (res.ok) { toast.success("Marked as featured (14 days)"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                >
+                  <Star className="h-4 w-4" />
+                  Feature 14 days
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const res = await adminSetFeatured(listingId, 30);
+                    if (res.ok) { toast.success("Marked as featured (30 days)"); router.refresh(); }
+                    else toast.error(res.error ?? "Failed");
+                  }}
+                >
+                  <Star className="h-4 w-4" />
+                  Feature 30 days
+                </DropdownMenuItem>
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

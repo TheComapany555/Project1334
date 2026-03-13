@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
 import {
   MotionDiv,
-  MotionSection,
   MotionH1,
   MotionP,
   MotionUl,
@@ -19,6 +18,7 @@ import {
   fadeUp,
   staggerContainer,
 } from "@/components/motion";
+import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
 import {
   ArrowRight,
   TrendingUp,
@@ -100,6 +100,11 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
         ) : (
           <div className="flex h-full items-center justify-center">
             <Building2 className="h-9 w-9 text-muted-foreground/25" />
+          </div>
+        )}
+        {isFeaturedNow(listing.featured_until) && (
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <FeaturedBadge size="sm" />
           </div>
         )}
         {listing.category && (
