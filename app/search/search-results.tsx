@@ -114,7 +114,7 @@ export function SearchResults({
                   {thumb ? (
                     <Image
                       src={thumb}
-                      alt=""
+                      alt={listing.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -151,7 +151,7 @@ export function SearchResults({
                     <div className="flex items-center gap-2">
                       <Avatar size="sm">
                         {listing.broker.photo_url && (
-                          <AvatarImage src={listing.broker.photo_url} alt="" />
+                          <AvatarImage src={listing.broker.photo_url} alt={listing.broker.name ?? "Broker"} />
                         )}
                         <AvatarFallback>
                           <User className="h-3 w-3" />

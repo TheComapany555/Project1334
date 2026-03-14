@@ -22,24 +22,42 @@ import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-bad
 import { EnquiryForm } from "./enquiry-form";
 import { LocationMap } from "@/components/location-map";
 
+// Revalidate listing pages every 10 minutes
+export const revalidate = 600;
+
 type Props = { params: Promise<{ slug: string }> };
+
+const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const listing = await getListingBySlug(slug);
   if (!listing) {
-    return { title: "Listing not found | Salebiz" };
+    return { title: "Listing not found" };
   }
+  const location = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
   const title = listing.title;
-  const description = listing.summary?.slice(0, 160) ?? listing.title;
+  const description =
+    listing.summary?.slice(0, 155) ??
+    `${listing.title}${location ? ` in ${location}` : ""} — View details on Salebiz`;
   const image = listing.listing_images?.[0]?.url;
+  const url = `${SITE_URL}/listing/${slug}`;
   return {
-    title: `${title} | Salebiz`,
+    title,
     description,
+    alternates: { canonical: url },
     openGraph: {
-      title: `${title} | Salebiz`,
+      type: "article",
+      title,
       description,
-      ...(image && { images: [{ url: image }] }),
+      url,
+      ...(image && { images: [{ url: image, width: 1200, height: 630, alt: title }] }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(image && { images: [image] }),
     },
   };
 }
@@ -81,6 +99,63 @@ export default async function ListingPage({ params }: Props) {
       <PublicHeader session={session} maxWidth="max-w-6xl" />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10 space-y-6">
+
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: listing.title,
+              description: listing.summary ?? listing.title,
+              url: `${SITE_URL}/listing/${listing.slug}`,
+              ...(images.length > 0 && { image: images.map((img) => img.url) }),
+              ...(listing.category && { category: listing.category.name }),
+              offers: {
+                "@type": "Offer",
+                priceCurrency: "AUD",
+                ...(listing.price_type !== "poa" && listing.asking_price != null
+                  ? { price: Number(listing.asking_price) }
+                  : { price: 0, priceValidUntil: undefined }),
+                availability: "https://schema.org/InStock",
+                url: `${SITE_URL}/listing/${listing.slug}`,
+              },
+              ...(broker?.name && {
+                seller: {
+                  "@type": "Person",
+                  name: broker.name,
+                  ...(broker.slug && { url: `${SITE_URL}/broker/${broker.slug}` }),
+                },
+              }),
+              ...(locationText && {
+                areaServed: {
+                  "@type": "Place",
+                  name: locationText,
+                },
+              }),
+            }),
+          }}
+        />
+
+        {/* BreadcrumbList structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+                { "@type": "ListItem", position: 2, name: "Browse", item: `${SITE_URL}/search` },
+                ...(listing.category
+                  ? [{ "@type": "ListItem", position: 3, name: listing.category.name, item: `${SITE_URL}/search?category=${listing.category.slug}` }]
+                  : []),
+                { "@type": "ListItem", position: listing.category ? 4 : 3, name: listing.title },
+              ],
+            }),
+          }}
+        />
 
         {/* Admin preview banner */}
         {isAdminPreview && (
@@ -148,7 +223,7 @@ export default async function ListingPage({ params }: Props) {
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
                 <Image
                   src={images[0].url}
-                  alt=""
+                  alt={`${listing.title} — primary image`}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, 672px"
@@ -159,7 +234,7 @@ export default async function ListingPage({ params }: Props) {
                 <div className="flex gap-2 p-3 overflow-x-auto border-t border-border">
                   {images.slice(1, 6).map((img) => (
                     <div key={img.id} className="relative h-16 w-24 shrink-0 overflow-hidden rounded border border-border bg-muted">
-                      <Image src={img.url} alt="" fill className="object-cover" sizes="96px" />
+                      <Image src={img.url} alt={`${listing.title} — photo`} fill className="object-cover" sizes="96px" />
                     </div>
                   ))}
                 </div>

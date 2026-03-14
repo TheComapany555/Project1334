@@ -28,25 +28,40 @@ import {
   Building2,
 } from "lucide-react";
 
+// Revalidate broker pages every 10 minutes
+export const revalidate = 600;
+
 type Props = { params: Promise<{ slug: string }> };
+
+const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const profile = await getProfileBySlug(slug);
-  if (!profile) return { title: "Broker not found | Salebiz" };
+  if (!profile) return { title: "Broker not found" };
   const title =
     [profile.name, profile.company]
       .filter(Boolean)
       .join(profile.company ? " · " : "") || "Broker";
   const description =
-    profile.bio?.slice(0, 160) ?? `Broker profile on Salebiz`;
+    profile.bio?.slice(0, 155) ??
+    `${title} — Licensed business broker on Salebiz. View their listings and contact details.`;
+  const url = `${SITE_URL}/broker/${slug}`;
   return {
-    title: `${title} | Salebiz`,
+    title,
     description,
+    alternates: { canonical: url },
     openGraph: {
-      title: `${title} | Salebiz`,
+      type: "profile",
+      title,
       description,
-      ...(profile.photo_url && { images: [{ url: profile.photo_url }] }),
+      url,
+      ...(profile.photo_url && { images: [{ url: profile.photo_url, alt: title }] }),
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
     },
   };
 }
@@ -85,6 +100,46 @@ export default async function BrokerProfilePage({ params }: Props) {
       <PublicHeader session={session} maxWidth="max-w-6xl" />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-12 space-y-6">
+
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "RealEstateAgent",
+              name: displayName,
+              url: `${SITE_URL}/broker/${profile.slug}`,
+              ...(profile.photo_url && { image: profile.photo_url }),
+              ...(profile.bio && { description: profile.bio.slice(0, 300) }),
+              ...(profile.company && {
+                worksFor: {
+                  "@type": "Organization",
+                  name: profile.company,
+                },
+              }),
+              ...(profile.phone && { telephone: profile.phone }),
+              ...(profile.email_public && { email: profile.email_public }),
+              ...(profile.website && { sameAs: [profile.website] }),
+            }),
+          }}
+        />
+
+        {/* BreadcrumbList structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+                { "@type": "ListItem", position: 2, name: "Browse", item: `${SITE_URL}/search` },
+                { "@type": "ListItem", position: 3, name: displayName },
+              ],
+            }),
+          }}
+        />
 
         {/* Breadcrumb */}
         <PageBreadcrumb
@@ -303,7 +358,7 @@ export default async function BrokerProfilePage({ params }: Props) {
                           <div className="relative h-[72px] w-24 shrink-0 overflow-hidden border border-border bg-muted">
                             <Image
                               src={thumb}
-                              alt=""
+                              alt={listing.title}
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-105"
                               sizes="96px"
