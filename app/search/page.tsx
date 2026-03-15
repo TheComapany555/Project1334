@@ -10,8 +10,12 @@ import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
 
 export const metadata: Metadata = {
-  title: "Browse listings | Salebiz",
-  description: "Search and filter businesses for sale across Australia",
+  title: "Browse Businesses for Sale",
+  description:
+    "Search and filter businesses for sale across Australia. Browse by industry, location, price range, and more on Salebiz.",
+  alternates: {
+    canonical: `${process.env.NEXTAUTH_URL ?? "https://salebiz.com.au"}/search`,
+  },
 };
 
 const PAGE_SIZE = 12;

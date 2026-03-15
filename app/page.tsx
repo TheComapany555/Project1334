@@ -32,6 +32,9 @@ import {
   User,
 } from "lucide-react";
 
+// Revalidate homepage every 5 minutes for fresh listings
+export const revalidate = 300;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatPrice(listing: Listing): string {
   if (listing.price_type === "poa") return "POA";
@@ -92,7 +95,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
         {thumb ? (
           <Image
             src={thumb}
-            alt=""
+            alt={listing.title}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             sizes={sizes}
@@ -122,7 +125,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
           <div className="flex items-center gap-2 mb-2">
             <Avatar size="sm">
               {listing.broker.photo_url && (
-                <AvatarImage src={listing.broker.photo_url} alt="" />
+                <AvatarImage src={listing.broker.photo_url} alt={listing.broker.name ?? "Broker"} />
               )}
               <AvatarFallback>
                 <User className="h-3 w-3" />
