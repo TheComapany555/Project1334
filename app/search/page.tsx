@@ -8,6 +8,7 @@ import { PublicHeader } from "@/components/public-header";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 export const metadata: Metadata = {
   title: "Browse Businesses for Sale",
@@ -197,6 +198,11 @@ export default async function SearchPage({ searchParams }: Props) {
             defaultValues={formValues}
             sortOptions={SORT_OPTIONS}
           />
+
+          {/* ── Search Ad Slot ── */}
+          <div className="pt-2 pb-4">
+            <AdSlot placement="search" layout="banner" limit={1} />
+          </div>
 
           {/* ── Results ── */}
           <SearchResults

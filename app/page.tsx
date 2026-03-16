@@ -19,6 +19,7 @@ import {
   staggerContainer,
 } from "@/components/motion";
 import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import { AdSlot } from "@/components/ads/ad-slot";
 import {
   ArrowRight,
   TrendingUp,
@@ -461,6 +462,11 @@ export default async function HomePage() {
               )}
             </div>
           )}
+        </section>
+
+        {/* ── Homepage Ad Slot ──────────────────────────────────────────── */}
+        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-6 sm:py-8">
+          <AdSlot placement="homepage" layout="banner" limit={1} />
         </section>
 
         {/* ── Why Salebiz ─────────────────────────────────────────────────── */}
