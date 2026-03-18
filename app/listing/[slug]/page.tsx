@@ -21,6 +21,8 @@ import { MapPin, DollarSign, TrendingUp, BarChart3, FileText, Sparkles, PhoneCal
 import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
 import { EnquiryForm } from "./enquiry-form";
 import { LocationMap } from "@/components/location-map";
+import { AdSlot } from "@/components/ads/ad-slot";
+import { DescriptionRenderer } from "@/components/listings/description-renderer";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
@@ -294,9 +296,7 @@ export default async function ListingPage({ params }: Props) {
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert leading-relaxed">
-                {listing.description}
-              </div>
+              <DescriptionRenderer content={listing.description} />
             </CardContent>
           </Card>
         )}
@@ -386,6 +386,9 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Enquiry form */}
         <EnquiryForm listingId={listing.id} listingTitle={listing.title} />
+
+        {/* Listing Ad Slot */}
+        <AdSlot placement="listing" layout="banner" limit={1} />
       </main>
     </div>
   );

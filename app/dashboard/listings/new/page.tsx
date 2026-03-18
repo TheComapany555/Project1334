@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { SerializedEditorState } from "lexical";
 import {
   getCategories,
   getListingHighlights,
@@ -15,6 +16,7 @@ import {
   uploadListingImage,
 } from "@/lib/actions/listings";
 import type { Category, ListingHighlight } from "@/lib/types/listings";
+import { Editor } from "@/components/blocks/editor-00/editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,6 +110,7 @@ export default function NewListingPage() {
     { file: File; url: string }[]
   >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
@@ -196,7 +199,7 @@ export default function NewListingPage() {
       profit: values.profit ?? null,
       lease_details: values.lease_details || null,
       summary: values.summary || null,
-      description: values.description || null,
+      description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : values.description || null,
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
     });
@@ -478,13 +481,13 @@ export default function NewListingPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  {...register("description")}
-                  rows={8}
-                  placeholder="Full description of the business"
-                />
+                <Label>Description</Label>
+                <div className="[&_.ContentEditable__root]:min-h-48">
+                  <Editor
+                    editorSerializedState={descriptionEditorState}
+                    onSerializedChange={(value) => setDescriptionEditorState(value)}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Images</Label>

@@ -19,6 +19,8 @@ import {
   reorderListingImages,
 } from "@/lib/actions/listings";
 import type { Category, Listing, ListingHighlight } from "@/lib/types/listings";
+import type { SerializedEditorState } from "lexical";
+import { Editor } from "@/components/blocks/editor-00/editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +100,16 @@ export function EditListingForm({ listing }: Props) {
   const [saving, setSaving] = useState(false);
   const [statusChanging, setStatusChanging] = useState(false);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(() => {
+    if (!listing.description) return undefined;
+    try {
+      const parsed = JSON.parse(listing.description);
+      if (parsed?.root) return parsed as SerializedEditorState;
+    } catch { /* plain text — not JSON */ }
+    return undefined;
+  });
+  // Track if description was originally plain text (for backwards compat)
+  const isPlainTextDescription = !!listing.description && !descriptionEditorState;
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -143,7 +155,7 @@ export function EditListingForm({ listing }: Props) {
       profit: data.profit ?? null,
       lease_details: data.lease_details || null,
       summary: data.summary || null,
-      description: data.description || null,
+      description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : data.description || null,
       highlight_ids: data.highlight_ids ?? [],
     });
     setSaving(false);
@@ -341,8 +353,17 @@ export function EditListingForm({ listing }: Props) {
               <Textarea id="summary" {...register("summary")} rows={3} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" {...register("description")} rows={8} />
+              <Label>Description</Label>
+              {isPlainTextDescription ? (
+                <Textarea id="description" {...register("description")} rows={8} />
+              ) : (
+                <div className="[&_.ContentEditable__root]:min-h-48">
+                  <Editor
+                    editorSerializedState={descriptionEditorState}
+                    onSerializedChange={(value) => setDescriptionEditorState(value)}
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
