@@ -13,6 +13,44 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
+const AD_IMAGES_BUCKET = "ad-images";
+const MAX_AD_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_AD_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
+/** Upload an ad image to storage and return the public URL. */
+export async function uploadAdImage(
+  formData: FormData
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const file = formData.get("file") as File | null;
+  if (!file?.size) return { ok: false, error: "No file provided." };
+  if (file.size > MAX_AD_IMAGE_SIZE)
+    return { ok: false, error: "Image must be under 5 MB." };
+  if (!ALLOWED_AD_IMAGE_TYPES.includes(file.type))
+    return { ok: false, error: "Only JPEG, PNG, WebP and GIF are allowed." };
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(AD_IMAGES_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data: urlData } = supabase.storage
+    .from(AD_IMAGES_BUCKET)
+    .getPublicUrl(path);
+
+  return { ok: true, url: urlData.publicUrl };
+}
+
 /** Get all ads for admin (no filters). */
 export async function getAllAdsForAdmin(): Promise<Advertisement[]> {
   await requireAdmin();
