@@ -161,7 +161,7 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Admin preview banner */}
         {isAdminPreview && (
-          <div className="flex items-center gap-2 border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
             <span className="font-medium">Admin preview</span>
             <span className="text-muted-foreground">— This listing is not publicly visible.</span>
             <StatusBadge status={listing.status} className="ml-auto border-0" />
@@ -170,7 +170,7 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Featured banner */}
         {isFeaturedNow(listing.featured_until) && (
-          <div className="flex items-center gap-2 border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2.5 text-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2.5 text-sm">
             <Star className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
             <span className="font-medium text-amber-700 dark:text-amber-400">Featured listing</span>
             <span className="text-muted-foreground">— This listing is promoted for increased visibility.</span>
@@ -260,7 +260,7 @@ export default async function ListingPage({ params }: Props) {
                 {highlights.map((h) => (
                   <li
                     key={h.id}
-                    className="flex items-center gap-2.5 border border-border bg-background px-3 py-2.5 text-sm"
+                    className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
                   >
                     <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       h.accent === "primary" ? "bg-primary/15 text-primary" :

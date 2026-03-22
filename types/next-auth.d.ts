@@ -1,5 +1,6 @@
 import "next-auth";
 import type { AgencyRole } from "@/lib/types/agencies";
+import type { SubscriptionStatus } from "@/lib/types/subscriptions";
 
 declare module "next-auth" {
   interface Session {
@@ -13,6 +14,7 @@ declare module "next-auth" {
       agencyId?: string | null;
       agencyRole?: AgencyRole | null;
       agencyName?: string | null;
+      subscriptionStatus?: SubscriptionStatus | null;
     };
   }
 
@@ -25,6 +27,7 @@ declare module "next-auth" {
     agencyId?: string | null;
     agencyRole?: AgencyRole | null;
     agencyName?: string | null;
+    subscriptionStatus?: SubscriptionStatus | null;
   }
 }
 
@@ -36,5 +39,6 @@ declare module "next-auth/jwt" {
     agencyId?: string | null;
     agencyRole?: AgencyRole | null;
     agencyName?: string | null;
+    subscriptionStatus?: SubscriptionStatus | null;
   }
 }

@@ -5,13 +5,16 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CheckoutPage } from "./checkout-page";
 
 type Props = {
-  searchParams: Promise<{ listing?: string; product?: string }>;
+  searchParams: Promise<{ listing?: string; product?: string; type?: string }>;
 };
 
 export default async function Page({ searchParams }: Props) {
   const params = await searchParams;
   const listingId = params.listing;
   const productId = params.product;
+  const paymentType = (params.type === "listing_tier" ? "listing_tier" : "featured") as
+    | "featured"
+    | "listing_tier";
 
   if (!listingId || !productId) {
     redirect("/dashboard/listings");
@@ -60,6 +63,7 @@ export default async function Page({ searchParams }: Props) {
     <CheckoutPage
       listing={{ id: listing.id, title: listing.title, slug: listing.slug }}
       product={product}
+      paymentType={paymentType}
     />
   );
 }

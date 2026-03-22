@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { Listing, ListingStatus } from "@/lib/types/listings";
+import type { Listing, ListingStatus, ListingTier } from "@/lib/types/listings";
+import { TierBadge } from "@/components/shared/tier-badge";
 import {
   updateListingStatus,
   deleteListing,
@@ -112,7 +113,7 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner, canFeature 
 
   if (listings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center border border-dashed bg-muted/40 px-4 py-12 sm:py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 px-4 py-12 sm:py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
           <HugeiconsIcon icon={Edit02Icon} className="size-6 text-muted-foreground" />
         </div>
@@ -136,6 +137,7 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner, canFeature 
             <TableHead>Title</TableHead>
             {isAgencyOwner && <TableHead>Broker</TableHead>}
             <TableHead>Status</TableHead>
+            <TableHead>Tier</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>Price</TableHead>
             <TableHead>Created</TableHead>
@@ -209,6 +211,14 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner, canFeature 
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    <TierBadge tier={(listing.listing_tier as ListingTier) ?? "basic"} />
+                    {listing.status === "draft" && listing.listing_tier !== "basic" && !listing.tier_paid_at && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">Unpaid</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>

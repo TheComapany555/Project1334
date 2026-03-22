@@ -1,5 +1,6 @@
 export type ListingStatus = "draft" | "published" | "under_offer" | "sold" | "unpublished";
 export type PriceType = "fixed" | "poa";
+export type ListingTier = "basic" | "standard" | "featured";
 
 export type Category = {
   id: string;
@@ -42,6 +43,9 @@ export type Listing = {
   summary: string | null;
   description: string | null;
   status: ListingStatus;
+  listing_tier: ListingTier;
+  tier_product_id: string | null;
+  tier_paid_at: string | null;
   is_featured: boolean;
   featured_from: string | null;
   featured_until: string | null;

@@ -107,7 +107,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border border-border bg-card overflow-hidden">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       {/* Primary filters */}
       <div className="p-4 sm:p-6 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
