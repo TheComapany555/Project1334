@@ -16,9 +16,13 @@ export type Payment = {
   payment_type: PaymentType;
   subscription_id: string | null;
   invoice_requested: boolean;
+  invoice_requested_at: string | null;
+  invoice_notes: string | null;
+  invoice_admin_notes: string | null;
   created_at: string;
   paid_at: string | null;
   listing?: { id: string; title: string; slug: string } | null;
   broker?: { name: string | null; company: string | null } | null;
+  agency?: { id: string; name: string } | null;
   product?: { id: string; name: string } | null;
 };

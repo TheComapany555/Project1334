@@ -25,7 +25,8 @@ export async function getAllProducts(): Promise<Product[]> {
   return (data ?? []) as Product[];
 }
 
-/** Get active products (public — for upgrade modal). Optionally filter by product_type. */
+/** Get active products. Optionally filter by product_type.
+ *  Automatically applies agency pricing overrides for the current user's agency. */
 export async function getActiveProducts(
   productType?: string
 ): Promise<Product[]> {
@@ -40,7 +41,71 @@ export async function getActiveProducts(
   }
   const { data, error } = await query;
   if (error) return [];
-  return (data ?? []) as Product[];
+  const products = (data ?? []) as Product[];
+
+  // Try to get the current user's agency for pricing overrides
+  let agencyId: string | null = null;
+  try {
+    const session = await getServerSession(authOptions);
+    agencyId = (session?.user as { agencyId?: string })?.agencyId ?? null;
+  } catch {
+    // Not in an authenticated context — use default prices
+  }
+
+  if (agencyId) {
+    const { data: overrides } = await supabase
+      .from("agency_pricing_overrides")
+      .select("product_id, custom_price, currency")
+      .eq("agency_id", agencyId);
+
+    if (overrides && overrides.length > 0) {
+      const overrideMap = new Map(
+        overrides.map((o) => [o.product_id, o])
+      );
+      return products.map((p) => {
+        const override = overrideMap.get(p.id);
+        if (override) {
+          return {
+            ...p,
+            price: override.custom_price,
+            currency: override.currency ?? p.currency,
+          };
+        }
+        return p;
+      });
+    }
+  }
+
+  return products;
+}
+
+/** Resolve the actual price for a product + agency (checks custom pricing). */
+export async function resolveProductPrice(
+  productId: string,
+  agencyId: string | null
+): Promise<{ price: number; currency: string } | null> {
+  const supabase = createServiceRoleClient();
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("price, currency")
+    .eq("id", productId)
+    .single();
+  if (!product) return null;
+
+  if (agencyId) {
+    const { data: override } = await supabase
+      .from("agency_pricing_overrides")
+      .select("custom_price, currency")
+      .eq("agency_id", agencyId)
+      .eq("product_id", productId)
+      .single();
+    if (override) {
+      return { price: override.custom_price, currency: override.currency ?? product.currency };
+    }
+  }
+
+  return { price: product.price, currency: product.currency };
 }
 
 /** Get a single product by ID. */

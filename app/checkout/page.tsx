@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveProductPrice } from "@/lib/actions/products";
 import { CheckoutPage } from "./checkout-page";
 
 type Props = {
@@ -42,6 +43,14 @@ export default async function Page({ searchParams }: Props) {
     redirect("/dashboard/listings?error=product-not-found");
   }
 
+  // Resolve agency-specific pricing
+  const resolved = await resolveProductPrice(productId, agencyId);
+  const productWithPrice = {
+    ...product,
+    price: resolved?.price ?? product.price,
+    currency: resolved?.currency ?? product.currency,
+  };
+
   // Verify listing ownership
   let query = supabase
     .from("listings")
@@ -62,7 +71,7 @@ export default async function Page({ searchParams }: Props) {
   return (
     <CheckoutPage
       listing={{ id: listing.id, title: listing.title, slug: listing.slug }}
-      product={product}
+      product={productWithPrice}
       paymentType={paymentType}
     />
   );

@@ -361,6 +361,126 @@ function SuccessView({ listing }: { listing: { title: string } }) {
   );
 }
 
+// ─── Invoice Request Form ────────────────────────────────────────────────────
+
+function InvoiceRequestForm({
+  listing,
+  product,
+  paymentType,
+}: {
+  listing: { id: string; title: string; slug: string };
+  product: Product;
+  paymentType: "featured" | "listing_tier";
+}) {
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/request-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          productId: product.id,
+          paymentType,
+          notes: notes.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Failed to request invoice.");
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+        <div className="h-14 w-14 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center">
+          <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-semibold">Invoice requested</p>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Our team will review your request and send an invoice to your agency. Your listing will go live once payment is received.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm" className="mt-2 gap-1.5">
+          <Link href="/dashboard/listings">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to listings
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+        <p className="text-sm font-medium">How it works</p>
+        <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+          <li>You submit an invoice request below</li>
+          <li>Our team will generate and send you an invoice</li>
+          <li>Pay via bank transfer using the details on the invoice</li>
+          <li>Your listing goes live once payment is confirmed</li>
+        </ol>
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="invoice-notes" className="text-sm font-medium">
+          Notes <span className="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <textarea
+          id="invoice-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Any special requirements, PO number, billing details…"
+          className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+          maxLength={1000}
+        />
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 px-3 py-2.5 rounded-lg">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        variant="outline"
+        className="w-full h-11 gap-2"
+        disabled={submitting}
+      >
+        {submitting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Lock className="h-4 w-4" />
+        )}
+        {submitting ? "Submitting…" : `Request invoice — ${formatPrice(product.price, product.currency)}`}
+      </Button>
+
+      <p className="text-center text-[11px] text-muted-foreground">
+        Your listing will be published once payment is confirmed by an admin.
+      </p>
+    </form>
+  );
+}
+
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
 export function CheckoutPage({ listing, product, paymentType = "featured" }: CheckoutPageProps) {
@@ -369,6 +489,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
   const [initError, setInitError] = useState("");
   const [isInitializing, setIsInitializing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"card" | "invoice">("card");
   const hasInitialized = useRef(false);
 
   const initializePayment = useCallback(async () => {
@@ -521,11 +642,47 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
           <div className="lg:col-span-3 order-1 lg:order-2">
             <div className="rounded-xl border bg-card p-5 sm:p-7">
               <h1 className="text-lg font-semibold mb-1">Secure Checkout</h1>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-muted-foreground mb-4">
                 Complete your payment to feature your listing
               </p>
 
-              {isInitializing ? (
+              {/* Payment mode toggle */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode("card")}
+                  className={cn(
+                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                    paymentMode === "card"
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:border-border/80"
+                  )}
+                >
+                  <Lock className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                  Pay by card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode("invoice")}
+                  className={cn(
+                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                    paymentMode === "invoice"
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:border-border/80"
+                  )}
+                >
+                  <Shield className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                  Request invoice
+                </button>
+              </div>
+
+              {paymentMode === "invoice" ? (
+                <InvoiceRequestForm
+                  listing={listing}
+                  product={product}
+                  paymentType={paymentType}
+                />
+              ) : isInitializing ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <p className="text-sm text-muted-foreground">

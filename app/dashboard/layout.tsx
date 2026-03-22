@@ -6,7 +6,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
-import { SubscriptionBanner } from "@/components/subscription/subscription-banner";
+import { SubscriptionGate } from "@/components/subscription/subscription-gate";
 import type { SubscriptionStatus } from "@/lib/types/subscriptions";
 
 export default async function DashboardLayout({
@@ -54,9 +54,7 @@ export default async function DashboardLayout({
   };
 
   const isOwner = session.user.agencyRole === "owner";
-  const showBanner =
-    session.user.agencyId &&
-    !["active", "trialing"].includes(subscriptionStatus ?? "");
+  const needsSubscription = !!session.user.agencyId;
 
   return (
     <DashboardLoader>
@@ -65,13 +63,16 @@ export default async function DashboardLayout({
         <SidebarInset>
           <DashboardHeader user={user} />
           <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
-            {showBanner && (
-              <SubscriptionBanner
+            {needsSubscription ? (
+              <SubscriptionGate
                 status={subscriptionStatus}
                 isOwner={isOwner}
-              />
+              >
+                {children}
+              </SubscriptionGate>
+            ) : (
+              children
             )}
-            {children}
           </div>
         </SidebarInset>
       </SidebarProvider>
