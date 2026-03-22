@@ -11,9 +11,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { listingId, productId } = body as {
+  const { listingId, productId, paymentType = "featured" } = body as {
     listingId: string;
     productId: string;
+    paymentType?: "featured" | "listing_tier";
   };
 
   if (!listingId || !productId) {
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
       amount: product.price,
       currency: product.currency,
       status: "pending",
+      payment_type: paymentType,
     })
     .select("id")
     .single();
@@ -83,15 +85,29 @@ export async function POST(req: NextRequest) {
 
   // Create Stripe PaymentIntent
   try {
+    const metadata: Record<string, string> = {
+      payment_id: payment.id,
+      listing_id: listingId,
+      product_id: productId,
+      package_days: String(product.duration_days ?? 0),
+      payment_type: paymentType,
+    };
+
+    // For listing tier payments, determine tier from the listing's current tier
+    if (paymentType === "listing_tier") {
+      // Read the listing's tier directly from the database (set at creation/edit time)
+      const { data: listingData } = await supabase
+        .from("listings")
+        .select("listing_tier")
+        .eq("id", listingId)
+        .single();
+      metadata.listing_tier = listingData?.listing_tier ?? "standard";
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: product.price,
       currency: product.currency,
-      metadata: {
-        payment_id: payment.id,
-        listing_id: listingId,
-        product_id: productId,
-        package_days: String(product.duration_days ?? 0),
-      },
+      metadata,
       automatic_payment_methods: { enabled: true },
     });
 

@@ -37,6 +37,25 @@ async function requireBroker() {
   };
 }
 
+/** Check if the broker's agency has an active subscription. Returns true for non-agency brokers. */
+async function checkAgencySubscription(agencyId: string | null): Promise<boolean> {
+  if (!agencyId) return true; // Solo broker (no agency) — no subscription required
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase
+    .from("agency_subscriptions")
+    .select("id, status, grace_period_end")
+    .eq("agency_id", agencyId)
+    .in("status", ["active", "trialing", "past_due"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+  if (!data) return false;
+  if (data.status === "past_due" && data.grace_period_end) {
+    return new Date(data.grace_period_end) > new Date();
+  }
+  return true;
+}
+
 export async function getCategories(): Promise<Category[]> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
@@ -200,7 +219,8 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       { count: "exact" }
     )
     .eq("status", "published")
-    .is("admin_removed_at", null);
+    .is("admin_removed_at", null)
+    .in("listing_tier", ["standard", "featured"]);
 
   if (params.keyword?.trim()) {
     const k = params.keyword.trim();
@@ -368,11 +388,26 @@ export async function createListing(form: {
   description: string | null;
   highlight_ids: string[];
   status: "draft" | "published";
+  listing_tier?: "basic" | "standard" | "featured";
+  tier_product_id?: string | null;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const { userId, agencyId } = await requireBroker();
   const supabase = createServiceRoleClient();
   const slug = generateListingSlug(form.title);
-  const published_at = form.status === "published" ? new Date().toISOString() : null;
+
+  // Subscription check: agency brokers need active subscription to create listings
+  const hasSubscription = await checkAgencySubscription(agencyId);
+  if (!hasSubscription) {
+    return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
+  }
+
+  const tier = form.listing_tier ?? "basic";
+  const isFreeOrBasic = tier === "basic";
+
+  // For paid tiers, force draft status until payment is made
+  const effectiveStatus = isFreeOrBasic ? form.status : "draft";
+  const published_at = effectiveStatus === "published" ? new Date().toISOString() : null;
+
   const { data, error } = await supabase
     .from("listings")
     .insert({
@@ -392,8 +427,11 @@ export async function createListing(form: {
       lease_details: form.lease_details?.trim() || null,
       summary: form.summary?.trim() || null,
       description: form.description?.trim() || null,
-      status: form.status,
+      status: effectiveStatus,
       published_at,
+      listing_tier: tier,
+      tier_product_id: form.tier_product_id || null,
+      tier_paid_at: isFreeOrBasic && effectiveStatus === "published" ? new Date().toISOString() : null,
     })
     .select("id")
     .single();
@@ -424,6 +462,8 @@ export async function updateListing(
     summary?: string | null;
     description?: string | null;
     highlight_ids?: string[];
+    listing_tier?: "basic" | "standard" | "featured";
+    tier_product_id?: string | null;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const { userId, agencyId, agencyRole } = await requireBroker();
@@ -451,6 +491,18 @@ export async function updateListing(
   if (form.lease_details !== undefined) payload.lease_details = form.lease_details?.trim() || null;
   if (form.summary !== undefined) payload.summary = form.summary?.trim() || null;
   if (form.description !== undefined) payload.description = form.description?.trim() || null;
+  if (form.listing_tier !== undefined) {
+    // Only allow tier change on draft listings that haven't been paid for
+    const { data: current } = await supabase
+      .from("listings")
+      .select("status, listing_tier, tier_paid_at")
+      .eq("id", id)
+      .single();
+    if (current && current.status === "draft" && !current.tier_paid_at) {
+      payload.listing_tier = form.listing_tier;
+      payload.tier_product_id = form.tier_product_id ?? null;
+    }
+  }
   // Already verified ownership above via existingQuery
   const { error } = await supabase.from("listings").update(payload).eq("id", id);
   if (error) return { ok: false, error: error.message };
@@ -469,7 +521,7 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
 
-  let statusQuery = supabase.from("listings").select("id, status").eq("id", id);
+  let statusQuery = supabase.from("listings").select("id, status, listing_tier, tier_paid_at").eq("id", id);
   if (agencyId && agencyRole === "owner") {
     statusQuery = statusQuery.eq("agency_id", agencyId);
   } else {
@@ -488,6 +540,20 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   if (!allowed[current]?.includes(status)) {
     return { ok: false, error: `Cannot change status from ${current} to ${status}.` };
   }
+
+  // Block publishing if subscription or tier payment is missing
+  if (status === "published") {
+    const hasSubscription = await checkAgencySubscription(agencyId);
+    if (!hasSubscription) {
+      return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
+    }
+    const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
+    const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
+    if (tier !== "basic" && !tierPaidAt) {
+      return { ok: false, error: "Payment required before publishing. Please complete the listing tier payment first." };
+    }
+  }
+
   const payload: { status: ListingStatus; updated_at: string; published_at?: string } = {
     status,
     updated_at: new Date().toISOString(),

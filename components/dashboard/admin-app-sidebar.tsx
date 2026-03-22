@@ -17,6 +17,7 @@ import {
   Wallet02Icon,
   Tag01Icon,
   Megaphone01Icon,
+  CreditCardIcon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -49,6 +50,7 @@ const adminNav = [
   { label: "Enquiries", href: "/admin/enquiries", icon: MailIcon },
   { label: "Products", href: "/admin/products", icon: Tag01Icon },
   { label: "Payments", href: "/admin/payments", icon: Wallet02Icon },
+  { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCardIcon },
   { label: "Advertising", href: "/admin/advertising", icon: Megaphone01Icon },
 ] as const;
 

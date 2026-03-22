@@ -351,7 +351,7 @@ export default async function BrokerProfilePage({ params }: Props) {
                     <li key={listing.id}>
                       <Link
                         href={`/listing/${listing.slug}`}
-                        className="group flex gap-4 border border-border bg-muted/20 p-4 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="group flex gap-4 rounded-xl border border-border bg-muted/20 p-4 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {/* Thumbnail */}
                         {thumb ? (

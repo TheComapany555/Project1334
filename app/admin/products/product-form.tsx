@@ -13,6 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
 const productSchema = z.object({
@@ -21,6 +28,7 @@ const productSchema = z.object({
   price: z.string().min(1, "Price is required"),
   currency: z.string().min(1),
   duration_days: z.string().optional().or(z.literal("")),
+  product_type: z.enum(["featured", "listing_tier", "subscription"]),
 });
 
 type FormValues = z.infer<typeof productSchema>;
@@ -37,6 +45,8 @@ export function ProductForm({ product }: ProductFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(productSchema),
@@ -46,6 +56,7 @@ export function ProductForm({ product }: ProductFormProps) {
       price: product ? String(product.price / 100) : "",
       currency: product?.currency ?? "aud",
       duration_days: product?.duration_days ? String(product.duration_days) : "",
+      product_type: product?.product_type ?? "featured",
     },
   });
 
@@ -73,6 +84,7 @@ export function ProductForm({ product }: ProductFormProps) {
           price: priceInCents,
           currency: values.currency,
           duration_days: durationDays,
+          product_type: values.product_type,
         });
         if (res.ok) {
           toast.success("Product updated");
@@ -88,6 +100,7 @@ export function ProductForm({ product }: ProductFormProps) {
           price: priceInCents,
           currency: values.currency,
           duration_days: durationDays,
+          product_type: values.product_type,
         });
         if (res.ok) {
           toast.success("Product created");
@@ -119,6 +132,28 @@ export function ProductForm({ product }: ProductFormProps) {
           rows={3}
         />
         <FieldError message={errors.description?.message} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Product type</Label>
+        <Select
+          value={watch("product_type")}
+          onValueChange={(v) =>
+            setValue("product_type", v as "featured" | "listing_tier" | "subscription")
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="featured">Featured upgrade</SelectItem>
+            <SelectItem value="listing_tier">Listing tier</SelectItem>
+            <SelectItem value="subscription">Subscription plan</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Controls where this product appears in the platform.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -36,6 +36,7 @@ import type { Product } from "@/lib/types/products";
 type CheckoutPageProps = {
   listing: { id: string; title: string; slug: string };
   product: Product;
+  paymentType?: "featured" | "listing_tier";
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -362,7 +363,7 @@ function SuccessView({ listing }: { listing: { title: string } }) {
 
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
-export function CheckoutPage({ listing, product }: CheckoutPageProps) {
+export function CheckoutPage({ listing, product, paymentType = "featured" }: CheckoutPageProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [initError, setInitError] = useState("");
@@ -380,7 +381,7 @@ export function CheckoutPage({ listing, product }: CheckoutPageProps) {
       const res = await fetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: listing.id, productId: product.id }),
+        body: JSON.stringify({ listingId: listing.id, productId: product.id, paymentType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -570,7 +571,7 @@ export function CheckoutPage({ listing, product }: CheckoutPageProps) {
                     appearance: {
                       theme: "stripe",
                       variables: {
-                        colorPrimary: "hsl(142, 71%, 30%)",
+                        colorPrimary: "hsl(152, 60%, 36%)",
                         colorBackground: "hsl(0, 0%, 100%)",
                         colorText: "hsl(0, 0%, 10%)",
                         colorDanger: "hsl(0, 84%, 60%)",
@@ -586,9 +587,9 @@ export function CheckoutPage({ listing, product }: CheckoutPageProps) {
                           padding: "10px 12px",
                         },
                         ".Input:focus": {
-                          border: "1px solid hsl(142, 71%, 30%)",
+                          border: "1px solid hsl(152, 60%, 36%)",
                           boxShadow:
-                            "0 0 0 3px hsla(142, 71%, 30%, 0.15)",
+                            "0 0 0 3px hsla(152, 60%, 36%, 0.15)",
                         },
                         ".Label": {
                           fontWeight: "500",
@@ -603,8 +604,8 @@ export function CheckoutPage({ listing, product }: CheckoutPageProps) {
                           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
                         },
                         ".Tab--selected": {
-                          borderColor: "hsl(142, 71%, 30%)",
-                          boxShadow: "0 0 0 1px hsl(142, 71%, 30%)",
+                          borderColor: "hsl(152, 60%, 36%)",
+                          boxShadow: "0 0 0 1px hsl(152, 60%, 36%)",
                         },
                       },
                     },

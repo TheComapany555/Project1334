@@ -18,7 +18,10 @@ import {
   fadeUp,
   staggerContainer,
 } from "@/components/motion";
-import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import {
+  FeaturedBadge,
+  isFeaturedNow,
+} from "@/components/listings/featured-badge";
 import { AdSlot } from "@/components/ads/ad-slot";
 import {
   ArrowRight,
@@ -84,12 +87,14 @@ const FEATURES = [
 // ─── Listing Card (shared between mobile scroll + desktop grid) ───────────────
 function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
   const thumb = listing.listing_images?.[0]?.url;
-  const location = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
+  const location =
+    listing.location_text ||
+    [listing.suburb, listing.state].filter(Boolean).join(", ");
 
   return (
     <Link
       href={`/listing/${listing.slug}`}
-      className="group flex flex-col h-full border border-border bg-card overflow-hidden transition-all duration-200 hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="group flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden shadow-sm transition-all duration-200 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {/* Image */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted shrink-0">
@@ -126,7 +131,10 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
           <div className="flex items-center gap-2 mb-2">
             <Avatar size="sm">
               {listing.broker.photo_url && (
-                <AvatarImage src={listing.broker.photo_url} alt={listing.broker.name ?? "Broker"} />
+                <AvatarImage
+                  src={listing.broker.photo_url}
+                  alt={listing.broker.name ?? "Broker"}
+                />
               )}
               <AvatarFallback>
                 <User className="h-3 w-3" />
@@ -174,7 +182,8 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
             {formatPrice(listing)}
           </p>
           <span className="text-[11px] text-primary flex items-center gap-0.5 font-medium">
-            View <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+            View{" "}
+            <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
           </span>
         </div>
       </div>
@@ -224,7 +233,7 @@ export default async function HomePage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.05 }}
-                className="inline-flex items-center gap-2 border border-primary/20 bg-primary/8 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-primary mb-6 sm:mb-8"
+                className="inline-flex rounded-sm items-center gap-2 border border-primary/20 bg-primary/8 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-primary mb-6 sm:mb-8"
               >
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -273,7 +282,7 @@ export default async function HomePage() {
                   method="get"
                   className="mt-7 sm:mt-9 mx-auto max-w-2xl"
                 >
-                  <div className="flex flex-col sm:flex-row gap-2 p-2 border border-border bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
+                  <div className="flex flex-col sm:flex-row gap-2 p-2 rounded-xl border border-border bg-background/95 backdrop-blur-sm shadow-lg shadow-black/5">
                     <div className="flex flex-1 items-center gap-3 px-3 sm:px-4 py-2.5 bg-muted/40">
                       <Search
                         className="h-4 w-4 text-muted-foreground shrink-0"
@@ -446,7 +455,7 @@ export default async function HomePage() {
               </MotionDiv>
             </>
           ) : (
-            <div className="border border-dashed border-border bg-muted/20 px-4 py-14 sm:py-18 text-center">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-14 sm:py-18 text-center">
               <Building2 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
               <p className="font-medium text-foreground">No listings yet</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -500,9 +509,9 @@ export default async function HomePage() {
                   key={f.title}
                   variants={fadeUp}
                   transition={{ duration: 0.4 }}
-                  className="group border border-border bg-card p-5 sm:p-7 transition-all duration-200 hover:border-primary/30 cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
+                  className="group rounded-xl border border-border bg-card shadow-sm p-5 sm:p-7 transition-all duration-200 hover:border-primary/30 hover:shadow-md cursor-default flex sm:flex-col items-start gap-4 sm:gap-0"
                 >
-                  <div className="h-11 w-11 sm:h-12 sm:w-12 bg-primary/10 flex items-center justify-center shrink-0 sm:mb-5 transition-colors duration-200 group-hover:bg-primary/15">
+                  <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 sm:mb-5 transition-colors duration-200 group-hover:bg-primary/15">
                     <f.icon className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-primary" />
                   </div>
                   <div>

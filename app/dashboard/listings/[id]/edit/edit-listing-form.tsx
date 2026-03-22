@@ -18,7 +18,11 @@ import {
   deleteListingImage,
   reorderListingImages,
 } from "@/lib/actions/listings";
-import type { Category, Listing, ListingHighlight } from "@/lib/types/listings";
+import { getActiveProducts } from "@/lib/actions/products";
+import type { Category, Listing, ListingHighlight, ListingTier } from "@/lib/types/listings";
+import type { Product } from "@/lib/types/products";
+import { TierSelector } from "@/components/listings/tier-selector";
+import { TierBadge } from "@/components/shared/tier-badge";
 import type { SerializedEditorState } from "lexical";
 import { Editor } from "@/components/blocks/editor-00/editor";
 import { Button } from "@/components/ui/button";
@@ -100,6 +104,16 @@ export function EditListingForm({ listing }: Props) {
   const [saving, setSaving] = useState(false);
   const [statusChanging, setStatusChanging] = useState(false);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [tierProducts, setTierProducts] = useState<Product[]>([]);
+  const [selectedTier, setSelectedTier] = useState<ListingTier>(
+    (listing.listing_tier as ListingTier) ?? "basic"
+  );
+  const [selectedTierProductId, setSelectedTierProductId] = useState<string | null>(
+    listing.tier_product_id ?? null
+  );
+
+  // Can change tier only if draft and not yet paid
+  const canChangeTier = listing.status === "draft" && !listing.tier_paid_at;
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(() => {
     if (!listing.description) return undefined;
     try {
@@ -134,15 +148,21 @@ export function EditListingForm({ listing }: Props) {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = form;
 
   useEffect(() => {
-    Promise.all([getCategories(), getListingHighlights()]).then(([cats, hls]) => {
-      setCategories(cats);
-      setHighlights(hls);
+    const fetches: [Promise<Category[]>, Promise<ListingHighlight[]>, ...Promise<Product[]>[]] = [
+      getCategories(),
+      getListingHighlights(),
+    ];
+    if (canChangeTier) fetches.push(getActiveProducts("listing_tier"));
+    Promise.all(fetches).then(([cats, hls, products]) => {
+      setCategories(cats as Category[]);
+      setHighlights(hls as ListingHighlight[]);
+      if (products) setTierProducts(products as Product[]);
     });
-  }, []);
+  }, [canChangeTier]);
 
   async function onSave(data: FormData) {
     setSaving(true);
-    const result = await updateListing(listing.id, {
+    const updatePayload: Parameters<typeof updateListing>[1] = {
       title: data.title,
       category_id: data.category_id || null,
       location_text: data.location_text || null,
@@ -157,13 +177,61 @@ export function EditListingForm({ listing }: Props) {
       summary: data.summary || null,
       description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : data.description || null,
       highlight_ids: data.highlight_ids ?? [],
-    });
+    };
+    if (canChangeTier) {
+      updatePayload.listing_tier = selectedTier;
+      updatePayload.tier_product_id = selectedTierProductId;
+    }
+    const result = await updateListing(listing.id, updatePayload);
     setSaving(false);
     if (result.ok) {
       toast.success("Listing updated.");
       router.replace("/dashboard/listings");
     } else {
       toast.error(result.error ?? "Failed to update.");
+    }
+  }
+
+  async function onPayAndPublish() {
+    // Save first, then redirect to checkout
+    setSaving(true);
+    const data = form.getValues();
+    const updatePayload: Parameters<typeof updateListing>[1] = {
+      title: data.title,
+      category_id: data.category_id || null,
+      location_text: data.location_text || null,
+      state: data.state || null,
+      suburb: data.suburb || null,
+      postcode: data.postcode || null,
+      asking_price: data.asking_price ?? null,
+      price_type: data.price_type,
+      revenue: data.revenue ?? null,
+      profit: data.profit ?? null,
+      lease_details: data.lease_details || null,
+      summary: data.summary || null,
+      description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : data.description || null,
+      highlight_ids: data.highlight_ids ?? [],
+      listing_tier: selectedTier,
+      tier_product_id: selectedTierProductId,
+    };
+    const result = await updateListing(listing.id, updatePayload);
+    setSaving(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Failed to save.");
+      return;
+    }
+    if (selectedTier === "basic") {
+      // Basic tier: publish directly
+      const statusResult = await updateListingStatus(listing.id, "published");
+      if (statusResult.ok) {
+        toast.success("Listing published.");
+        router.replace("/dashboard/listings");
+      } else {
+        toast.error(statusResult.error ?? "Failed to publish.");
+      }
+    } else if (selectedTierProductId) {
+      toast.success("Listing saved. Redirecting to payment...");
+      router.replace(`/checkout?listing=${listing.id}&product=${selectedTierProductId}&type=listing_tier`);
     }
   }
 
@@ -458,10 +526,52 @@ export function EditListingForm({ listing }: Props) {
           </CardContent>
         </Card>
 
+        {/* Listing Tier */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Listing tier</CardTitle>
+            <CardDescription>
+              {canChangeTier
+                ? "Choose the visibility level for your listing."
+                : "Tier is locked after payment."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {canChangeTier ? (
+              <TierSelector
+                products={tierProducts}
+                selectedTier={selectedTier}
+                onSelectTier={(tier, productId) => {
+                  setSelectedTier(tier);
+                  setSelectedTierProductId(productId);
+                }}
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <TierBadge tier={(listing.listing_tier as ListingTier) ?? "basic"} />
+                {listing.tier_paid_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Paid
+                  </span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
+          {canChangeTier && (
+            <Button
+              type="button"
+              onClick={onPayAndPublish}
+              disabled={saving}
+            >
+              {selectedTier === "basic" ? "Publish" : "Continue to payment"}
+            </Button>
+          )}
           {canUnderOffer && (
             <Button type="button" variant="secondary" disabled={statusChanging} onClick={() => onStatusChange("under_offer")}>
               Under offer

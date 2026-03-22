@@ -1,4 +1,5 @@
 export type PaymentStatus = "pending" | "invoiced" | "approved" | "paid";
+export type PaymentType = "featured" | "listing_tier" | "subscription";
 
 export type Payment = {
   id: string;
@@ -12,6 +13,8 @@ export type Payment = {
   amount: number;
   currency: string;
   status: PaymentStatus;
+  payment_type: PaymentType;
+  subscription_id: string | null;
   invoice_requested: boolean;
   created_at: string;
   paid_at: string | null;

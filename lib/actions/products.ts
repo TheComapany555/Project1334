@@ -25,14 +25,20 @@ export async function getAllProducts(): Promise<Product[]> {
   return (data ?? []) as Product[];
 }
 
-/** Get active products (public — for upgrade modal). */
-export async function getActiveProducts(): Promise<Product[]> {
+/** Get active products (public — for upgrade modal). Optionally filter by product_type. */
+export async function getActiveProducts(
+  productType?: string
+): Promise<Product[]> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("products")
     .select("*")
     .eq("status", "active")
     .order("price", { ascending: true });
+  if (productType) {
+    query = query.eq("product_type", productType);
+  }
+  const { data, error } = await query;
   if (error) return [];
   return (data ?? []) as Product[];
 }
@@ -56,6 +62,7 @@ export async function createProduct(form: {
   price: number;
   currency: string;
   duration_days: number | null;
+  product_type?: string;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
@@ -68,6 +75,7 @@ export async function createProduct(form: {
       price: form.price,
       currency: form.currency || "aud",
       duration_days: form.duration_days,
+      product_type: form.product_type || "featured",
       status: "active",
     })
     .select("id")
@@ -86,6 +94,7 @@ export async function updateProduct(
     price?: number;
     currency?: string;
     duration_days?: number | null;
+    product_type?: string;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
@@ -101,6 +110,8 @@ export async function updateProduct(
   if (form.currency !== undefined) payload.currency = form.currency;
   if (form.duration_days !== undefined)
     payload.duration_days = form.duration_days;
+  if (form.product_type !== undefined)
+    payload.product_type = form.product_type;
 
   const { error } = await supabase
     .from("products")

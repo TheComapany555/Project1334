@@ -40,6 +40,29 @@ export const authOptions: NextAuthOptions = {
               .eq("id", profile.agency_id)
               .single();
             if (!agency || agency.status !== "active") return null;
+
+            // Get subscription status
+            const { data: subscription } = await supabase
+              .from("agency_subscriptions")
+              .select("status, grace_period_end")
+              .eq("agency_id", profile.agency_id)
+              .in("status", ["active", "trialing", "past_due", "pending"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            let subscriptionStatus: string | null = null;
+            if (subscription) {
+              subscriptionStatus = subscription.status;
+              if (
+                subscription.status === "past_due" &&
+                subscription.grace_period_end &&
+                new Date(subscription.grace_period_end) < new Date()
+              ) {
+                subscriptionStatus = "expired";
+              }
+            }
+
             return {
               id: userRow.id,
               email: userRow.email,
@@ -48,6 +71,14 @@ export const authOptions: NextAuthOptions = {
               agencyId: profile.agency_id,
               agencyRole: profile.agency_role as "owner" | "member" | null,
               agencyName: agency.name,
+              subscriptionStatus: subscriptionStatus as
+                | "pending"
+                | "active"
+                | "past_due"
+                | "cancelled"
+                | "expired"
+                | "trialing"
+                | null,
             };
           }
           // Legacy broker without agency: must have active status
@@ -62,6 +93,7 @@ export const authOptions: NextAuthOptions = {
           agencyId: profile?.agency_id ?? null,
           agencyRole: (profile?.agency_role as "owner" | "member" | null) ?? null,
           agencyName: null,
+          subscriptionStatus: null,
         };
       },
     }),
@@ -75,7 +107,43 @@ export const authOptions: NextAuthOptions = {
         token.agencyId = user.agencyId;
         token.agencyRole = user.agencyRole;
         token.agencyName = user.agencyName;
+        token.subscriptionStatus = user.subscriptionStatus;
+        token.subscriptionCheckedAt = Date.now();
       }
+
+      // Refresh subscription status from DB periodically
+      // Check every 10s if no active sub (waiting for payment), every 5 min if active
+      const agencyId = token.agencyId as string | null;
+      const lastChecked = (token.subscriptionCheckedAt as number) ?? 0;
+      const currentStatus = token.subscriptionStatus as string | null;
+      const refreshInterval = ["active", "trialing"].includes(currentStatus ?? "") ? 300_000 : 10_000;
+      if (agencyId && Date.now() - lastChecked > refreshInterval) {
+        const supabase = createServiceRoleClient();
+        const { data: sub } = await supabase
+          .from("agency_subscriptions")
+          .select("status, grace_period_end")
+          .eq("agency_id", agencyId)
+          .in("status", ["active", "trialing", "past_due"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (sub) {
+          let status = sub.status;
+          if (
+            status === "past_due" &&
+            sub.grace_period_end &&
+            new Date(sub.grace_period_end) < new Date()
+          ) {
+            status = "expired";
+          }
+          token.subscriptionStatus = status;
+        } else {
+          token.subscriptionStatus = null;
+        }
+        token.subscriptionCheckedAt = Date.now();
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -86,6 +154,14 @@ export const authOptions: NextAuthOptions = {
         session.user.agencyId = (token.agencyId as string) ?? null;
         session.user.agencyRole = (token.agencyRole as "owner" | "member") ?? null;
         session.user.agencyName = (token.agencyName as string) ?? null;
+        session.user.subscriptionStatus =
+          (token.subscriptionStatus as
+            | "pending"
+            | "active"
+            | "past_due"
+            | "cancelled"
+            | "expired"
+            | "trialing") ?? null;
       }
       return session;
     },

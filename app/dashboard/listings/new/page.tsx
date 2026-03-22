@@ -15,7 +15,10 @@ import {
   createListing,
   uploadListingImage,
 } from "@/lib/actions/listings";
-import type { Category, ListingHighlight } from "@/lib/types/listings";
+import { getActiveProducts } from "@/lib/actions/products";
+import type { Category, ListingHighlight, ListingTier } from "@/lib/types/listings";
+import type { Product } from "@/lib/types/products";
+import { TierSelector } from "@/components/listings/tier-selector";
 import { Editor } from "@/components/blocks/editor-00/editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +107,7 @@ export default function NewListingPage() {
   const [step, setStep] = useState(1);
   const [categories, setCategories] = useState<Category[]>([]);
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
+  const [tierProducts, setTierProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<
@@ -111,6 +115,8 @@ export default function NewListingPage() {
   >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(undefined);
+  const [selectedTier, setSelectedTier] = useState<ListingTier>("standard");
+  const [selectedTierProductId, setSelectedTierProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
@@ -128,10 +134,14 @@ export default function NewListingPage() {
   } = form;
 
   useEffect(() => {
-    Promise.all([getCategories(), getListingHighlights()]).then(
-      ([cats, hls]) => {
+    Promise.all([getCategories(), getListingHighlights(), getActiveProducts("listing_tier")]).then(
+      ([cats, hls, products]) => {
         setCategories(cats);
         setHighlights(hls);
+        setTierProducts(products);
+        // Default to standard tier product
+        const stdProduct = products.find((p) => p.name.toLowerCase().includes("standard"));
+        if (stdProduct) setSelectedTierProductId(stdProduct.id);
         setLoading(false);
       },
     );
@@ -186,6 +196,8 @@ export default function NewListingPage() {
   async function onPublish(isDraft: boolean) {
     setSubmitting(true);
     const values = form.getValues();
+    const isPaidTier = selectedTier !== "basic" && !isDraft;
+
     const result = await createListing({
       title: values.title,
       category_id: values.category_id,
@@ -202,6 +214,8 @@ export default function NewListingPage() {
       description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : values.description || null,
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
+      listing_tier: selectedTier,
+      tier_product_id: selectedTierProductId,
     });
     if (!result.ok) {
       setSubmitting(false);
@@ -221,8 +235,15 @@ export default function NewListingPage() {
       }
     }
     setSubmitting(false);
-    toast.success(isDraft ? "Draft saved." : "Listing published.");
-    router.replace("/dashboard/listings");
+
+    if (isPaidTier && listingId && selectedTierProductId) {
+      // Redirect to checkout for paid tier
+      toast.success("Listing saved. Redirecting to payment...");
+      router.replace(`/checkout?listing=${listingId}&product=${selectedTierProductId}&type=listing_tier`);
+    } else {
+      toast.success(isDraft ? "Draft saved." : "Listing published.");
+      router.replace("/dashboard/listings");
+    }
   }
 
   if (loading) {
@@ -573,17 +594,16 @@ export default function NewListingPage() {
           </Card>
         )}
 
-        {/* Step 3: Highlights & publish */}
+        {/* Step 3: Highlights, tier & publish */}
         {step === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Highlights & publish</CardTitle>
+              <CardTitle>Highlights, tier & publish</CardTitle>
               <CardDescription>
-                Add highlight tags. Images can be added in Step 2 or changed
-                later on the edit page.
+                Add highlight tags and choose your listing tier.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label>Highlights</Label>
                 <div className="flex flex-wrap gap-2">
@@ -615,6 +635,25 @@ export default function NewListingPage() {
                   })}
                 </div>
               </div>
+
+              {/* Listing Tier Selection */}
+              <div className="space-y-3">
+                <div>
+                  <Label>Listing tier</Label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Choose the visibility level for your listing. Standard and Featured tiers require payment.
+                  </p>
+                </div>
+                <TierSelector
+                  products={tierProducts}
+                  selectedTier={selectedTier}
+                  onSelectTier={(tier, productId) => {
+                    setSelectedTier(tier);
+                    setSelectedTierProductId(productId);
+                  }}
+                />
+              </div>
+
               <div className="flex justify-between pt-4">
                 <Button
                   type="button"
@@ -642,7 +681,11 @@ export default function NewListingPage() {
                     onClick={() => onPublish(false)}
                     disabled={submitting}
                   >
-                    {submitting ? "Saving…" : "Publish"}
+                    {submitting
+                      ? "Saving…"
+                      : selectedTier === "basic"
+                        ? "Publish"
+                        : "Continue to payment"}
                   </Button>
                 </div>
               </div>
