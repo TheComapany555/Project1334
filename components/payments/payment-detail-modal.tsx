@@ -83,6 +83,37 @@ export function PaymentDetailModal({ payment, open, onOpenChange }: Props) {
           )}
         </div>
 
+        {/* Invoice info */}
+        {payment.invoice_requested && (
+          <>
+            <Separator />
+            <div className="space-y-0 divide-y divide-border">
+              <DetailRow label="Invoice" value={
+                <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 text-[10px]">
+                  Invoice requested
+                </Badge>
+              } />
+              {payment.invoice_requested_at && (
+                <DetailRow label="Requested" value={formatDateTime(payment.invoice_requested_at)} />
+              )}
+              {payment.invoice_notes && (
+                <DetailRow label="Notes" value={
+                  <p className="text-xs text-muted-foreground max-w-[200px]">
+                    {payment.invoice_notes}
+                  </p>
+                } />
+              )}
+              {payment.invoice_admin_notes && (
+                <DetailRow label="Admin notes" value={
+                  <p className="text-xs text-muted-foreground max-w-[200px]">
+                    {payment.invoice_admin_notes}
+                  </p>
+                } />
+              )}
+            </div>
+          </>
+        )}
+
         <Separator />
 
         <div className="space-y-0 divide-y divide-border">

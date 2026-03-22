@@ -20,7 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { setAgencyStatus } from "@/lib/actions/admin-brokers";
-import { Loader2 } from "lucide-react";
+import { Loader2, DollarSign } from "lucide-react";
+import Link from "next/link";
 
 type Props = { agencyId: string; status: string };
 
@@ -59,6 +60,12 @@ export function AgencyActions({ agencyId, status }: Props) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/agencies/${agencyId}/pricing`} className="flex items-center gap-2">
+              <DollarSign className="h-3.5 w-3.5" />
+              Custom pricing
+            </Link>
+          </DropdownMenuItem>
           {isPending && (
             <DropdownMenuItem onClick={() => handleSetStatus("active")}>
               Approve agency

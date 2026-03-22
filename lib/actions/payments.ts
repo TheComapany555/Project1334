@@ -133,28 +133,63 @@ export async function updatePaymentStatus(
 
   if (error) return { ok: false, error: error.message };
 
-  // If marking as paid, also activate featured on the listing
+  // If marking as paid, activate listing (featured or tier-based)
   if (status === "paid") {
     const { data: payment } = await supabase
       .from("payments")
-      .select("listing_id, package_days")
+      .select("listing_id, package_days, payment_type")
       .eq("id", paymentId)
       .single();
 
     if (payment?.listing_id) {
       const now = new Date();
-      const featuredUntil = new Date(
-        now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
-      );
-      await supabase
-        .from("listings")
-        .update({
-          is_featured: true,
-          featured_from: now.toISOString(),
-          featured_until: featuredUntil.toISOString(),
-          featured_package_days: payment.package_days,
-        })
-        .eq("id", payment.listing_id);
+
+      if (payment.payment_type === "listing_tier") {
+        // Activate listing tier: publish the listing + set tier_paid_at
+        const { data: listing } = await supabase
+          .from("listings")
+          .select("listing_tier")
+          .eq("id", payment.listing_id)
+          .single();
+
+        const tier = listing?.listing_tier ?? "standard";
+        const updatePayload: Record<string, unknown> = {
+          status: "published",
+          published_at: now.toISOString(),
+          tier_paid_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        };
+
+        // Featured tier also gets featured fields
+        if (tier === "featured" && payment.package_days > 0) {
+          const featuredUntil = new Date(
+            now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
+          );
+          updatePayload.is_featured = true;
+          updatePayload.featured_from = now.toISOString();
+          updatePayload.featured_until = featuredUntil.toISOString();
+          updatePayload.featured_package_days = payment.package_days;
+        }
+
+        await supabase
+          .from("listings")
+          .update(updatePayload)
+          .eq("id", payment.listing_id);
+      } else {
+        // Legacy featured payment
+        const featuredUntil = new Date(
+          now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
+        );
+        await supabase
+          .from("listings")
+          .update({
+            is_featured: true,
+            featured_from: now.toISOString(),
+            featured_until: featuredUntil.toISOString(),
+            featured_package_days: payment.package_days,
+          })
+          .eq("id", payment.listing_id);
+      }
     }
   }
 

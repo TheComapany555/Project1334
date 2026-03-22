@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SubscriptionStatus } from "@/lib/types/subscriptions";
@@ -11,6 +12,10 @@ type Props = {
 };
 
 export function SubscriptionBanner({ status, isOwner }: Props) {
+  const pathname = usePathname();
+
+  // Don't show on the subscribe page itself — it's redundant
+  if (pathname === "/dashboard/subscribe") return null;
   if (status === "active" || status === "trialing") return null;
 
   if (status === "past_due") {

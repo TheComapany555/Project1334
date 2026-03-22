@@ -29,26 +29,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/auth/error?error=EmailVerification", request.url));
     }
 
-    // Subscription gating for agency brokers
-    const agencyId = token.agencyId as string | null;
-    if (agencyId) {
-      const subscriptionStatus = token.subscriptionStatus as string | null;
-      const isSubscriptionOk = ["active", "trialing", "past_due"].includes(
-        subscriptionStatus ?? ""
-      );
-
-      // Pages allowed without active subscription
-      const allowedPaths = ["/dashboard/subscribe", "/dashboard/profile"];
-      const isAllowed = allowedPaths.some(
-        (p) => path === p || path.startsWith(p + "/")
-      );
-
-      if (!isSubscriptionOk && !isAllowed) {
-        return NextResponse.redirect(
-          new URL("/dashboard/subscribe", request.url)
-        );
-      }
-    }
+    // Subscription gating is handled at the layout level (real-time DB check)
+    // to avoid stale JWT issues. Middleware only handles auth.
 
     return NextResponse.next();
   }
