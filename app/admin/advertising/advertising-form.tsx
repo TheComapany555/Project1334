@@ -310,7 +310,7 @@ export function AdvertisingForm({ ad }: { ad?: Advertisement }) {
                 {isUploading ? "Uploading…" : "Click to upload an image"}
               </p>
               <p className="text-xs">
-                JPEG, PNG, WebP, GIF — max 5 MB
+                JPEG, PNG, WebP, GIF. Max 5 MB
               </p>
             </div>
           </button>

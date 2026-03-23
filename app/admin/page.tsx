@@ -122,7 +122,7 @@ export default async function AdminPage() {
         <ChartBarListings
           data={listingsChartData}
           footer={{
-            description: "Listings across all brokers — last 6 months",
+            description: "Listings across all brokers over the last 6 months",
           }}
         />
         <ChartBarEnquiries data={enquiriesChartData} />

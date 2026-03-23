@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { AgencyStatus } from "@/lib/types/agencies";
+import { notifyAgencyBrokers } from "@/lib/actions/notifications";
 
 async function requireAdmin() {
   const { getServerSession } = await import("next-auth");
@@ -110,6 +111,17 @@ export async function setAgencyStatus(
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", agencyId);
   if (error) return { ok: false, error: error.message };
+
+  if (status === "active") {
+    notifyAgencyBrokers({
+      agencyId,
+      type: "agency_approved",
+      title: "Your agency has been approved",
+      message: "Your agency is now active. You can start adding listings.",
+      link: "/dashboard",
+    }).catch(() => {});
+  }
+
   return { ok: true };
 }
 

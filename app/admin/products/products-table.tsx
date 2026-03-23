@@ -31,7 +31,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   async function handleToggle(id: string) {
     const res = await toggleProductStatus(id);
     if (res.ok) {
-      toast.success("Product status updated");
+      toast.success("Status updated");
       router.refresh();
     } else {
       toast.error(res.error ?? "Failed to update");

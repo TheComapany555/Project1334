@@ -11,6 +11,7 @@ import type {
   ListingImage,
   ListingStatus,
 } from "@/lib/types/listings";
+import { notifyAdmins } from "@/lib/actions/notifications";
 
 const LISTING_IMAGES_BUCKET = "listing-images";
 const MAX_IMAGES_PER_LISTING = 10;
@@ -550,7 +551,7 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
     const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
     const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
     if (tier !== "basic" && !tierPaidAt) {
-      return { ok: false, error: "Payment required before publishing. Please complete the listing tier payment first." };
+      return { ok: false, error: "Payment is required before publishing. Please complete the payment for your selected visibility level first." };
     }
   }
 
@@ -562,6 +563,23 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   // Already verified ownership via statusQuery
   const { error } = await supabase.from("listings").update(payload).eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  // Fetch listing title for notification
+  const { data: listingInfo } = await supabase
+    .from("listings")
+    .select("title")
+    .eq("id", id)
+    .single();
+  const listingTitle = listingInfo?.title ?? "a listing";
+
+  if (status === "published") {
+    notifyAdmins({
+      type: "listing_published",
+      title: `Listing published: "${listingTitle}"`,
+      link: "/admin/listings",
+    }).catch(() => {});
+  }
+
   return { ok: true };
 }
 

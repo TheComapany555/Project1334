@@ -106,7 +106,7 @@ function SubscriptionPaymentForm({
         ) : (
           <>
             <Lock className="h-4 w-4" />
-            Subscribe — {formatPrice(product.price, product.currency)}/month
+            Subscribe for {formatPrice(product.price, product.currency)}/month
           </>
         )}
       </Button>
@@ -369,7 +369,7 @@ export function SubscriptionCheckout({ product }: Props) {
 
                   <Button type="submit" variant="outline" className="w-full h-11 gap-2" disabled={invoiceSubmitting}>
                     {invoiceSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                    {invoiceSubmitting ? "Submitting…" : `Request invoice — ${formatPrice(product.price, product.currency)}/mo`}
+                    {invoiceSubmitting ? "Submitting…" : `Request invoice (${formatPrice(product.price, product.currency)}/mo)`}
                   </Button>
 
                   <p className="text-center text-[11px] text-muted-foreground">

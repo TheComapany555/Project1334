@@ -32,7 +32,7 @@ export default async function AgencyPricingPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Custom Pricing — ${agency.name}`}
+        title={`Custom Pricing: ${agency.name}`}
         description="Set custom prices for this agency. Overrides apply during checkout and replace the default product prices."
         backHref="/admin/brokers"
         backLabel="Back to Agencies"

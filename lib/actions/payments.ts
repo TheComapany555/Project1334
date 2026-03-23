@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import { invoiceStatusEmail } from "@/lib/email-templates";
 import type { Payment } from "@/lib/types/payments";
+import { notifyAgencyBrokers } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
@@ -265,8 +266,8 @@ export async function updatePaymentStatus(
             from: EMAIL_FROM,
             to: [recipientEmail],
             subject: status === "paid"
-              ? `Payment Confirmed — ${listingTitle}`
-              : `Invoice Approved — ${listingTitle}`,
+              ? `Payment Confirmed: ${listingTitle}`
+              : `Invoice Approved: ${listingTitle}`,
             html: invoiceStatusEmail({
               agencyName: recipientName,
               listingTitle: listingTitle ?? "your listing",
@@ -279,6 +280,27 @@ export async function updatePaymentStatus(
     } catch (emailErr) {
       console.error("[updatePaymentStatus] Email error:", emailErr);
     }
+  }
+
+  // In-app notification to agency brokers
+  if (status === "paid" || status === "approved") {
+    try {
+      const { data: pmnt } = await supabase
+        .from("payments")
+        .select("agency_id")
+        .eq("id", paymentId)
+        .single();
+      if (pmnt?.agency_id) {
+        notifyAgencyBrokers({
+          agencyId: pmnt.agency_id,
+          type: status === "paid" ? "payment_approved" : "payment_approved",
+          title: status === "paid"
+            ? "Your payment has been confirmed"
+            : "Your invoice has been approved",
+          link: "/dashboard/payments",
+        }).catch(() => {});
+      }
+    } catch {}
   }
 
   return { ok: true };

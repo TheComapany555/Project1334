@@ -125,7 +125,7 @@ export function UpgradeModal({
             <li>Featured badge on your listing</li>
             <li>Priority ranking in search results</li>
             <li>Highlighted listing display</li>
-            <li>Automatic expiration — no recurring charge</li>
+            <li>Expires automatically, no recurring charge</li>
           </ul>
         </div>
 

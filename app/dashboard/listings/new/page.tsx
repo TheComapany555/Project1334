@@ -598,9 +598,9 @@ export default function NewListingPage() {
         {step === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Highlights, tier & publish</CardTitle>
+              <CardTitle>Highlights, visibility & publish</CardTitle>
               <CardDescription>
-                Add highlight tags and choose your listing tier.
+                Add highlight tags and choose your listing visibility level.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -639,9 +639,9 @@ export default function NewListingPage() {
               {/* Listing Tier Selection */}
               <div className="space-y-3">
                 <div>
-                  <Label>Listing tier</Label>
+                  <Label>Listing visibility</Label>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Choose the visibility level for your listing. Standard and Featured tiers require payment.
+                    Choose how visible your listing will be. Standard and Featured levels require payment.
                   </p>
                 </div>
                 <TierSelector

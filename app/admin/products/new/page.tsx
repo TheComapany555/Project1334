@@ -13,15 +13,15 @@ export default function NewProductPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Add product"
-        description="Create a new purchasable product."
+        title="Add plan"
+        description="Create a new subscription plan or listing upgrade."
       />
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Product details</CardTitle>
+          <CardTitle className="text-base">Plan details</CardTitle>
           <CardDescription>
-            Set the name, pricing, and duration for this product.
+            Set the name, pricing, and duration for this plan.
           </CardDescription>
         </CardHeader>
         <Separator />

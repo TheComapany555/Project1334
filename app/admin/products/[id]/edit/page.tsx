@@ -21,15 +21,15 @@ export default async function EditProductPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Edit product"
+        title="Edit plan"
         description={`Editing "${product.name}"`}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Product details</CardTitle>
+          <CardTitle className="text-base">Plan details</CardTitle>
           <CardDescription>
-            Update the name, pricing, or duration for this product.
+            Update the name, pricing, or duration for this plan.
           </CardDescription>
         </CardHeader>
         <Separator />

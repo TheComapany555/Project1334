@@ -144,7 +144,7 @@ export default async function DashboardPage() {
         <ChartBarListings
           data={chartData}
           footer={{
-            description: "Listings status breakdown — last 6 months",
+            description: "Listing status breakdown over the last 6 months",
           }}
         />
         <ChartBarEnquiriesBroker

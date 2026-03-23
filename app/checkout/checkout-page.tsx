@@ -471,7 +471,7 @@ function InvoiceRequestForm({
         ) : (
           <Lock className="h-4 w-4" />
         )}
-        {submitting ? "Submitting…" : `Request invoice — ${formatPrice(product.price, product.currency)}`}
+        {submitting ? "Submitting…" : `Request invoice (${formatPrice(product.price, product.currency)})`}
       </Button>
 
       <p className="text-center text-[11px] text-muted-foreground">
@@ -570,7 +570,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Package</p>
+                    <p className="text-xs text-muted-foreground">Upgrade</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                       <p className="text-sm font-medium">{product.name}</p>

@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  adminActivateSubscription,
   adminCancelSubscription,
   adminExtendSubscription,
   adminReactivateSubscription,
+  adminRejectSubscription,
 } from "@/lib/actions/subscriptions";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, RefreshCw, CalendarPlus, XCircle, Ban } from "lucide-react";
+import { MoreHorizontal, RefreshCw, CalendarPlus, XCircle, Ban, CheckCircle } from "lucide-react";
 
 type Props = {
   subscriptionId: string;
@@ -37,7 +39,7 @@ export function SubscriptionActions({ subscriptionId, status, hasStripe }: Props
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
-    "cancel" | "cancel_immediately" | "extend" | "reactivate" | null
+    "cancel" | "cancel_immediately" | "extend" | "reactivate" | "activate" | "reject" | null
   >(null);
 
   async function handleAction() {
@@ -57,6 +59,12 @@ export function SubscriptionActions({ subscriptionId, status, hasStripe }: Props
       case "reactivate":
         result = await adminReactivateSubscription(subscriptionId);
         break;
+      case "activate":
+        result = await adminActivateSubscription(subscriptionId);
+        break;
+      case "reject":
+        result = await adminRejectSubscription(subscriptionId);
+        break;
       default:
         result = { ok: false, error: "Unknown action" };
     }
@@ -74,6 +82,7 @@ export function SubscriptionActions({ subscriptionId, status, hasStripe }: Props
 
   const isActive = ["active", "trialing", "past_due"].includes(status);
   const isCancelled = ["cancelled", "expired"].includes(status);
+  const isPending = status === "pending";
 
   const confirmMessages: Record<string, { title: string; description: string }> = {
     cancel: {
@@ -91,6 +100,14 @@ export function SubscriptionActions({ subscriptionId, status, hasStripe }: Props
     reactivate: {
       title: "Reactivate subscription?",
       description: "This will reactivate the subscription with a new 30-day period starting now.",
+    },
+    activate: {
+      title: "Activate subscription?",
+      description: "This will approve the invoice request and activate the subscription with a 30-day period starting now. The related payment will be marked as paid.",
+    },
+    reject: {
+      title: "Reject invoice request?",
+      description: "This will reject the invoice request and cancel the pending subscription. The related payment record will be removed.",
     },
   };
 
@@ -119,6 +136,21 @@ export function SubscriptionActions({ subscriptionId, status, hasStripe }: Props
               >
                 <Ban className="h-4 w-4" />
                 Cancel immediately
+              </DropdownMenuItem>
+            </>
+          )}
+          {isPending && (
+            <>
+              <DropdownMenuItem onSelect={() => setConfirmAction("activate")}>
+                <CheckCircle className="h-4 w-4" />
+                Activate (approve invoice)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setConfirmAction("reject")}
+              >
+                <Ban className="h-4 w-4" />
+                Reject
               </DropdownMenuItem>
             </>
           )}

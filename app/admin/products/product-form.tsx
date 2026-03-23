@@ -87,7 +87,7 @@ export function ProductForm({ product }: ProductFormProps) {
           product_type: values.product_type,
         });
         if (res.ok) {
-          toast.success("Product updated");
+          toast.success("Plan updated");
           router.refresh();
           router.push("/admin/products");
         } else {
@@ -103,7 +103,7 @@ export function ProductForm({ product }: ProductFormProps) {
           product_type: values.product_type,
         });
         if (res.ok) {
-          toast.success("Product created");
+          toast.success("Plan created");
           router.refresh();
           router.push("/admin/products");
         } else {
@@ -118,8 +118,8 @@ export function ProductForm({ product }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-lg">
       <div className="space-y-2">
-        <Label htmlFor="name">Product name</Label>
-        <Input id="name" {...register("name")} placeholder="e.g. Featured Listing – 7 Days" />
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" {...register("name")} placeholder="e.g. Featured Listing (7 Days)" />
         <FieldError message={errors.name?.message} />
       </div>
 
@@ -128,14 +128,14 @@ export function ProductForm({ product }: ProductFormProps) {
         <Textarea
           id="description"
           {...register("description")}
-          placeholder="Brief description of what this product provides"
+          placeholder="Brief description of what this plan includes"
           rows={3}
         />
         <FieldError message={errors.description?.message} />
       </div>
 
       <div className="space-y-2">
-        <Label>Product type</Label>
+        <Label>Type</Label>
         <Select
           value={watch("product_type")}
           onValueChange={(v) =>
@@ -147,12 +147,12 @@ export function ProductForm({ product }: ProductFormProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="featured">Featured upgrade</SelectItem>
-            <SelectItem value="listing_tier">Listing tier</SelectItem>
+            <SelectItem value="listing_tier">Listing visibility level</SelectItem>
             <SelectItem value="subscription">Subscription plan</SelectItem>
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Controls where this product appears in the platform.
+          Controls where this plan appears for agencies.
         </p>
       </div>
 
@@ -189,7 +189,7 @@ export function ProductForm({ product }: ProductFormProps) {
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" disabled={isSubmitting} className="gap-1.5">
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Create product"}
+          {isEdit ? "Save changes" : "Create plan"}
         </Button>
         <Button
           type="button"

@@ -23,13 +23,13 @@ export default async function AdminProductsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Products"
-        description="Manage purchasable products and pricing."
+        title="Pricing & Plans"
+        description="Manage subscription plans, listing upgrades, and pricing."
         action={
           <Button asChild className="w-full sm:w-auto gap-1.5">
             <Link href="/admin/products/new">
               <PlusIcon className="h-4 w-4" />
-              Add product
+              Add plan
             </Link>
           </Button>
         }
@@ -59,9 +59,9 @@ export default async function AdminProductsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">All products</CardTitle>
+          <CardTitle className="text-base">All plans</CardTitle>
           <CardDescription>
-            Products available for purchase. Active products appear in the upgrade modal.
+            Plans and upgrades available to agencies. Active items appear during checkout.
           </CardDescription>
         </CardHeader>
         <Separator />
@@ -72,15 +72,15 @@ export default async function AdminProductsPage() {
                 <Package className="h-6 w-6 text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium">No products yet</p>
+                <p className="font-medium">No plans yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Create your first product to enable featured listing upgrades.
+                  Create your first plan to enable subscriptions and listing upgrades.
                 </p>
               </div>
               <Button asChild size="sm" className="gap-1.5">
                 <Link href="/admin/products/new">
                   <PlusIcon className="h-4 w-4" />
-                  Add product
+                  Add plan
                 </Link>
               </Button>
             </div>

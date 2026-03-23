@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveProductPrice } from "@/lib/actions/products";
 import { Resend } from "resend";
 import { invoiceRequestedAdminEmail } from "@/lib/email-templates";
+import { notifyAdmins } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
@@ -122,14 +123,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("name")
+    .eq("id", agencyId)
+    .single();
+
   // Send admin notification email
   try {
-    const { data: agency } = await supabase
-      .from("agencies")
-      .select("name")
-      .eq("id", agencyId)
-      .single();
-
     const formattedAmount = new Intl.NumberFormat("en-AU", {
       style: "currency",
       currency: finalCurrency.toUpperCase(),
@@ -161,6 +162,14 @@ export async function POST(req: NextRequest) {
   } catch (emailErr) {
     console.error("[request-subscription-invoice] Email error:", emailErr);
   }
+
+  // In-app notification for admins
+  notifyAdmins({
+    type: "invoice_requested",
+    title: "New subscription invoice request",
+    message: `${agency?.name ?? "An agency"} requested an invoice for ${product.name}`,
+    link: "/admin/subscriptions",
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, paymentId: payment.id });
 }

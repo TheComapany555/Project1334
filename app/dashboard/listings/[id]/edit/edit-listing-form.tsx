@@ -529,11 +529,11 @@ export function EditListingForm({ listing }: Props) {
         {/* Listing Tier */}
         <Card>
           <CardHeader>
-            <CardTitle>Listing tier</CardTitle>
+            <CardTitle>Listing visibility</CardTitle>
             <CardDescription>
               {canChangeTier
-                ? "Choose the visibility level for your listing."
-                : "Tier is locked after payment."}
+                ? "Choose how visible your listing will be."
+                : "Visibility level is locked after payment."}
             </CardDescription>
           </CardHeader>
           <CardContent>

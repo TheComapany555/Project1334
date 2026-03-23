@@ -57,7 +57,7 @@ export default async function EnquiriesPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <ChartBarEnquiriesBroker
           data={enquiriesChartData}
-          footer={{ description: "Enquiries received per month — last 6 months" }}
+          footer={{ description: "Enquiries received per month over the last 6 months" }}
         />
         <ChartDonut
           title="Enquiries by reason"

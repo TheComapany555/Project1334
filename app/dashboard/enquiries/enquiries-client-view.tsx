@@ -80,8 +80,8 @@ export function EnquiriesClientView({ enquiries }: Props) {
             {total === 0
               ? "No enquiries yet."
               : reason
-                ? `${filteredTotal} of ${total} enquir${total === 1 ? "y" : "ies"} — click a row to view details.`
-                : `${total} enquir${total === 1 ? "y" : "ies"} — click a row to view details.`}
+                ? `Showing ${filteredTotal} of ${total} enquir${total === 1 ? "y" : "ies"}. Click a row to view details.`
+                : `${total} enquir${total === 1 ? "y" : "ies"}. Click a row to view details.`}
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 ml-auto shrink-0">

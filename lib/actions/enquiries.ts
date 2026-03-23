@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@/lib/types/enquiries";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { enquiryNotificationEmail } from "@/lib/email-templates";
+import { createNotification } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -82,6 +83,15 @@ export async function submitEnquiry(
       }),
     }).catch(() => {});
   }
+
+  // In-app notification for the broker
+  await createNotification({
+    userId: listing.broker_id,
+    type: "enquiry_received",
+    title: `New enquiry on "${listing.title}"`,
+    message: contactName ? `From ${contactName}` : `From ${contactEmail}`,
+    link: "/dashboard/enquiries",
+  }).catch(() => {});
 
   return { ok: true };
 }

@@ -8,6 +8,7 @@ import type {
   AgencySubscription,
   SubscriptionForAdmin,
 } from "@/lib/types/subscriptions";
+import { notifyAgencyBrokers } from "@/lib/actions/notifications";
 
 async function requireBroker() {
   const session = await getServerSession(authOptions);
@@ -54,7 +55,30 @@ export async function getMySubscription(): Promise<AgencySubscription | null> {
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
-  return (data as AgencySubscription) ?? null;
+
+  if (!data) return null;
+
+  const sub = data as AgencySubscription;
+
+  // Apply agency-specific pricing override if one exists
+  if (sub.plan_product?.id) {
+    const { data: override } = await supabase
+      .from("agency_pricing_overrides")
+      .select("custom_price, currency")
+      .eq("agency_id", agencyId)
+      .eq("product_id", sub.plan_product.id)
+      .single();
+
+    if (override) {
+      sub.plan_product = {
+        ...sub.plan_product,
+        price: override.custom_price,
+        currency: override.currency ?? sub.plan_product.currency,
+      };
+    }
+  }
+
+  return sub;
 }
 
 /** Real-time check: does the current agency have an active subscription? */
@@ -192,7 +216,7 @@ export async function adminCancelSubscription(
 
   const { data: sub } = await supabase
     .from("agency_subscriptions")
-    .select("id, stripe_subscription_id")
+    .select("id, stripe_subscription_id, agency_id")
     .eq("id", subscriptionId)
     .single();
 
@@ -230,6 +254,17 @@ export async function adminCancelSubscription(
     .eq("id", subscriptionId);
 
   if (error) return { ok: false, error: error.message };
+
+  // Notify agency brokers
+  notifyAgencyBrokers({
+    agencyId: sub.agency_id,
+    type: "subscription_cancelled",
+    title: cancelImmediately
+      ? "Your subscription has been cancelled"
+      : "Your subscription will be cancelled at period end",
+    link: "/dashboard/subscribe",
+  }).catch(() => {});
+
   return { ok: true };
 }
 
@@ -266,6 +301,96 @@ export async function adminExtendSubscription(
     .eq("id", subscriptionId);
 
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Admin: activate a pending subscription (approve invoice request). */
+export async function adminActivateSubscription(
+  subscriptionId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { data: sub } = await supabase
+    .from("agency_subscriptions")
+    .select("id, status, plan_product_id, agency_id")
+    .eq("id", subscriptionId)
+    .single();
+
+  if (!sub) return { ok: false, error: "Subscription not found" };
+  if (sub.status !== "pending") return { ok: false, error: "Subscription is not pending" };
+
+  const now = new Date();
+  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const { error } = await supabase
+    .from("agency_subscriptions")
+    .update({
+      status: "active",
+      current_period_start: now.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("id", subscriptionId);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Also mark the related invoiced payment as paid
+  await supabase
+    .from("payments")
+    .update({
+      status: "paid",
+      paid_at: now.toISOString(),
+    })
+    .eq("subscription_id", subscriptionId)
+    .eq("status", "invoiced");
+
+  // Notify agency brokers
+  notifyAgencyBrokers({
+    agencyId: sub.agency_id,
+    type: "subscription_activated",
+    title: "Your subscription has been activated",
+    message: "Your agency subscription is now active for 30 days.",
+    link: "/dashboard/subscribe",
+  }).catch(() => {});
+
+  return { ok: true };
+}
+
+/** Admin: reject a pending subscription (deny invoice request). */
+export async function adminRejectSubscription(
+  subscriptionId: string
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { data: sub } = await supabase
+    .from("agency_subscriptions")
+    .select("id, status")
+    .eq("id", subscriptionId)
+    .single();
+
+  if (!sub) return { ok: false, error: "Subscription not found" };
+  if (sub.status !== "pending") return { ok: false, error: "Subscription is not pending" };
+
+  const { error } = await supabase
+    .from("agency_subscriptions")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", subscriptionId);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Remove the related invoiced payment record
+  await supabase
+    .from("payments")
+    .delete()
+    .eq("subscription_id", subscriptionId)
+    .eq("status", "invoiced");
+
   return { ok: true };
 }
 

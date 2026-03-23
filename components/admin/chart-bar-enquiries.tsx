@@ -32,7 +32,7 @@ export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
     <Card className="shadow-sm overflow-hidden">
       <CardHeader className="border-b border-border/60 bg-muted/30 px-3 py-2">
         <CardTitle className="text-xs font-semibold">Enquiries trend</CardTitle>
-        <CardDescription className="text-[10px]">Monthly — last 6 months</CardDescription>
+        <CardDescription className="text-[10px]">Monthly over the last 6 months</CardDescription>
       </CardHeader>
 
       <CardContent className="px-2 pt-1.5 pb-2">

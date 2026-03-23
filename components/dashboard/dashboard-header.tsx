@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { UserIcon, LogoutIcon } from "@hugeicons/core-free-icons";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 
 type SidebarUser = {
   name: string | null;
@@ -50,7 +51,8 @@ export function DashboardHeader({ title, description, user }: Props) {
         <div className="flex-1" aria-hidden />
       )}
       {user && (
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
+          <NotificationBell role={user.role} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

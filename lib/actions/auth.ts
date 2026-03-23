@@ -7,6 +7,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateSlugFromName } from "@/lib/slug";
 import { Resend } from "resend";
 import { verificationEmail, passwordResetEmail, adminBrokerSignupEmail } from "@/lib/email-templates";
+import { createNotification } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -305,6 +306,24 @@ export async function acceptInvitation(token: string, formData: FormData): Promi
     .from("agency_invitations")
     .update({ status: "accepted" })
     .eq("id", invitation.id);
+
+  // Notify agency owner that a broker joined
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("agency_id", agency.id)
+    .eq("agency_role", "owner")
+    .single();
+
+  if (owner) {
+    createNotification({
+      userId: owner.id,
+      type: "broker_joined",
+      title: `${name || email} joined your agency`,
+      message: `A new broker has accepted the invitation to ${agency.name}.`,
+      link: "/dashboard/team",
+    }).catch(() => {});
+  }
 
   return { ok: true };
 }

@@ -47,7 +47,7 @@ export function ChartBarListings({ data, footer }: ChartBarListingsProps) {
           <div>
             <CardTitle className="text-xs font-semibold">Listings over time</CardTitle>
             <CardDescription className="text-[10px]">
-              Status breakdown — last 6 months
+              Status breakdown over the last 6 months
             </CardDescription>
           </div>
           {trendUp !== null && (
