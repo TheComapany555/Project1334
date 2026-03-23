@@ -24,9 +24,9 @@ export default async function AgencyPricingPage({ params }: Props) {
     getAllProducts(),
   ]);
 
-  // Only show listing_tier and featured products (not subscription)
+  // Show all active product types for custom pricing (listing tiers, featured, and subscription)
   const pricingProducts = allProducts.filter(
-    (p) => p.product_type === "listing_tier" || p.product_type === "featured"
+    (p) => p.status === "active"
   );
 
   return (

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveProductPrice } from "@/lib/actions/products";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -109,10 +110,15 @@ export async function POST(req: NextRequest) {
       subRecordId = subRecord.id;
     }
 
+    // Resolve agency-specific pricing (custom override or default)
+    const resolved = await resolveProductPrice(productId, agencyId);
+    const finalPrice = resolved?.price ?? product.price;
+    const finalCurrency = resolved?.currency ?? product.currency;
+
     // Use the same PaymentIntent approach as featured listings
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: product.price,
-      currency: product.currency,
+      amount: finalPrice,
+      currency: finalCurrency,
       automatic_payment_methods: { enabled: true },
       metadata: {
         payment_type: "subscription",
