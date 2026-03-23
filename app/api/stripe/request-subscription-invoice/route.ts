@@ -65,6 +65,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Clean up any old non-active subscriptions for this agency
+  await supabase
+    .from("agency_subscriptions")
+    .delete()
+    .eq("agency_id", agencyId)
+    .in("status", ["pending", "expired", "cancelled"]);
+
   // Resolve agency pricing
   const resolved = await resolveProductPrice(productId, agencyId);
   const finalPrice = resolved?.price ?? product.price;
@@ -73,14 +80,11 @@ export async function POST(req: NextRequest) {
   // Create a pending subscription record
   const { data: subRecord, error: subError } = await supabase
     .from("agency_subscriptions")
-    .upsert(
-      {
-        agency_id: agencyId,
-        plan_product_id: productId,
-        status: "pending",
-      },
-      { onConflict: "agency_id" }
-    )
+    .insert({
+      agency_id: agencyId,
+      plan_product_id: productId,
+      status: "pending",
+    })
     .select("id")
     .single();
 
