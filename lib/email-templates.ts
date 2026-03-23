@@ -313,3 +313,91 @@ export function brokerInvitationEmail(opts: {
     </p>
   `);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Email: Invoice Requested (to admin)                                 */
+/* ------------------------------------------------------------------ */
+
+export function invoiceRequestedAdminEmail({
+  agencyName,
+  listingTitle,
+  productName,
+  amount,
+  notes,
+  adminUrl,
+}: {
+  agencyName: string;
+  listingTitle: string;
+  productName: string;
+  amount: string;
+  notes: string | null;
+  adminUrl: string;
+}): string {
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      New Invoice Request
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      An agency has requested an invoice instead of paying by card.
+    </p>
+
+    <table role="presentation" width="100%" style="border:1px solid #e5e5e5;border-radius:8px;margin:0 0 20px 0;">
+      <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Agency</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600;">${agencyName}</td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Listing</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;">${listingTitle}</td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Product</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;">${productName}</td></tr>
+      <tr><td style="padding:12px 16px;font-size:13px;color:#888;">Amount</td><td style="padding:12px 16px;font-size:14px;font-weight:600;">${amount}</td></tr>
+    </table>
+
+    ${notes ? `<p style="margin:0 0 20px 0;font-size:13px;color:#666;">
+      <strong>Agency notes:</strong> ${notes}
+    </p>` : ""}
+
+    ${ctaButton(adminUrl, "View in Admin Dashboard")}
+
+    <p style="margin:0;font-size:13px;color:#888888;">
+      Generate the invoice in your accounting software and send it to the agency. Once payment is received, mark it as paid in the dashboard.
+    </p>
+  `);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Email: Invoice Status Update (to agency)                            */
+/* ------------------------------------------------------------------ */
+
+export function invoiceStatusEmail({
+  agencyName,
+  listingTitle,
+  status,
+  amount,
+}: {
+  agencyName: string;
+  listingTitle: string;
+  status: "approved" | "paid";
+  amount: string;
+}): string {
+  const isPaid = status === "paid";
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      ${isPaid ? "Payment Confirmed" : "Invoice Approved"}
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Hi ${agencyName},
+    </p>
+
+    <p style="margin:0 0 16px 0;">
+      ${isPaid
+        ? `Your payment of <strong>${amount}</strong> for <strong>${listingTitle}</strong> has been confirmed. Your listing is now live on the platform.`
+        : `Your invoice request for <strong>${listingTitle}</strong> (${amount}) has been approved. Please complete the payment using the details on the invoice sent to you.`
+      }
+    </p>
+
+    ${ctaButton(process.env.NEXTAUTH_URL ?? "https://salebiz.com.au", "Go to Dashboard")}
+
+    <p style="margin:0;font-size:13px;color:#888888;">
+      ${isPaid
+        ? "Thank you for your payment. Your listing is now visible to buyers."
+        : "Once payment is received, your listing will be published automatically."
+      }
+    </p>
+  `);
+}

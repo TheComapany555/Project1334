@@ -11,6 +11,7 @@ import {
 import stripePromise from "@/lib/stripe-client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
   Loader2,
   Lock,
@@ -20,6 +21,7 @@ import {
   Check,
   Users,
   CreditCard,
+  FileText,
 } from "lucide-react";
 import type { Product } from "@/lib/types/products";
 
@@ -163,6 +165,11 @@ export function SubscriptionCheckout({ product }: Props) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"card" | "invoice">("card");
+  const [invoiceNotes, setInvoiceNotes] = useState("");
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
+  const [invoiceSubmitted, setInvoiceSubmitted] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const initCalledRef = useRef(false);
 
   const initializePayment = useCallback(async () => {
@@ -255,15 +262,122 @@ export function SubscriptionCheckout({ product }: Props) {
         {/* Right: Payment Form */}
         <div className="lg:col-span-3 order-1 lg:order-2">
           <div className="rounded-xl border bg-card p-5 sm:p-7">
-            <div className="flex items-center gap-2 mb-1">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Payment details</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Enter your card details to start your subscription
+            <h2 className="text-lg font-semibold mb-1">Payment details</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose how to pay for your subscription
             </p>
 
-            {isInitializing ? (
+            {/* Payment mode toggle */}
+            <div className="flex gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => setPaymentMode("card")}
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                  paymentMode === "card"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                )}
+              >
+                <CreditCard className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                Pay by card
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode("invoice")}
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                  paymentMode === "invoice"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                )}
+              >
+                <FileText className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                Request invoice
+              </button>
+            </div>
+
+            {paymentMode === "invoice" ? (
+              invoiceSubmitted ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+                  <div className="h-14 w-14 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center">
+                    <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold">Invoice requested</p>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      Our team will send you an invoice. Your subscription will be activated once payment is received.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setInvoiceSubmitting(true);
+                    setInvoiceError(null);
+                    try {
+                      const res = await fetch("/api/stripe/request-subscription-invoice", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ productId: product.id, notes: invoiceNotes.trim() || undefined }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        setInvoiceError(data.error ?? "Failed to request invoice.");
+                        return;
+                      }
+                      setInvoiceSubmitted(true);
+                    } catch {
+                      setInvoiceError("Network error. Please try again.");
+                    } finally {
+                      setInvoiceSubmitting(false);
+                    }
+                  }}
+                  className="space-y-5"
+                >
+                  <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                    <p className="text-sm font-medium">How it works</p>
+                    <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                      <li>Submit your invoice request below</li>
+                      <li>We&apos;ll generate and send you an invoice</li>
+                      <li>Pay via bank transfer</li>
+                      <li>Your subscription activates once payment is confirmed</li>
+                    </ol>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="sub-invoice-notes" className="text-sm font-medium">
+                      Notes <span className="text-muted-foreground font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      id="sub-invoice-notes"
+                      value={invoiceNotes}
+                      onChange={(e) => setInvoiceNotes(e.target.value)}
+                      placeholder="PO number, billing details…"
+                      className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                      maxLength={1000}
+                    />
+                  </div>
+
+                  {invoiceError && (
+                    <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 px-3 py-2.5 rounded-lg">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <p>{invoiceError}</p>
+                    </div>
+                  )}
+
+                  <Button type="submit" variant="outline" className="w-full h-11 gap-2" disabled={invoiceSubmitting}>
+                    {invoiceSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    {invoiceSubmitting ? "Submitting…" : `Request invoice — ${formatPrice(product.price, product.currency)}/mo`}
+                  </Button>
+
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Subscription activates once payment is confirmed by admin.
+                  </p>
+                </form>
+              )
+            ) : isInitializing ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">

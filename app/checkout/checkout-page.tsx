@@ -646,35 +646,37 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                 Complete your payment to feature your listing
               </p>
 
-              {/* Payment mode toggle */}
-              <div className="flex gap-2 mb-6">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMode("card")}
-                  className={cn(
-                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
-                    paymentMode === "card"
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border text-muted-foreground hover:border-border/80"
-                  )}
-                >
-                  <Lock className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
-                  Pay by card
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMode("invoice")}
-                  className={cn(
-                    "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
-                    paymentMode === "invoice"
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border text-muted-foreground hover:border-border/80"
-                  )}
-                >
-                  <Shield className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
-                  Request invoice
-                </button>
-              </div>
+              {/* Payment mode toggle — only show if product has a price */}
+              {product.price > 0 && (
+                <div className="flex gap-2 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode("card")}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                      paymentMode === "card"
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-border/80"
+                    )}
+                  >
+                    <Lock className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                    Pay by card
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode("invoice")}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                      paymentMode === "invoice"
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-border/80"
+                    )}
+                  >
+                    <Shield className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                    Request invoice
+                  </button>
+                </div>
+              )}
 
               {paymentMode === "invoice" ? (
                 <InvoiceRequestForm

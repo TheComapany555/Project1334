@@ -216,8 +216,10 @@ export function ListingsTable({ listings, brokerSlug, isAgencyOwner, canFeature 
                 <TableCell>
                   <div className="flex items-center gap-1.5">
                     <TierBadge tier={(listing.listing_tier as ListingTier) ?? "basic"} />
-                    {listing.status === "draft" && listing.listing_tier !== "basic" && !listing.tier_paid_at && (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400">Unpaid</span>
+                    {listing.listing_tier !== "basic" && !listing.tier_paid_at && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                        {listing.status === "draft" ? "Unpaid" : "Payment pending"}
+                      </span>
                     )}
                   </div>
                 </TableCell>

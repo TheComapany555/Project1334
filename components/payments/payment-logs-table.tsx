@@ -271,7 +271,14 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={payment.status} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={payment.status} />
+                        {payment.invoice_requested && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:text-amber-400">
+                            Invoice
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right text-sm font-medium whitespace-nowrap">
                       {payment.amount > 0 ? formatAmount(payment.amount, payment.currency) : "—"}
@@ -348,6 +355,7 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
         payment={selectedPayment}
         open={!!selectedPayment}
         onOpenChange={(open) => { if (!open) setSelectedPayment(null); }}
+        showActions={showActions}
       />
     </>
   );

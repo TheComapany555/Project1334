@@ -16,22 +16,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const { listingId, productId, paymentType = "featured", notes } = body as {
-    listingId: string;
-    productId: string;
-    paymentType?: "featured" | "listing_tier";
-    notes?: string;
-  };
+  const agencyId = session.user.agencyId;
+  const agencyRole = session.user.agencyRole;
+  if (!agencyId || agencyRole !== "owner") {
+    return NextResponse.json(
+      { error: "Only agency owners can request invoices" },
+      { status: 403 }
+    );
+  }
 
-  if (!listingId || !productId) {
-    return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+  const body = await req.json();
+  const { productId, notes } = body as { productId: string; notes?: string };
+  if (!productId) {
+    return NextResponse.json({ error: "Product ID required" }, { status: 400 });
   }
 
   const supabase = createServiceRoleClient();
-  const userId = session.user.id;
-  const agencyId = session.user.agencyId ?? null;
-  const agencyRole = session.user.agencyRole ?? null;
 
   // Look up product
   const { data: product } = await supabase
@@ -39,58 +39,70 @@ export async function POST(req: NextRequest) {
     .select("*")
     .eq("id", productId)
     .eq("status", "active")
+    .eq("product_type", "subscription")
     .single();
 
   if (!product) {
     return NextResponse.json(
-      { error: "Product not found or inactive" },
+      { error: "Subscription plan not found" },
       { status: 400 }
     );
   }
 
-  // Resolve agency-specific pricing
+  // Check for existing active subscription
+  const { data: existingSub } = await supabase
+    .from("agency_subscriptions")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .in("status", ["active", "trialing", "past_due"])
+    .limit(1)
+    .single();
+
+  if (existingSub) {
+    return NextResponse.json(
+      { error: "Agency already has an active subscription" },
+      { status: 400 }
+    );
+  }
+
+  // Resolve agency pricing
   const resolved = await resolveProductPrice(productId, agencyId);
   const finalPrice = resolved?.price ?? product.price;
   const finalCurrency = resolved?.currency ?? product.currency;
 
-  // Reject invoice requests for free products
-  if (finalPrice <= 0) {
+  // Create a pending subscription record
+  const { data: subRecord, error: subError } = await supabase
+    .from("agency_subscriptions")
+    .upsert(
+      {
+        agency_id: agencyId,
+        plan_product_id: productId,
+        status: "pending",
+      },
+      { onConflict: "agency_id" }
+    )
+    .select("id")
+    .single();
+
+  if (subError) {
     return NextResponse.json(
-      { error: "Invoice is not required for free products." },
-      { status: 400 }
+      { error: "Failed to create subscription record" },
+      { status: 500 }
     );
   }
 
-  // Verify listing ownership
-  let query = supabase
-    .from("listings")
-    .select("id, title, broker_id, agency_id")
-    .eq("id", listingId);
-
-  if (agencyId && agencyRole === "owner") {
-    query = query.eq("agency_id", agencyId);
-  } else {
-    query = query.eq("broker_id", userId);
-  }
-
-  const { data: listing } = await query.single();
-  if (!listing) {
-    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
-  }
-
-  // Create payment record with status "invoiced"
+  // Create an invoiced payment record
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
     .insert({
-      broker_id: agencyId && agencyRole === "owner" ? null : userId,
-      agency_id: agencyId && agencyRole === "owner" ? agencyId : null,
-      listing_id: listingId,
+      agency_id: agencyId,
       product_id: productId,
-      package_days: product.duration_days ?? 0,
+      package_days: product.duration_days ?? 30,
       amount: finalPrice,
       currency: finalCurrency,
       status: "invoiced",
-      payment_type: paymentType,
+      payment_type: "subscription",
+      subscription_id: subRecord.id,
       invoice_requested: true,
       invoice_requested_at: new Date().toISOString(),
       invoice_notes: notes?.trim() || null,
@@ -99,18 +111,20 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (paymentError) {
-    console.error("[request-invoice] DB error:", paymentError);
+    console.error("[request-subscription-invoice] DB error:", paymentError);
     return NextResponse.json(
       { error: "Failed to create invoice request" },
       { status: 500 }
     );
   }
 
-  // Send notification email to admin
+  // Send admin notification email
   try {
-    const agencyName = agencyId
-      ? (await supabase.from("agencies").select("name").eq("id", agencyId).single()).data?.name ?? "Agency"
-      : "Broker";
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("name")
+      .eq("id", agencyId)
+      .single();
 
     const formattedAmount = new Intl.NumberFormat("en-AU", {
       style: "currency",
@@ -118,7 +132,6 @@ export async function POST(req: NextRequest) {
       minimumFractionDigits: 2,
     }).format(finalPrice / 100);
 
-    // Get admin emails
     const { data: admins } = await supabase
       .from("users")
       .select("email")
@@ -130,10 +143,10 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from: EMAIL_FROM,
         to: adminEmails,
-        subject: `Invoice Request: ${listing.title}`,
+        subject: `Subscription Invoice Request: ${agency?.name ?? "Agency"}`,
         html: invoiceRequestedAdminEmail({
-          agencyName,
-          listingTitle: listing.title,
+          agencyName: agency?.name ?? "Agency",
+          listingTitle: "Agency Monthly Subscription",
           productName: product.name,
           amount: `${formattedAmount} ${finalCurrency.toUpperCase()}`,
           notes: notes?.trim() || null,
@@ -142,12 +155,8 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (emailErr) {
-    // Don't fail the request if email fails
-    console.error("[request-invoice] Email error:", emailErr);
+    console.error("[request-subscription-invoice] Email error:", emailErr);
   }
 
-  return NextResponse.json({
-    ok: true,
-    paymentId: payment.id,
-  });
+  return NextResponse.json({ ok: true, paymentId: payment.id });
 }
