@@ -19,56 +19,48 @@ import {
   LayoutDashboard,
   UserIcon,
   FileIcon,
+  FolderIcon,
   MailIcon,
   Wallet02Icon,
-  Building03Icon,
-  UserMultipleIcon,
+  Tag01Icon,
+  Megaphone01Icon,
 } from "@hugeicons/core-free-icons"
 
-export type SidebarUser = {
+export type AdminSidebarUser = {
   name: string | null
   email: string
   role: "broker" | "admin"
-  profileSlug?: string
   photoUrl?: string | null
-  agencyRole?: "owner" | "member" | null
-  agencyName?: string | null
 }
 
-const brokerNav = [
-  { title: "Overview", url: "/dashboard", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
-  { title: "Profile", url: "/dashboard/profile", icon: <HugeiconsIcon icon={UserIcon} strokeWidth={2} /> },
-  { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
-  { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
-  { title: "Payments", url: "/dashboard/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },
+const adminNav = [
+  { title: "Overview", url: "/admin", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
+  { title: "Agencies", url: "/admin/brokers", icon: <HugeiconsIcon icon={UserIcon} strokeWidth={2} /> },
+  { title: "Listings", url: "/admin/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
+  { title: "Categories", url: "/admin/categories", icon: <HugeiconsIcon icon={FolderIcon} strokeWidth={2} /> },
+  { title: "Enquiries", url: "/admin/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
+  { title: "Pricing & Plans", url: "/admin/products", icon: <HugeiconsIcon icon={Tag01Icon} strokeWidth={2} /> },
+  { title: "Payments & Subscriptions", url: "/admin/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },
+  { title: "Advertising", url: "/admin/advertising", icon: <HugeiconsIcon icon={Megaphone01Icon} strokeWidth={2} /> },
 ]
 
-const ownerNav = [
-  { title: "Agency", url: "/dashboard/agency", icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} /> },
-  { title: "Team", url: "/dashboard/team", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
-]
-
-export function AppSidebar({
+export function AdminSidebar({
   user,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { user: SidebarUser }) {
+}: React.ComponentProps<typeof Sidebar> & { user: AdminSidebarUser }) {
   const navUser = {
-    name: user.name ?? user.email ?? "Account",
+    name: user.name ?? user.email ?? "Admin",
     email: user.email,
     avatar: user.photoUrl ?? "",
   }
-
-  const navItems = user.agencyRole === "owner"
-    ? [...brokerNav, ...ownerNav]
-    : brokerNav
 
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader className="h-(--header-height) flex items-center justify-center border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
-              <Link href="/dashboard" aria-label="Salebiz home" className="flex items-center justify-center">
+            <SidebarMenuButton asChild size="lg" tooltip="Salebiz Admin">
+              <Link href="/admin" aria-label="Salebiz Admin" className="flex items-center justify-center">
                 <Image src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg" alt="Salebiz" width={100} height={30} className="h-6 w-auto object-contain" />
               </Link>
             </SidebarMenuButton>
@@ -76,7 +68,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        <NavMain items={adminNav} />
         <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
             <div className="flex w-full items-center gap-2 p-2">
@@ -87,7 +79,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <NavUser user={navUser} profileSlug={user.profileSlug} role={user.role} />
+        <NavUser user={navUser} role={user.role} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -25,12 +25,13 @@ export async function POST(req: NextRequest) {
   const agencyId = session.user.agencyId ?? null;
   const agencyRole = session.user.agencyRole ?? null;
 
-  // Look up product from database
+  // Look up product from database (only listing-related product types)
   const { data: product } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
     .eq("status", "active")
+    .in("product_type", ["featured", "listing_tier"])
     .single();
 
   if (!product) {

@@ -16,11 +16,11 @@ type TierOption = {
 };
 
 function buildTierOptions(products: Product[]): TierOption[] {
-  const basic = products.find((p) => p.name.toLowerCase().includes("basic")) ?? null;
-  const standard = products.find((p) => p.name.toLowerCase().includes("standard")) ?? null;
-  const featured = products.find(
-    (p) => p.name.toLowerCase().includes("featured") && p.product_type === "listing_tier"
-  ) ?? null;
+  // Products come sorted by price ascending from getActiveProducts
+  const sorted = [...products].sort((a, b) => a.price - b.price);
+  const basic = sorted[0] ?? null;
+  const standard = sorted[1] ?? null;
+  const featured = sorted[2] ?? null;
 
   return [
     {

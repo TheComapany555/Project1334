@@ -5,7 +5,6 @@ import Link from "next/link"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { LogoutConfirmDialog } from "@/components/logout-confirm-dialog"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -45,23 +44,18 @@ export function SiteHeader({
   const initial = (user?.name?.trim() || user?.email || "?").charAt(0).toUpperCase()
 
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
-      <div className="flex w-full items-center gap-2 px-4 lg:px-6">
-        {/* Sidebar trigger + divider */}
-        <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground transition-colors" />
-        <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-4 bg-border/60" />
+    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+      <div className="flex w-full items-center gap-1.5 px-4 lg:gap-2 lg:px-6">
+        <SidebarTrigger className="-ml-1" />
 
-        {/* Page title */}
         {title ? (
-          <h1 className="text-sm font-semibold text-foreground tracking-tight">{title}</h1>
+          <h1 className="text-base font-medium">{title}</h1>
         ) : (
           <div className="flex-1" aria-hidden />
         )}
 
-        {/* Right side spacer when title present */}
         {title && <div className="flex-1" aria-hidden />}
 
-        {/* User menu */}
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -85,7 +79,6 @@ export function SiteHeader({
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-60 rounded-xl shadow-lg">
-              {/* User info header */}
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-3 px-3 py-3">
                   <Avatar className="h-10 w-10 rounded-full ring-2 ring-primary/20 shrink-0">
@@ -113,26 +106,14 @@ export function SiteHeader({
                 <>
                   <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
                     <Link href="/dashboard/profile">
-                      <HugeiconsIcon
-                        icon={UserCircle02Icon}
-                        strokeWidth={2}
-                        className="size-4 text-muted-foreground"
-                      />
+                      <HugeiconsIcon icon={UserCircle02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
                       Edit profile
                     </Link>
                   </DropdownMenuItem>
                   {user.profileSlug && (
                     <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                      <Link
-                        href={`/broker/${encodeURIComponent(user.profileSlug)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <HugeiconsIcon
-                          icon={LinkSquare02Icon}
-                          strokeWidth={2}
-                          className="size-4 text-muted-foreground"
-                        />
+                      <Link href={`/broker/${encodeURIComponent(user.profileSlug)}`} target="_blank" rel="noopener noreferrer">
+                        <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
                         View public profile
                       </Link>
                     </DropdownMenuItem>

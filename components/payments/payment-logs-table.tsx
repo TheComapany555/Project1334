@@ -34,6 +34,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: "paid", label: "Paid" },
 ] as const;
 
+const TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "All types" },
+  { value: "featured", label: "Featured" },
+  { value: "listing_tier", label: "Listing tier" },
+  { value: "subscription", label: "Subscription" },
+] as const;
+
 const DATE_RANGE_OPTIONS = [
   { value: "all", label: "All time" },
   { value: "7", label: "Last 7 days" },
@@ -60,6 +67,7 @@ type Props = {
 export function PaymentLogsTable({ payments, showBroker = false }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [dateRange, setDateRange] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
@@ -70,6 +78,11 @@ export function PaymentLogsTable({ payments, showBroker = false }: Props) {
     // Status filter
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
+    }
+
+    // Type filter
+    if (typeFilter !== "all") {
+      result = result.filter((p) => p.payment_type === typeFilter);
     }
 
     // Date range filter
@@ -98,13 +111,13 @@ export function PaymentLogsTable({ payments, showBroker = false }: Props) {
     }
 
     return result;
-  }, [payments, statusFilter, dateRange, search]);
+  }, [payments, statusFilter, typeFilter, dateRange, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset page when filters change
-  useMemo(() => setPage(1), [statusFilter, dateRange, search]);
+  useMemo(() => setPage(1), [statusFilter, typeFilter, dateRange, search]);
 
   function exportCSV() {
     const headers = [
@@ -158,6 +171,16 @@ export function PaymentLogsTable({ payments, showBroker = false }: Props) {
           </SelectTrigger>
           <SelectContent>
             {STATUS_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] h-9">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_FILTER_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>

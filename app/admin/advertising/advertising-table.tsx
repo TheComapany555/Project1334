@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import type { Advertisement } from "@/lib/types/advertising";
 import { toggleAdStatus, deleteAd } from "@/lib/actions/admin-advertising";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -41,6 +44,28 @@ function isExpired(ad: Advertisement): boolean {
 export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [placementFilter, setPlacementFilter] = useState("all");
+
+  const filtered = useMemo(() => {
+    let result = ads;
+    if (statusFilter !== "all") {
+      if (statusFilter === "expired") {
+        result = result.filter((a) => isExpired(a));
+      } else {
+        result = result.filter((a) => a.status === statusFilter && !isExpired(a));
+      }
+    }
+    if (placementFilter !== "all") {
+      result = result.filter((a) => a.placement === placementFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((a) => a.title.toLowerCase().includes(q));
+    }
+    return result;
+  }, [ads, statusFilter, placementFilter, search]);
 
   async function handleToggle(id: string) {
     const res = await toggleAdStatus(id);
@@ -66,6 +91,33 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
 
   return (
     <>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 pt-4 pb-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search ads..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={placementFilter} onValueChange={setPlacementFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Placement" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All placements</SelectItem>
+            <SelectItem value="homepage">Homepage</SelectItem>
+            <SelectItem value="search">Search results</SelectItem>
+            <SelectItem value="listing">Listing page</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="px-4 pb-2">
+        <p className="text-xs text-muted-foreground">{filtered.length} of {ads.length} ads</p>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -79,7 +131,7 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {ads.map((ad) => {
+          {filtered.map((ad) => {
             const expired = isExpired(ad);
             return (
               <TableRow key={ad.id} className={expired ? "opacity-60" : ""}>

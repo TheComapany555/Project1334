@@ -31,12 +31,13 @@ export default async function Page({ searchParams }: Props) {
   const agencyId = session.user.agencyId ?? null;
   const agencyRole = session.user.agencyRole ?? null;
 
-  // Fetch product
+  // Fetch product (must match the expected payment type)
   const { data: product } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
     .eq("status", "active")
+    .in("product_type", ["featured", "listing_tier"])
     .single();
 
   if (!product) {

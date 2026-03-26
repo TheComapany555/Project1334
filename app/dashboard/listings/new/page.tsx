@@ -139,8 +139,9 @@ export default function NewListingPage() {
         setCategories(cats);
         setHighlights(hls);
         setTierProducts(products);
-        // Default to standard tier product
-        const stdProduct = products.find((p) => p.name.toLowerCase().includes("standard"));
+        // Default to standard tier (middle-priced product)
+        const sorted = [...products].sort((a, b) => a.price - b.price);
+        const stdProduct = sorted[1] ?? sorted[0];
         if (stdProduct) setSelectedTierProductId(stdProduct.id);
         setLoading(false);
       },

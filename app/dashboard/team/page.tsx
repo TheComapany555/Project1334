@@ -19,11 +19,10 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Users, Clock, Mail, Pencil } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Users, Clock, Mail } from "lucide-react";
 import { InviteForm } from "./invite-form";
-import { ResendButton, RevokeButton, RemoveBrokerButton } from "./invitation-actions";
+import { ResendButton, RevokeButton } from "./invitation-actions";
+import { BrokersTable } from "./brokers-table";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-AU", {
@@ -135,86 +134,20 @@ export default async function TeamPage() {
         <CardHeader>
           <CardTitle>Agency brokers</CardTitle>
           <CardDescription>
-            {brokers.length} {brokers.length === 1 ? "broker" : "brokers"} in
-            your agency
+            {brokers.length} {brokers.length === 1 ? "broker" : "brokers"} in your agency
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {brokers.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
               <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                 <Users className="h-6 w-6 text-muted-foreground" />
               </div>
-              <div className="space-y-1">
-                <p className="font-medium">No brokers yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Use the form above to invite brokers to your agency.
-                </p>
-              </div>
+              <p className="font-medium">No brokers yet</p>
+              <p className="text-sm text-muted-foreground">Use the form above to invite brokers to your agency.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Broker</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="w-[160px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {brokers.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <UserAvatar
-                          name={b.name}
-                          email={b.email}
-                          photoUrl={b.photo_url}
-                        />
-                        <span className="font-medium">{b.name ?? "—"}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {b.email}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {b.phone ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          b.agency_role === "owner" ? "default" : "secondary"
-                        }
-                      >
-                        {b.agency_role === "owner" ? "Owner" : "Member"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(b.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 gap-1" asChild>
-                          <Link href={`/dashboard/team/${b.id}/edit`}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </Link>
-                        </Button>
-                        {b.agency_role !== "owner" && (
-                          <RemoveBrokerButton
-                            brokerId={b.id}
-                            brokerName={b.name}
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <BrokersTable brokers={brokers} />
           )}
         </CardContent>
       </Card>
