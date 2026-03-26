@@ -47,7 +47,7 @@ export function UpgradeModal({
   useEffect(() => {
     if (open) {
       setIsLoadingProducts(true);
-      getActiveProducts()
+      getActiveProducts("featured")
         .then(setProducts)
         .finally(() => setIsLoadingProducts(false));
     }

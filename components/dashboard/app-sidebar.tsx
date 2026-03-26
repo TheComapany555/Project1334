@@ -52,8 +52,6 @@ const brokerNav = [
 const ownerOnlyNav = [
   { label: "Agency", href: "/dashboard/agency", icon: Building03Icon },
   { label: "Team", href: "/dashboard/team", icon: UserMultipleIcon },
-  { label: "Agency Payments", href: "/dashboard/agency/payments", icon: Wallet02Icon },
-  { label: "Subscription", href: "/dashboard/subscribe", icon: Wallet02Icon },
 ] as const;
 
 type SidebarUser = {

@@ -8,8 +8,21 @@ import { generateSlugFromName } from "@/lib/slug";
 import { Resend } from "resend";
 import { verificationEmail, passwordResetEmail, adminBrokerSignupEmail } from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
+import { verifyRecaptcha } from "@/lib/recaptcha";
+import { checkSlugAvailable } from "@/lib/actions/profile";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function generateUniqueSlug(name: string): Promise<string> {
+  const base = generateSlugFromName(name);
+  let candidate = base;
+  let n = 0;
+  while (!(await checkSlugAvailable(candidate))) {
+    n += 1;
+    candidate = `${base}-${n}`;
+  }
+  return candidate;
+}
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
@@ -20,6 +33,12 @@ export async function register(formData: FormData): Promise<RegisterResult> {
   const password = formData.get("password") as string;
   const name = (formData.get("name") as string)?.trim();
   const companyName = (formData.get("company") as string)?.trim();
+  const captchaToken = formData.get("captchaToken") as string | null;
+
+  const captchaOk = await verifyRecaptcha(captchaToken);
+  if (!captchaOk) {
+    return { ok: false, error: "CAPTCHA verification failed. Please try again." };
+  }
 
   if (!email || !password) {
     return { ok: false, error: "Email and password are required." };
@@ -69,12 +88,14 @@ export async function register(formData: FormData): Promise<RegisterResult> {
   }
 
   // Create profile linked to the agency as owner
+  const profileSlug = name ? await generateUniqueSlug(name) : null;
   await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
     status: "pending",
     name: name || null,
     company: companyName,
+    slug: profileSlug,
     agency_id: agency.id,
     agency_role: "owner",
     updated_at: new Date().toISOString(),
@@ -145,6 +166,11 @@ export async function checkBrokerPendingApproval(email: string): Promise<{ pendi
   const { data: profile } = await supabase.from("profiles").select("status").eq("id", user.id).single();
   if (!profile || profile.status !== "pending") return { pending: false };
   return { pending: true };
+}
+
+/** Server action: verify a reCAPTCHA token (used by login form). */
+export async function verifyLoginCaptcha(token: string): Promise<boolean> {
+  return verifyRecaptcha(token);
 }
 
 /* ------------------------------------------------------------------ */
@@ -289,12 +315,14 @@ export async function acceptInvitation(token: string, formData: FormData): Promi
     userId = newUser.id;
 
     // Create profile linked to the agency as member
+    const memberSlug = name ? await generateUniqueSlug(name) : null;
     await supabase.from("profiles").insert({
       id: userId,
       role: "broker",
       status: "active",
       name: name || null,
       company: agency.name,
+      slug: memberSlug,
       agency_id: agency.id,
       agency_role: "member",
       updated_at: new Date().toISOString(),

@@ -19,7 +19,9 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Users, Clock, Mail } from "lucide-react";
+import { Users, Clock, Mail, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { InviteForm } from "./invite-form";
 import { ResendButton, RevokeButton, RemoveBrokerButton } from "./invitation-actions";
 
@@ -159,7 +161,7 @@ export default async function TeamPage() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Joined</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead className="w-[160px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -194,12 +196,20 @@ export default async function TeamPage() {
                       {formatDate(b.created_at)}
                     </TableCell>
                     <TableCell>
-                      {b.agency_role !== "owner" && (
-                        <RemoveBrokerButton
-                          brokerId={b.id}
-                          brokerName={b.name}
-                        />
-                      )}
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 gap-1" asChild>
+                          <Link href={`/dashboard/team/${b.id}/edit`}>
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
+                          </Link>
+                        </Button>
+                        {b.agency_role !== "owner" && (
+                          <RemoveBrokerButton
+                            brokerId={b.id}
+                            brokerName={b.name}
+                          />
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { getAllSubscriptions } from "@/lib/actions/subscriptions";
+import { getPendingInvoiceCount } from "@/lib/actions/payments";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
@@ -9,7 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { ArrowRight } from "lucide-react";
 import { SubscriptionActions } from "./subscription-actions";
 
 const statusColors: Record<string, string> = {
@@ -22,7 +26,10 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function AdminSubscriptionsPage() {
-  const subscriptions = await getAllSubscriptions();
+  const [subscriptions, pendingInvoiceCount] = await Promise.all([
+    getAllSubscriptions(),
+    getPendingInvoiceCount(),
+  ]);
 
   const active = subscriptions.filter((s) => s.status === "active").length;
   const pastDue = subscriptions.filter((s) => s.status === "past_due").length;
@@ -64,6 +71,32 @@ export default async function AdminSubscriptionsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {pendingInvoiceCount > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                <span className="text-amber-600 dark:text-amber-400 text-sm font-bold">{pendingInvoiceCount}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  Pending invoice request{pendingInvoiceCount !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-amber-700/70 dark:text-amber-400/70">
+                  Agencies have requested invoices. Review and approve them on the Payments page.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+              <Link href="/admin/payments">
+                View payments
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

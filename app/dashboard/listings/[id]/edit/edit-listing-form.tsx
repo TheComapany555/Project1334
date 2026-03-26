@@ -485,7 +485,7 @@ export function EditListingForm({ listing }: Props) {
                 <label className="flex h-24 w-32 cursor-pointer flex-col items-center justify-center rounded border border-dashed border-muted-foreground/30 bg-muted/30 text-muted-foreground hover:bg-muted/50">
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    accept="image/jpeg,image/png"
                     className="hidden"
                     onChange={onImageUpload}
                     disabled={imageUploading}

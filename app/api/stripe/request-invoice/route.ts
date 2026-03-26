@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveProductPrice } from "@/lib/actions/products";
 import { Resend } from "resend";
 import { invoiceRequestedAdminEmail } from "@/lib/email-templates";
+import { createNotification } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
@@ -118,13 +119,14 @@ export async function POST(req: NextRequest) {
       minimumFractionDigits: 2,
     }).format(finalPrice / 100);
 
-    // Get admin emails
+    // Get admin users (role is on profiles table, email is on users table)
     const { data: admins } = await supabase
-      .from("users")
-      .select("email")
+      .from("profiles")
+      .select("id, users!inner(email)")
       .eq("role", "admin");
 
-    const adminEmails = (admins ?? []).map((a) => a.email).filter(Boolean);
+    const adminList = (admins ?? []) as unknown as { id: string; users: { email: string } }[];
+    const adminEmails = adminList.map((a) => a.users.email).filter(Boolean);
 
     if (adminEmails.length > 0) {
       await resend.emails.send({
@@ -141,9 +143,20 @@ export async function POST(req: NextRequest) {
         }),
       });
     }
+
+    // Create in-app notification for each admin
+    for (const admin of adminList) {
+      await createNotification({
+        userId: admin.id,
+        type: "invoice_requested",
+        title: "New invoice request",
+        message: `${agencyName} requested an invoice for "${listing.title}" (${formattedAmount}).`,
+        link: "/admin/payments",
+      });
+    }
   } catch (emailErr) {
-    // Don't fail the request if email fails
-    console.error("[request-invoice] Email error:", emailErr);
+    // Don't fail the request if email/notification fails
+    console.error("[request-invoice] Email/notification error:", emailErr);
   }
 
   return NextResponse.json({

@@ -2,10 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import type { Payment, PaymentStatus } from "@/lib/types/payments";
-import { updatePaymentStatus } from "@/lib/actions/payments";
+import type { Payment } from "@/lib/types/payments";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,8 +34,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: "paid", label: "Paid" },
 ] as const;
 
-const STATUS_OPTIONS: PaymentStatus[] = ["pending", "invoiced", "approved", "paid"];
-
 const DATE_RANGE_OPTIONS = [
   { value: "all", label: "All time" },
   { value: "7", label: "Last 7 days" },
@@ -60,11 +55,9 @@ function formatAmount(amount: number, currency: string): string {
 type Props = {
   payments: Payment[];
   showBroker?: boolean;
-  showActions?: boolean;
 };
 
-export function PaymentLogsTable({ payments, showBroker = false, showActions = false }: Props) {
-  const router = useRouter();
+export function PaymentLogsTable({ payments, showBroker = false }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState("all");
@@ -112,16 +105,6 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
 
   // Reset page when filters change
   useMemo(() => setPage(1), [statusFilter, dateRange, search]);
-
-  async function onStatusChange(paymentId: string, newStatus: PaymentStatus) {
-    const res = await updatePaymentStatus(paymentId, newStatus);
-    if (res.ok) {
-      toast.success("Payment status updated");
-      router.refresh();
-    } else {
-      toast.error(res.error ?? "Failed to update");
-    }
-  }
 
   function exportCSV() {
     const headers = [
@@ -220,7 +203,6 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
                 <TableHead>Package</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                {showActions && <TableHead>Update</TableHead>}
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -283,23 +265,6 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
                     <TableCell className="text-right text-sm font-medium whitespace-nowrap">
                       {payment.amount > 0 ? formatAmount(payment.amount, payment.currency) : "—"}
                     </TableCell>
-                    {showActions && (
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Select
-                          value={payment.status}
-                          onValueChange={(v) => onStatusChange(payment.id, v as PaymentStatus)}
-                        >
-                          <SelectTrigger className="h-8 w-[110px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    )}
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -355,7 +320,6 @@ export function PaymentLogsTable({ payments, showBroker = false, showActions = f
         payment={selectedPayment}
         open={!!selectedPayment}
         onOpenChange={(open) => { if (!open) setSelectedPayment(null); }}
-        showActions={showActions}
       />
     </>
   );

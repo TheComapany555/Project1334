@@ -466,7 +466,7 @@ export default async function HomePage() {
                   asChild
                   className="mt-5 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  <Link href="/auth/register">List your business</Link>
+                  <Link href="/auth/register">Get started</Link>
                 </Button>
               )}
             </div>
@@ -528,7 +528,152 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ── Broker CTA ──────────────────────────────────────────────────── */}
+        {/* ── How It Works ──────────────────────────────────────────────── */}
+        <section className="border-t border-border">
+          <div className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-10 sm:mb-14"
+            >
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-primary mb-2">
+                Simple process
+              </p>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                How it works
+              </h2>
+              <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
+                Whether you&apos;re buying or selling, getting started takes
+                just a few steps.
+              </p>
+            </MotionDiv>
+
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={staggerContainer}
+              className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto"
+            >
+              {/* For buyers */}
+              <MotionDiv
+                variants={fadeUp}
+                transition={{ duration: 0.4 }}
+                className="rounded-xl border border-border bg-card p-6 sm:p-8"
+              >
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Search className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">For buyers</h3>
+                </div>
+                <ol className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Browse listings</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Search by industry, location, or price range to find the
+                        right opportunity.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Contact the broker</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Send an enquiry directly from the listing page to
+                        connect with the broker.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Make your move</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Work with the broker to negotiate terms and finalise the
+                        purchase.
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+              </MotionDiv>
+
+              {/* For agencies / brokers */}
+              <MotionDiv
+                variants={fadeUp}
+                transition={{ duration: 0.4 }}
+                className="rounded-xl border border-border bg-card p-6 sm:p-8"
+              >
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">
+                    For agencies &amp; brokers
+                  </h3>
+                </div>
+                <ol className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Register your agency
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Sign up with your agency details. An admin will review
+                        and approve your account.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Subscribe &amp; invite your team
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Choose a subscription plan and invite brokers to join
+                        your agency.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">
+                        List businesses for sale
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Create listings, choose a visibility level, and start
+                        receiving buyer enquiries.
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+              </MotionDiv>
+            </MotionDiv>
+          </div>
+        </section>
+
+        {/* ── Agency CTA ──────────────────────────────────────────────────── */}
         {!session?.user && (
           <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
             <MotionDiv
@@ -537,7 +682,7 @@ export default async function HomePage() {
               viewport={{ once: true, amount: 0.3 }}
               variants={fadeUp}
               transition={{ duration: 0.5 }}
-              className="relative overflow-hidden bg-primary px-5 py-12 sm:px-14 sm:py-14 text-center"
+              className="relative overflow-hidden rounded-2xl bg-primary px-5 py-12 sm:px-14 sm:py-14 text-center"
             >
               {/* Dot pattern */}
               <div
@@ -559,16 +704,16 @@ export default async function HomePage() {
               />
 
               <div className="relative">
-                <div className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 text-xs text-white/80 font-medium mb-5 sm:mb-6">
+                <div className="inline-flex rounded-full items-center gap-1.5 bg-white/10 px-3 py-1 text-xs text-white/80 font-medium mb-5 sm:mb-6">
                   <Star className="h-3 w-3 fill-white/60 text-white/60" />
-                  For licensed brokers
+                  For agencies &amp; brokers
                 </div>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground tracking-tight">
-                  Ready to list your business?
+                  Ready to list businesses for sale?
                 </h2>
                 <p className="mt-3 sm:mt-4 text-sm sm:text-base text-white/70 max-w-lg mx-auto leading-relaxed">
-                  Create your broker account and reach thousands of qualified
-                  buyers across Australia. Free to get started.
+                  Register your agency, invite your team, and reach thousands of
+                  qualified buyers across Australia.
                 </p>
                 <div className="mt-7 sm:mt-9 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                   <Button
@@ -577,7 +722,7 @@ export default async function HomePage() {
                     className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 shadow-lg font-semibold h-11 sm:h-12 px-6 sm:px-8 transition-transform duration-150 active:scale-[0.98]"
                   >
                     <Link href="/auth/register">
-                      Create broker account
+                      Register your agency
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
@@ -636,7 +781,7 @@ export default async function HomePage() {
                 href="/auth/register"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors w-fit py-0.5"
               >
-                List a business
+                Register your agency
               </Link>
               <Link
                 href="/auth/login"
@@ -652,7 +797,8 @@ export default async function HomePage() {
                 Get started
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Ready to buy or sell? Create a free broker account today.
+                Ready to buy or sell? Register your agency and get started
+                today.
               </p>
               <Link
                 href="/auth/register"

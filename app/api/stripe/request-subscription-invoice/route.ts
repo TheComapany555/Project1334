@@ -138,11 +138,12 @@ export async function POST(req: NextRequest) {
     }).format(finalPrice / 100);
 
     const { data: admins } = await supabase
-      .from("users")
-      .select("email")
+      .from("profiles")
+      .select("id, users!inner(email)")
       .eq("role", "admin");
 
-    const adminEmails = (admins ?? []).map((a) => a.email).filter(Boolean);
+    const adminList = (admins ?? []) as unknown as { id: string; users: { email: string } }[];
+    const adminEmails = adminList.map((a) => a.users.email).filter(Boolean);
 
     if (adminEmails.length > 0) {
       await resend.emails.send({

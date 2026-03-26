@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getSession } from "@/lib/auth-client"
 import { getListingsByBroker } from "@/lib/actions/listings"
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
+import { getMySubscription } from "@/lib/actions/subscriptions"
 import { ChartBarListings } from "@/components/dashboard/chart-bar-listings"
 import { ChartBarEnquiriesBroker } from "@/components/dashboard/chart-bar-enquiries-broker"
 import { ChartDonut } from "@/components/admin/chart-donut"
@@ -9,6 +10,7 @@ import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-dat
 import { CHART_COLORS } from "@/lib/chart-theme"
 import { PageHeader } from "@/components/admin/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/status-badge"
 import {
@@ -19,6 +21,7 @@ import {
   Plus,
   ArrowRight,
   Pencil,
+  CreditCard,
 } from "lucide-react"
 
 export default async function DashboardPage() {
@@ -26,9 +29,10 @@ export default async function DashboardPage() {
   const isAgencyOwner = session?.user?.agencyRole === "owner"
   const agencyName = session?.user?.agencyName
 
-  const [listings, enquiries] = await Promise.all([
+  const [listings, enquiries, subscription] = await Promise.all([
     getListingsByBroker(),
     getEnquiriesByBroker(),
+    isAgencyOwner ? getMySubscription() : Promise.resolve(null),
   ])
   const total = listings.length
   const published = listings.filter((l) => l.status === "published").length
@@ -82,21 +86,53 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={isAgencyOwner ? `${agencyName ?? "Agency"} Overview` : "Overview"}
-        description={isAgencyOwner
-          ? "Agency-wide overview of listings, enquiries, and team activity."
-          : "Manage your listings, profile, and enquiries."
-        }
-        action={
-          <Button asChild size="sm" className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-            <Link href="/dashboard/listings/new">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Add listing
-            </Link>
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isAgencyOwner ? `${agencyName ?? "Agency"} Overview` : "Overview"}
+            </h1>
+            {isAgencyOwner && subscription && (
+              <Link href="/dashboard/subscribe">
+                <Badge
+                  variant={
+                    subscription.status === "active" || subscription.status === "trialing" ? "success"
+                    : subscription.status === "past_due" ? "warning"
+                    : "secondary"
+                  }
+                  className="gap-1 text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <CreditCard className="h-3 w-3" />
+                  {subscription.status === "active" ? "Subscribed"
+                    : subscription.status === "past_due" ? "Past due"
+                    : subscription.status === "pending" ? "Pending"
+                    : subscription.status === "trialing" ? "Trial"
+                    : subscription.status}
+                </Badge>
+              </Link>
+            )}
+            {isAgencyOwner && !subscription && (
+              <Link href="/dashboard/subscribe">
+                <Badge variant="destructive" className="gap-1 text-[10px] cursor-pointer hover:opacity-80 transition-opacity">
+                  <CreditCard className="h-3 w-3" />
+                  No subscription
+                </Badge>
+              </Link>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {isAgencyOwner
+              ? "Agency-wide overview of listings, enquiries, and team activity."
+              : "Manage your listings, profile, and enquiries."}
+          </p>
+        </div>
+        <Button asChild size="sm" className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm w-full sm:w-auto">
+          <Link href="/dashboard/listings/new">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add listing
+          </Link>
+        </Button>
+      </div>
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

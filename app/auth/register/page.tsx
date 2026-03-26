@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +45,12 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
 export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const {
     register,
@@ -56,12 +60,20 @@ export default function RegisterPage() {
 
   async function onSubmit(data: FormData) {
     setError(null);
+    const captchaToken = recaptchaRef.current?.getValue();
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA.");
+      toast.error("Please complete the CAPTCHA.");
+      return;
+    }
     const formData = new FormData();
     formData.set("email", data.email);
     formData.set("password", data.password);
     formData.set("name", data.name);
     formData.set("company", data.company);
+    formData.set("captchaToken", captchaToken);
     const result = await registerAction(formData);
+    recaptchaRef.current?.reset();
     if (result.ok) {
       setSuccess(true);
       toast.success("Account created. Check your email to verify.");
@@ -242,6 +254,13 @@ export default function RegisterPage() {
               </p>
             )}
           </div>
+
+          {/* reCAPTCHA */}
+          {RECAPTCHA_SITE_KEY && (
+            <div className="flex justify-center">
+              <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+            </div>
+          )}
 
           {/* Submit */}
           <Button

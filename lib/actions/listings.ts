@@ -16,7 +16,7 @@ import { notifyAdmins } from "@/lib/actions/notifications";
 const LISTING_IMAGES_BUCKET = "listing-images";
 const MAX_IMAGES_PER_LISTING = 10;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"];
 
 /** Coerce form value to number | null for DB numeric columns (reject "", undefined, NaN). */
 function toNumeric(v: unknown): number | null {

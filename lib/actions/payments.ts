@@ -91,6 +91,17 @@ export async function getAgencyPayments(): Promise<Payment[]> {
 }
 
 /** Admin: get all payments with optional status filter. */
+export async function getPendingInvoiceCount(): Promise<number> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { count } = await supabase
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "invoiced")
+    .eq("invoice_requested", true);
+  return count ?? 0;
+}
+
 export async function getAllPayments(
   statusFilter?: string
 ): Promise<Payment[]> {
@@ -128,7 +139,7 @@ export async function updatePaymentStatus(
   const supabase = createServiceRoleClient();
 
   const payload: Record<string, unknown> = { status };
-  if (status === "paid") {
+  if (status === "paid" || status === "approved") {
     payload.paid_at = new Date().toISOString();
   }
 
@@ -139,8 +150,8 @@ export async function updatePaymentStatus(
 
   if (error) return { ok: false, error: error.message };
 
-  // If marking as paid, activate listing or subscription
-  if (status === "paid") {
+  // Activate listing or subscription when approved or paid
+  if (status === "paid" || status === "approved") {
     const { data: payment } = await supabase
       .from("payments")
       .select("listing_id, package_days, payment_type, subscription_id")

@@ -17,7 +17,6 @@ import {
   Wallet02Icon,
   Tag01Icon,
   Megaphone01Icon,
-  CreditCardIcon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -49,8 +48,7 @@ const adminNav = [
   { label: "Categories", href: "/admin/categories", icon: FolderIcon },
   { label: "Enquiries", href: "/admin/enquiries", icon: MailIcon },
   { label: "Pricing & Plans", href: "/admin/products", icon: Tag01Icon },
-  { label: "Payments", href: "/admin/payments", icon: Wallet02Icon },
-  { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCardIcon },
+  { label: "Payments & Subscriptions", href: "/admin/payments", icon: Wallet02Icon },
   { label: "Advertising", href: "/admin/advertising", icon: Megaphone01Icon },
 ] as const;
 

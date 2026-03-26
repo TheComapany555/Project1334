@@ -119,7 +119,7 @@ export async function uploadAgencyLogo(formData: FormData): Promise<{ ok: boolea
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
-  const url = urlData.publicUrl;
+  const url = `${urlData.publicUrl}?v=${Date.now()}`;
 
   const { error: updateError } = await supabase
     .from("agencies")
@@ -159,6 +159,106 @@ export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
     agency_role: (p.agency_role as "owner" | "member") ?? "member",
     created_at: p.created_at,
   }));
+}
+
+/** Agency owner: get a broker's full profile for editing. */
+export async function getBrokerProfileForOwner(brokerId: string) {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, name, phone, email_public, website, bio, slug, social_links, photo_url, logo_url, agency_role")
+    .eq("id", brokerId)
+    .eq("agency_id", agencyId)
+    .single();
+
+  if (!profile) return null;
+
+  const { data: user } = await supabase.from("users").select("email").eq("id", brokerId).single();
+
+  return {
+    ...profile,
+    email: user?.email ?? "",
+    social_links: (profile.social_links as { linkedin?: string; facebook?: string; instagram?: string }) ?? null,
+  };
+}
+
+/** Agency owner: update a broker's profile. */
+export async function updateBrokerProfile(
+  brokerId: string,
+  formData: FormData
+): Promise<{ ok: boolean; error?: string }> {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+
+  // Verify broker belongs to this agency
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", brokerId)
+    .eq("agency_id", agencyId)
+    .single();
+  if (!profile) return { ok: false, error: "Broker not found in your agency." };
+
+  const name = (formData.get("name") as string)?.trim() || null;
+  const phone = (formData.get("phone") as string)?.trim() || null;
+  const email_public = (formData.get("email_public") as string)?.trim() || null;
+  const website = (formData.get("website") as string)?.trim() || null;
+  const bio = (formData.get("bio") as string)?.trim() || null;
+  const slug = (formData.get("slug") as string)?.trim() || null;
+
+  const linkedin = (formData.get("social_linkedin") as string)?.trim() || undefined;
+  const facebook = (formData.get("social_facebook") as string)?.trim() || undefined;
+  const instagram = (formData.get("social_instagram") as string)?.trim() || undefined;
+  const social_links = linkedin || facebook || instagram ? { linkedin, facebook, instagram } : null;
+
+  if (slug) {
+    const { checkSlugAvailable } = await import("@/lib/actions/profile");
+    const available = await checkSlugAvailable(slug, brokerId);
+    if (!available) return { ok: false, error: "This profile URL is already taken." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ name, phone, email_public, website, bio, slug, social_links, updated_at: new Date().toISOString() })
+    .eq("id", brokerId)
+    .eq("agency_id", agencyId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Agency owner: upload a photo for a broker in the agency. */
+export async function uploadBrokerPhoto(
+  brokerId: string,
+  formData: FormData
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+
+  const { data: profile } = await supabase.from("profiles").select("id").eq("id", brokerId).eq("agency_id", agencyId).single();
+  if (!profile) return { ok: false, error: "Broker not found in your agency." };
+
+  const file = formData.get("file") as File | null;
+  if (!file?.size) return { ok: false, error: "No file provided." };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: "File must be under 5MB." };
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    return { ok: false, error: "Only JPEG, PNG, WebP and GIF are allowed." };
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${brokerId}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+  const url = `${urlData.publicUrl}?v=${Date.now()}`;
+
+  await supabase.from("profiles").update({ photo_url: url, updated_at: new Date().toISOString() }).eq("id", brokerId);
+
+  return { ok: true, url };
 }
 
 /** Agency owner: remove a broker from the agency. Cannot remove self (owner). */

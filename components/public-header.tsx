@@ -89,7 +89,7 @@ export function PublicHeader({
                     size="sm"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
                   >
-                    <Link href="/auth/register">List your business</Link>
+                    <Link href="/auth/register">Register agency</Link>
                   </Button>
                 </>
               )}
@@ -149,7 +149,7 @@ export function PublicHeader({
                             href="/auth/register"
                             className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-primary hover:bg-primary/8 transition-colors"
                           >
-                            List your business
+                            Register agency
                             <ArrowRight className="h-4 w-4 ml-auto" />
                           </Link>
                         </>
@@ -177,7 +177,7 @@ export function PublicHeader({
                           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                         >
                           <Link href="/auth/register">
-                            List your business
+                            Register agency
                             <ArrowRight className="ml-2 h-4 w-4" />
                           </Link>
                         </Button>

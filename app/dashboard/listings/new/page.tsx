@@ -55,7 +55,7 @@ import {
 } from "@hugeicons/core-free-icons";
 
 const MAX_IMAGES_PER_LISTING = 10;
-const ACCEPT_IMAGES = "image/jpeg,image/png,image/webp,image/gif";
+const ACCEPT_IMAGES = "image/jpeg,image/png";
 
 const step1Schema = z.object({
   title: z.string().min(1, "Title is required").max(200),

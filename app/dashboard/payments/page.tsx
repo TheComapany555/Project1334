@@ -1,104 +1,67 @@
-import { getBrokerPayments } from "@/lib/actions/payments";
-import { getBrokerFeaturedListings } from "@/lib/actions/featured";
-import { getListingsByBroker } from "@/lib/actions/listings";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-client";
+import { getBrokerPayments, getAgencyPayments } from "@/lib/actions/payments";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { PaymentHistory } from "@/components/payments/payment-history";
-import { FeaturedListingsTable } from "@/components/payments/featured-listings-table";
+import { PaymentLogsTable } from "@/components/payments/payment-logs-table";
 
-export default async function BrokerPaymentsPage() {
-  const [payments, featuredListings, allListings] = await Promise.all([
-    getBrokerPayments(),
-    getBrokerFeaturedListings(),
-    getListingsByBroker(),
-  ]);
+export default async function PaymentsPage() {
+  const session = await getSession();
+  if (!session?.user) redirect("/auth/login");
 
-  // Combine active + expired featured (all listings that have ever been featured)
-  const everFeatured = allListings.filter(
-    (l) => l.featured_until != null
-  );
+  const isOwner = session.user.agencyRole === "owner";
+  const payments = isOwner ? await getAgencyPayments() : await getBrokerPayments();
+
+  const total = payments.length;
+  const paid = payments.filter((p) => p.status === "paid" || p.status === "approved").length;
+  const pending = payments.filter((p) => p.status === "pending" || p.status === "invoiced").length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Payments"
-        description="View your payment history and featured listing status."
+        description={isOwner
+          ? "All payment activity across your agency."
+          : "Your payment history."
+        }
       />
 
-      {/* Summary stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-            <span className="text-2xl font-semibold">{payments.length}</span>
-            <span className="text-xs text-muted-foreground">Total payments</span>
+            <span className="text-2xl font-semibold">{total}</span>
+            <span className="text-xs text-muted-foreground">Total</span>
           </CardContent>
         </Card>
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-            <span className="text-2xl font-semibold text-amber-500">
-              {featuredListings.length}
-            </span>
-            <span className="text-xs text-muted-foreground">Active featured</span>
+            <span className="text-2xl font-semibold text-success">{paid}</span>
+            <span className="text-xs text-muted-foreground">Completed</span>
           </CardContent>
         </Card>
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-            <span className="text-2xl font-semibold text-muted-foreground">
-              {everFeatured.filter(
-                (l) => l.featured_until && new Date(l.featured_until) < new Date()
-              ).length}
-            </span>
-            <span className="text-xs text-muted-foreground">Expired featured</span>
+            <span className="text-2xl font-semibold text-warning">{pending}</span>
+            <span className="text-xs text-muted-foreground">Pending</span>
           </CardContent>
         </Card>
       </div>
 
-      {/* Active Featured Listings */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Active featured listings</CardTitle>
-          <CardDescription>Listings currently promoted with featured status.</CardDescription>
+        <CardHeader className="pb-0">
+          <CardTitle className="text-base">Payment logs</CardTitle>
         </CardHeader>
-        <Separator />
+        <Separator className="mt-4" />
         <CardContent className="p-0">
-          <FeaturedListingsTable listings={everFeatured} type="active" />
+          <PaymentLogsTable payments={payments} showBroker={isOwner} />
         </CardContent>
       </Card>
-
-      {/* Payment History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Payment history</CardTitle>
-          <CardDescription>All your featured listing payments.</CardDescription>
-        </CardHeader>
-        <Separator />
-        <CardContent className="p-0">
-          <PaymentHistory payments={payments} />
-        </CardContent>
-      </Card>
-
-      {/* Expired Featured Listings */}
-      {everFeatured.some(
-        (l) => l.featured_until && new Date(l.featured_until) < new Date()
-      ) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Expired featured listings</CardTitle>
-            <CardDescription>Previously featured listings whose promotion period has ended.</CardDescription>
-          </CardHeader>
-          <Separator />
-          <CardContent className="p-0">
-            <FeaturedListingsTable listings={everFeatured} type="expired" />
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, AlertCircle, Mail, Lock, ArrowRight } from "lucide-react";
-import { checkBrokerPendingApproval } from "@/lib/actions/auth";
+import { checkBrokerPendingApproval, verifyLoginCaptcha } from "@/lib/actions/auth";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -29,11 +30,14 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const {
     register,
@@ -51,11 +55,25 @@ export function LoginForm() {
 
   async function onSubmit(data: FormData) {
     setError(null);
+    const captchaToken = recaptchaRef.current?.getValue();
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA.");
+      toast.error("Please complete the CAPTCHA.");
+      return;
+    }
+    const captchaOk = await verifyLoginCaptcha(captchaToken);
+    if (!captchaOk) {
+      recaptchaRef.current?.reset();
+      setError("CAPTCHA verification failed. Please try again.");
+      toast.error("CAPTCHA verification failed. Please try again.");
+      return;
+    }
     const res = await signIn("credentials", {
       email: data.email,
       password: data.password,
       redirect: false,
     });
+    recaptchaRef.current?.reset();
     if (res?.error) {
       let message =
         res.error === "CredentialsSignin"
@@ -157,6 +175,13 @@ export function LoginForm() {
               </p>
             )}
           </div>
+
+          {/* reCAPTCHA */}
+          {RECAPTCHA_SITE_KEY && (
+            <div className="flex justify-center">
+              <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+            </div>
+          )}
 
           {/* Submit */}
           <Button

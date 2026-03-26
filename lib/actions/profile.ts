@@ -203,7 +203,7 @@ export async function uploadProfilePhoto(formData: FormData): Promise<{ ok: bool
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-  const url = urlData.publicUrl;
+  const url = `${urlData.publicUrl}?v=${Date.now()}`;
 
   const { error: updateError } = await supabase
     .from("profiles")
@@ -233,7 +233,7 @@ export async function uploadProfileLogo(formData: FormData): Promise<{ ok: boole
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
-  const url = urlData.publicUrl;
+  const url = `${urlData.publicUrl}?v=${Date.now()}`;
 
   const { error: updateError } = await supabase
     .from("profiles")

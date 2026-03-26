@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +14,8 @@ import {
   updateAgency,
   uploadAgencyLogo,
 } from "@/lib/actions/agencies";
+import { getMySubscription } from "@/lib/actions/subscriptions";
+import type { AgencySubscription } from "@/lib/types/subscriptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
@@ -38,6 +43,8 @@ import {
   Loader2,
   Camera,
   Save,
+  CreditCard,
+  ArrowRight,
 } from "lucide-react";
 import { FieldError } from "@/components/ui/field-error";
 
@@ -103,6 +110,7 @@ export default function AgencyPage() {
   const [loading, setLoading] = useState(true);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [subscription, setSubscription] = useState<AgencySubscription | null>(null);
 
   const {
     register,
@@ -117,20 +125,23 @@ export default function AgencyPage() {
 
   useEffect(() => {
     let mounted = true;
-    getMyAgency()
-      .then((agency) => {
-        if (!mounted || !agency) return;
-        setValue("name", agency.name ?? "");
-        setValue("slug", agency.slug ?? "");
-        setValue("phone", agency.phone ?? "");
-        setValue("email", agency.email ?? "");
-        setValue("website", agency.website ?? "");
-        setValue("bio", agency.bio ?? "");
-        const social = agency.social_links;
-        setValue("social_linkedin", social?.linkedin ?? "");
-        setValue("social_facebook", social?.facebook ?? "");
-        setValue("social_instagram", social?.instagram ?? "");
-        setLogoUrl(agency.logo_url);
+    Promise.all([getMyAgency(), getMySubscription()])
+      .then(([agency, sub]) => {
+        if (!mounted) return;
+        if (agency) {
+          setValue("name", agency.name ?? "");
+          setValue("slug", agency.slug ?? "");
+          setValue("phone", agency.phone ?? "");
+          setValue("email", agency.email ?? "");
+          setValue("website", agency.website ?? "");
+          setValue("bio", agency.bio ?? "");
+          const social = agency.social_links;
+          setValue("social_linkedin", social?.linkedin ?? "");
+          setValue("social_facebook", social?.facebook ?? "");
+          setValue("social_instagram", social?.instagram ?? "");
+          setLogoUrl(agency.logo_url);
+        }
+        setSubscription(sub);
       })
       .finally(() => setLoading(false));
     return () => {
@@ -206,6 +217,59 @@ export default function AgencyPage() {
           brokers in your agency.
         </p>
       </div>
+
+      {/* Subscription status */}
+      <Card>
+        <SectionHeader
+          icon={CreditCard}
+          title="Subscription"
+          description={subscription ? "Your current subscription plan." : "Subscribe to start listing businesses."}
+        />
+        <CardContent className="px-5 py-5">
+          {subscription && ["active", "trialing", "past_due"].includes(subscription.status) ? (
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">
+                    {subscription.plan_product_id ? "Agency Monthly Subscription" : "Manual plan"}
+                  </p>
+                  <Badge
+                    variant={subscription.status === "active" || subscription.status === "trialing" ? "success" : "warning"}
+                    className="capitalize text-[10px]"
+                  >
+                    {subscription.status === "past_due" ? "Past due" : subscription.status}
+                  </Badge>
+                </div>
+                {subscription.current_period_end && (
+                  <p className="text-xs text-muted-foreground">
+                    {subscription.status === "active" ? "Renews" : "Ends"} {format(new Date(subscription.current_period_end), "d MMM yyyy")}
+                  </p>
+                )}
+              </div>
+              <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                <Link href="/dashboard/subscribe">
+                  Manage
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                {subscription?.status === "pending"
+                  ? "Your subscription is pending approval."
+                  : "No active subscription. Subscribe to access all features."}
+              </p>
+              <Button asChild size="sm" className="shrink-0 gap-1.5">
+                <Link href="/dashboard/subscribe">
+                  {subscription?.status === "pending" ? "View status" : "Subscribe"}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Logo */}
