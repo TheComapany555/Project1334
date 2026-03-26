@@ -25,6 +25,7 @@ export default async function AdminLayout({
   return (
     <DashboardLoader>
       <SidebarProvider
+        defaultOpen={true}
         style={
           {
             "--sidebar-width": "calc(var(--spacing) * 72)",

@@ -47,6 +47,7 @@ export function BrokersTable({ brokers }: { brokers: Broker[] }) {
           </div>
         </div>
       )}
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -94,6 +95,7 @@ export function BrokersTable({ brokers }: { brokers: Broker[] }) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </>
   );
 }

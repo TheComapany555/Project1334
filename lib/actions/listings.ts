@@ -90,7 +90,8 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
-      broker:profiles!broker_id(name, photo_url)
+      broker:profiles!broker_id(name, photo_url),
+      agency:agencies!agency_id(name, slug, logo_url)
     `);
 
   if (isOwner) {
@@ -215,7 +216,8 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       *,
       broker:profiles!broker_id(name, photo_url),
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      agency:agencies!agency_id(name, slug, logo_url)
     `,
       { count: "exact" }
     )
@@ -334,7 +336,7 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
   }));
 }
 
-export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null } }) | null> {
+export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null }; agency?: { name: string; slug: string | null; logo_url: string | null } | null }) | null> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("listings")
@@ -342,7 +344,8 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
       *,
       broker:profiles!broker_id(slug, name, company, photo_url),
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      agency:agencies!agency_id(name, slug, logo_url)
     `)
     .eq("slug", slug)
     .eq("status", "published")

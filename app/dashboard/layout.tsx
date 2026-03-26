@@ -57,6 +57,7 @@ export default async function DashboardLayout({
   return (
     <DashboardLoader>
       <SidebarProvider
+        defaultOpen={true}
         style={
           {
             "--sidebar-width": "calc(var(--spacing) * 72)",

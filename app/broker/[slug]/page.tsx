@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { getProfileBySlug } from "@/lib/actions/profile";
 import { getPublishedListingsByBrokerId } from "@/lib/actions/listings";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -12,6 +13,7 @@ import { PublicHeader } from "@/components/public-header";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -26,9 +28,9 @@ import {
   MapPin,
   ArrowRight,
   Building2,
+  ExternalLink,
 } from "lucide-react";
 
-// Revalidate broker pages every 10 minutes
 export const revalidate = 600;
 
 type Props = { params: Promise<{ slug: string }> };
@@ -39,13 +41,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const profile = await getProfileBySlug(slug);
   if (!profile) return { title: "Broker not found" };
-  const title =
-    [profile.name, profile.company]
-      .filter(Boolean)
-      .join(profile.company ? " · " : "") || "Broker";
+  const agencyName = profile.agency?.name ?? profile.company;
+  const title = [profile.name, agencyName].filter(Boolean).join(" · ") || "Broker";
   const description =
     profile.bio?.slice(0, 155) ??
-    `${title} — Licensed business broker on Salebiz. View their listings and contact details.`;
+    `${title}: Licensed business broker on Salebiz. View their listings and contact details.`;
   const url = `${SITE_URL}/broker/${slug}`;
   return {
     title,
@@ -58,50 +58,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url,
       ...(profile.photo_url && { images: [{ url: profile.photo_url, alt: title }] }),
     },
-    twitter: {
-      card: "summary",
-      title,
-      description,
-    },
+    twitter: { card: "summary", title, description },
   };
 }
 
-function formatPrice(listing: {
-  price_type: string;
-  asking_price: number | null;
-}): string {
+function formatPrice(listing: { price_type: string; asking_price: number | null }): string {
   if (listing.price_type === "poa") return "POA";
   if (listing.asking_price != null) {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(Number(listing.asking_price));
+    return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.asking_price));
   }
   return "—";
 }
 
 export default async function BrokerProfilePage({ params }: Props) {
   const { slug } = await params;
-  const [session, profile] = await Promise.all([
-    getSession(),
-    getProfileBySlug(slug),
-  ]);
+  const [session, profile] = await Promise.all([getSession(), getProfileBySlug(slug)]);
   if (!profile) notFound();
 
   const listings = await getPublishedListingsByBrokerId(profile.id);
   const displayName = profile.name || profile.company || "Broker";
+  const agencyName = profile.agency?.name ?? profile.company;
   const social = profile.social_links;
   const hasSocial = social?.linkedin || social?.facebook || social?.instagram;
   const hasContact = profile.phone || profile.email_public || profile.website;
+  const initial = (displayName).charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <PublicHeader session={session} maxWidth="max-w-6xl" />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-12 space-y-6">
-
-        {/* JSON-LD Structured Data */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
+        {/* Structured data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -112,12 +99,7 @@ export default async function BrokerProfilePage({ params }: Props) {
               url: `${SITE_URL}/broker/${profile.slug}`,
               ...(profile.photo_url && { image: profile.photo_url }),
               ...(profile.bio && { description: profile.bio.slice(0, 300) }),
-              ...(profile.company && {
-                worksFor: {
-                  "@type": "Organization",
-                  name: profile.company,
-                },
-              }),
+              ...(agencyName && { worksFor: { "@type": "Organization", name: agencyName } }),
               ...(profile.phone && { telephone: profile.phone }),
               ...(profile.email_public && { email: profile.email_public }),
               ...(profile.website && { sameAs: [profile.website] }),
@@ -125,307 +107,216 @@ export default async function BrokerProfilePage({ params }: Props) {
           }}
         />
 
-        {/* BreadcrumbList structured data */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "BreadcrumbList",
-              itemListElement: [
-                { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-                { "@type": "ListItem", position: 2, name: "Browse", item: `${SITE_URL}/search` },
-                { "@type": "ListItem", position: 3, name: displayName },
-              ],
-            }),
-          }}
-        />
+        <div className="space-y-6">
+          <PageBreadcrumb
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Browse", href: "/search" },
+              { label: displayName },
+            ]}
+          />
 
-        {/* Breadcrumb */}
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Browse", href: "/search" },
-            { label: displayName },
-          ]}
-        />
+          {/* Two-column layout */}
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
 
-        {/* ── Hero card ── */}
-        <Card className="overflow-hidden">
-          {/* Subtle decorative top stripe */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
+            {/* Left: Profile sidebar */}
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-4">
+                  <Avatar className="h-24 w-24 ring-4 ring-primary/10">
+                    {profile.photo_url && <AvatarImage src={profile.photo_url} alt={displayName} />}
+                    <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">
+                      {initial}
+                    </AvatarFallback>
+                  </Avatar>
 
-          <CardContent className="pt-8 pb-8 sm:pt-10 sm:pb-10">
-            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:text-left">
-
-              {/* Avatar */}
-              <div className="shrink-0">
-                {profile.photo_url ? (
-                  <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden border-2 border-border bg-muted ring-4 ring-primary/10">
-                    <Image
-                      src={profile.photo_url}
-                      alt={displayName}
-                      fill
-                      className="object-cover"
-                      sizes="112px"
-                      priority
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full border-2 border-border bg-muted ring-4 ring-primary/10 text-2xl sm:text-3xl font-semibold text-muted-foreground">
-                    {(profile.name?.trim() || profile.company?.trim() || "B")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              {/* Name + company + CTA row */}
-              <div className="flex-1 min-w-0 space-y-4">
-                <div className="space-y-1.5">
-                  <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                    {displayName}
-                  </h1>
-
-                  {profile.company && (
-                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                      {profile.logo_url ? (
-                        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1">
-                          <span className="relative inline-block h-5 w-5 shrink-0 overflow-hidden rounded-sm bg-background">
-                            <Image
-                              src={profile.logo_url}
-                              alt=""
-                              fill
-                              className="object-contain p-0.5"
-                              sizes="20px"
-                            />
-                          </span>
-                          <span className="text-sm font-medium text-foreground">
-                            {profile.company}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Building2 className="h-3.5 w-3.5" />
-                          {profile.company}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Listing count badge */}
-                  {listings.length > 0 && (
-                    <div className="flex justify-center sm:justify-start">
-                      <Badge variant="secondary" className="mt-1 text-xs">
-                        {listings.length} active{" "}
-                        {listings.length === 1 ? "listing" : "listings"}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {/* Contact buttons */}
-                {hasContact && (
-                  <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-                    {profile.phone && (
-                      <Button asChild size="sm" className="gap-1.5">
-                        <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>
-                          <Phone className="h-3.5 w-3.5" />
-                          Call
-                        </a>
-                      </Button>
-                    )}
-                    {profile.email_public && (
-                      <Button asChild variant="outline" size="sm" className="gap-1.5">
-                        <a href={`mailto:${profile.email_public}`}>
-                          <Mail className="h-3.5 w-3.5" />
-                          Email
-                        </a>
-                      </Button>
-                    )}
-                    {profile.website && (
-                      <Button asChild variant="outline" size="sm" className="gap-1.5">
-                        <a
-                          href={profile.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Globe className="h-3.5 w-3.5" />
-                          Website
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── About ── */}
-        {profile.bio && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                About
-              </CardTitle>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4">
-              <p className="text-sm sm:text-base text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                {profile.bio}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── Social links ── */}
-        {hasSocial && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Connect
-              </CardTitle>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4 flex flex-wrap gap-2">
-              {social?.linkedin && (
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a
-                    href={social.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Linkedin className="h-3.5 w-3.5" />
-                    LinkedIn
-                  </a>
-                </Button>
-              )}
-              {social?.facebook && (
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a
-                    href={social.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Facebook className="h-3.5 w-3.5" />
-                    Facebook
-                  </a>
-                </Button>
-              )}
-              {social?.instagram && (
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a
-                    href={social.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Instagram className="h-3.5 w-3.5" />
-                    Instagram
-                  </a>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── Listings ── */}
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Listings
-            </CardTitle>
-            {listings.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {listings.length} {listings.length === 1 ? "result" : "results"}
-              </span>
-            )}
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-4">
-            {listings.length > 0 ? (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {listings.map((listing) => {
-                  const thumb = listing.listing_images?.[0]?.url;
-                  return (
-                    <li key={listing.id}>
-                      <Link
-                        href={`/listing/${listing.slug}`}
-                        className="group flex gap-4 rounded-xl border border-border bg-muted/20 p-4 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {/* Thumbnail */}
-                        {thumb ? (
-                          <div className="relative h-[72px] w-24 shrink-0 overflow-hidden border border-border bg-muted">
-                            <Image
-                              src={thumb}
-                              alt={listing.title}
-                              fill
-                              className="object-cover transition-transform duration-300 group-hover:scale-105"
-                              sizes="96px"
-                            />
+                  <div className="space-y-1.5">
+                    <h1 className="text-xl font-semibold tracking-tight">{displayName}</h1>
+                    {agencyName && (
+                      <div className="flex items-center justify-center gap-1.5">
+                        {profile.agency?.logo_url ? (
+                          <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
+                            <Image src={profile.agency.logo_url} alt="" fill className="object-contain" sizes="16px" />
                           </div>
                         ) : (
-                          <div className="flex h-[72px] w-24 shrink-0 items-center justify-center border border-dashed border-border bg-muted">
-                            <Building2 className="h-5 w-5 text-muted-foreground/40" />
-                          </div>
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
+                        <span className="text-sm text-muted-foreground">{agencyName}</span>
+                      </div>
+                    )}
+                    {listings.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {listings.length} active {listings.length === 1 ? "listing" : "listings"}
+                      </Badge>
+                    )}
+                  </div>
 
-                        {/* Details */}
-                        <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5 gap-1">
-                          <p className="font-medium text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-                            {listing.title}
-                          </p>
-                          {listing.summary && (
-                            <p className="text-xs text-muted-foreground line-clamp-1">
-                              {listing.summary}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between gap-2">
-                            {listing.category && (
-                              <span className="text-xs text-muted-foreground truncate">
-                                {listing.category.name}
-                              </span>
+                  {hasContact && (
+                    <>
+                      <Separator />
+                      <div className="flex flex-col gap-2 w-full">
+                        {profile.phone && (
+                          <Button asChild className="w-full gap-2">
+                            <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>
+                              <Phone className="h-4 w-4" />
+                              {profile.phone}
+                            </a>
+                          </Button>
+                        )}
+                        {profile.email_public && (
+                          <Button asChild variant="outline" className="w-full gap-2">
+                            <a href={`mailto:${profile.email_public}`}>
+                              <Mail className="h-4 w-4" />
+                              {profile.email_public}
+                            </a>
+                          </Button>
+                        )}
+                        {profile.website && (
+                          <Button asChild variant="outline" className="w-full gap-2">
+                            <a href={profile.website} target="_blank" rel="noopener noreferrer">
+                              <Globe className="h-4 w-4" />
+                              Website
+                              <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {hasSocial && (
+                    <>
+                      <Separator />
+                      <div className="flex gap-2">
+                        {social?.linkedin && (
+                          <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                            <a href={social.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                              <Linkedin className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        {social?.facebook && (
+                          <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                            <a href={social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                              <Facebook className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        {social?.instagram && (
+                          <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                            <a href={social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                              <Instagram className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* About */}
+              {profile.bio && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">About</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {profile.bio}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right: Listings */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-base">Listings</CardTitle>
+                    <CardDescription>
+                      {listings.length === 0
+                        ? "No published listings yet"
+                        : `${listings.length} active ${listings.length === 1 ? "listing" : "listings"}`}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="pt-4">
+                  {listings.length > 0 ? (
+                    <div className="grid gap-3">
+                      {listings.map((listing) => {
+                        const thumb = listing.listing_images?.[0]?.url;
+                        const location = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
+                        return (
+                          <Link
+                            key={listing.id}
+                            href={`/listing/${listing.slug}`}
+                            className="group flex gap-4 rounded-lg border border-border p-3 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm"
+                          >
+                            {thumb ? (
+                              <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                                <Image
+                                  src={thumb}
+                                  alt={listing.title}
+                                  fill
+                                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                  sizes="112px"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted">
+                                <Building2 className="h-5 w-5 text-muted-foreground/30" />
+                              </div>
                             )}
-                            <span className="text-sm font-semibold text-foreground shrink-0 ml-auto">
-                              {formatPrice(listing)}
-                            </span>
-                          </div>
-                          {/* Subtle "view" affordance */}
-                          <span className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                            View listing <ArrowRight className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="py-10 flex flex-col items-center gap-2 text-center">
-                <Building2 className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">
-                  No published listings yet.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                            <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                              <div>
+                                <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                                  {listing.title}
+                                </p>
+                                {location && (
+                                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    {location}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                {listing.category && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                    {listing.category.name}
+                                  </Badge>
+                                )}
+                                <span className="text-sm font-semibold text-foreground shrink-0 ml-auto">
+                                  {formatPrice(listing)}
+                                </span>
+                              </div>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-10 flex flex-col items-center gap-2 text-center">
+                      <Building2 className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">No published listings yet.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </main>
 
-      {/* ── Footer ── */}
       <footer className="border-t border-border py-6">
         <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
+          <span suppressHydrationWarning>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
           <div className="flex items-center gap-4">
-            <Link href="/search" className="hover:text-foreground transition-colors">
-              Browse listings
-            </Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">
-              Terms
-            </Link>
+            <Link href="/search" className="hover:text-foreground transition-colors">Browse listings</Link>
           </div>
         </div>
       </footer>

@@ -103,13 +103,13 @@ export function PublicHeader({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9"
+                    className="h-10 w-10"
                     aria-label="Open menu"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-72 p-0">
+                <SheetContent side="right" className="w-[min(100vw-2rem,18rem)] p-0">
                   <SheetTitle className="sr-only">Navigation menu</SheetTitle>
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border">
@@ -225,13 +225,13 @@ export function PublicHeader({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9"
+                    className="h-10 w-10"
                     aria-label="Open menu"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-72 p-0">
+                <SheetContent side="right" className="w-[min(100vw-2rem,18rem)] p-0">
                   <SheetTitle className="sr-only">Navigation menu</SheetTitle>
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border">

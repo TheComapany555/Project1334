@@ -57,6 +57,7 @@ export type Listing = {
   listing_images?: ListingImage[];
   listing_highlights?: ListingHighlight[];
   broker?: { name: string | null; photo_url: string | null };
+  agency?: { name: string; slug: string | null; logo_url: string | null } | null;
 };
 
 /** For broker's own listing edit - includes highlight_ids for form. */

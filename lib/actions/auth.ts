@@ -78,7 +78,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
     .insert({
       name: companyName,
       slug: agencySlug,
-      status: "pending",
+      status: "active",
     })
     .select("id")
     .single();
@@ -92,7 +92,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
   await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
-    status: "pending",
+    status: "active",
     name: name || null,
     company: companyName,
     slug: profileSlug,

@@ -43,6 +43,30 @@ export function buildListingsChartData(
   return points;
 }
 
+export type OverviewChartDataPoint = { month: string; listings: number; enquiries: number };
+
+export function buildOverviewChartData(
+  listings: { created_at: string }[],
+  enquiries: { created_at: string }[]
+): OverviewChartDataPoint[] {
+  const now = new Date();
+  const points: OverviewChartDataPoint[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    const listingCount = listings.filter((l) => {
+      const created = new Date(l.created_at);
+      return created >= d && created < nextMonth;
+    }).length;
+    const enquiryCount = enquiries.filter((e) => {
+      const created = new Date(e.created_at);
+      return created >= d && created < nextMonth;
+    }).length;
+    points.push({ month: MONTH_NAMES[d.getMonth()], listings: listingCount, enquiries: enquiryCount });
+  }
+  return points;
+}
+
 export type EnquiriesChartDataPoint = { month: string; enquiries: number };
 
 export function buildEnquiriesChartData(

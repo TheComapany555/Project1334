@@ -67,6 +67,7 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
       <div className="px-4 pb-2">
         <p className="text-xs text-muted-foreground">{filtered.length} of {agencies.length} agencies</p>
       </div>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -105,6 +106,7 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </>
   );
 }

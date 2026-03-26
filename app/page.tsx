@@ -127,10 +127,10 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
 
       {/* Body */}
       <div className="flex flex-col flex-1 p-3.5 sm:p-4">
-        {listing.broker && (
+        {(listing.broker || listing.agency) && (
           <div className="flex items-center gap-2 mb-2">
             <Avatar size="sm">
-              {listing.broker.photo_url && (
+              {listing.broker?.photo_url && (
                 <AvatarImage
                   src={listing.broker.photo_url}
                   alt={listing.broker.name ?? "Broker"}
@@ -140,9 +140,16 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
                 <User className="h-3 w-3" />
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-muted-foreground truncate">
-              {listing.broker.name ?? "Broker"}
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs text-muted-foreground truncate">
+                {listing.broker?.name ?? "Broker"}
+              </span>
+              {listing.agency && (
+                <span className="text-[10px] text-muted-foreground/70 truncate">
+                  {listing.agency.name}
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -207,13 +214,13 @@ export default async function HomePage() {
       <main className="flex-1">
         {/* ── Hero ────────────────────────────────────────────────────────── */}
         <section className="relative overflow-hidden">
-          {/* Dot grid bg */}
+          {/* Grid bg — light mode uses dark lines, dark mode uses light lines */}
           <div
-            className="absolute inset-0 -z-10 opacity-[0.04] dark:opacity-[0.08]"
-            style={{
-              backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
-              backgroundSize: "28px 28px",
-            }}
+            className="absolute inset-0 -z-10 [background-image:linear-gradient(rgba(0,0,0,0.08)_1px,transparent_1px),linear-gradient(to_right,rgba(0,0,0,0.08)_1px,transparent_1px)] dark:[background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:60px_60px]"
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-background/50 to-background"
             aria-hidden
           />
           {/* Glow blobs */}

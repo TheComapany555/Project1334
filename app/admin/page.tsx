@@ -4,12 +4,8 @@ import { getAdminStats } from "@/lib/actions/admin-stats";
 import { getAllEnquiries } from "@/lib/actions/enquiries";
 import { getAllListingsForAdmin } from "@/lib/actions/admin-listings";
 import { SectionCards } from "@/components/section-cards";
-import { ChartBarListings } from "@/components/dashboard/chart-bar-listings";
-import { ChartDonut } from "@/components/admin/chart-donut";
-import { ChartBarEnquiries } from "@/components/admin/chart-bar-enquiries";
-import { ChartRadialOverview } from "@/components/admin/chart-radial-overview";
-import { buildListingsChartData, buildEnquiriesChartData } from "@/lib/chart-data";
-import { CHART_COLORS } from "@/lib/chart-theme";
+import { ChartOverview } from "@/components/dashboard/chart-overview";
+import { buildOverviewChartData } from "@/lib/chart-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
@@ -23,19 +19,16 @@ export default async function AdminPage() {
     getAllListingsForAdmin(),
   ]);
 
-  const listingsChartData = buildListingsChartData(
-    allListings.map((l) => ({ created_at: l.created_at, status: l.status }))
-  );
-  const enquiriesChartData = buildEnquiriesChartData(
+  const totalBrokers = stats.brokersActive + stats.brokersPending + stats.brokersDisabled;
+  const totalListings = stats.listingsPublished + stats.listingsDraft + stats.listingsRemoved;
+
+  const overviewData = buildOverviewChartData(
+    allListings.map((l) => ({ created_at: l.created_at })),
     allEnquiries.map((e) => ({ created_at: e.created_at }))
   );
 
-  const totalBrokers = stats.brokersActive + stats.brokersPending + stats.brokersDisabled;
-  const totalListings = stats.listingsPublished + stats.listingsDraft + stats.listingsRemoved;
-  const enquiriesOlder = Math.max(0, stats.enquiriesTotal - stats.enquiriesLast7Days);
-
   const statCards = [
-    { title: "Brokers", value: totalBrokers, footer: `${stats.brokersActive} active, ${stats.brokersPending} pending` },
+    { title: "Agencies", value: totalBrokers, footer: `${stats.brokersActive} active, ${stats.brokersPending} pending` },
     { title: "Listings", value: totalListings, footer: `${stats.listingsPublished} published, ${stats.listingsDraft} draft` },
     { title: "Enquiries", value: stats.enquiriesTotal, footer: `${stats.enquiriesLast7Days} in the last 7 days` },
     { title: "Categories", value: stats.categoriesActive, footer: "Active categories" },
@@ -43,59 +36,19 @@ export default async function AdminPage() {
 
   return (
     <>
-      <div className="px-4 lg:px-6">
+      <div>
         <h1 className="text-2xl font-bold tracking-tight">Admin Overview</h1>
         <p className="text-sm text-muted-foreground mt-1">Signed in as {session?.user?.email}</p>
       </div>
 
       <SectionCards cards={statCards} />
 
-      {/* Donut charts */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <ChartRadialOverview
-          brokers={totalBrokers}
-          listings={totalListings}
-          enquiries={stats.enquiriesTotal}
-          categories={stats.categoriesActive}
-        />
-        <ChartDonut
-          title="Brokers"
-          segments={[
-            { name: "Active", value: stats.brokersActive, color: CHART_COLORS.primary },
-            { name: "Pending", value: stats.brokersPending, color: CHART_COLORS.warning },
-            { name: "Disabled", value: stats.brokersDisabled, color: CHART_COLORS.purple },
-          ]}
-        />
-        <ChartDonut
-          title="Listings"
-          segments={[
-            { name: "Published", value: stats.listingsPublished, color: CHART_COLORS.primary },
-            { name: "Draft", value: stats.listingsDraft, color: CHART_COLORS.warning },
-            { name: "Removed", value: stats.listingsRemoved, color: CHART_COLORS.muted },
-          ]}
-        />
-        <ChartDonut
-          title="Enquiries"
-          segments={[
-            { name: "Last 7 days", value: stats.enquiriesLast7Days, color: CHART_COLORS.info },
-            { name: "Older", value: enquiriesOlder, color: CHART_COLORS.purple },
-          ]}
-        />
-      </div>
-
-      {/* Time-series charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartBarListings
-          data={listingsChartData}
-          footer={{ description: "Listings across all brokers over the last 6 months" }}
-        />
-        <ChartBarEnquiries data={enquiriesChartData} />
-      </div>
+      <ChartOverview data={overviewData} />
 
       {/* Recent activity + Quick links */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader className="border-b border-border bg-muted/40 px-5 py-3">
+          <CardHeader className="border-b border-border px-5 py-3">
             <CardTitle className="text-sm">Recent activity</CardTitle>
             <CardDescription className="text-xs">Latest enquiries across all brokers</CardDescription>
           </CardHeader>
@@ -127,7 +80,7 @@ export default async function AdminPage() {
         </Card>
 
         <Card>
-          <CardHeader className="border-b border-border bg-muted/40 px-5 py-3">
+          <CardHeader className="border-b border-border px-5 py-3">
             <CardTitle className="text-sm">Quick links</CardTitle>
             <CardDescription className="text-xs">Manage from the sidebar or use these shortcuts.</CardDescription>
           </CardHeader>

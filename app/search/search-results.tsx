@@ -147,19 +147,26 @@ export function SearchResults({
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-4 gap-3">
-                  {listing.broker && (
+                  {(listing.broker || listing.agency) && (
                     <div className="flex items-center gap-2">
                       <Avatar size="sm">
-                        {listing.broker.photo_url && (
+                        {listing.broker?.photo_url && (
                           <AvatarImage src={listing.broker.photo_url} alt={listing.broker.name ?? "Broker"} />
                         )}
                         <AvatarFallback>
                           <User className="h-3 w-3" />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {listing.broker.name ?? "Broker"}
-                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs text-muted-foreground truncate">
+                          {listing.broker?.name ?? "Broker"}
+                        </span>
+                        {listing.agency && (
+                          <span className="text-[10px] text-muted-foreground/70 truncate">
+                            {listing.agency.name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 
