@@ -336,6 +336,30 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
   }));
 }
 
+/** Public: published listings for an agency. */
+export async function getPublishedListingsByAgencyId(agencyId: string): Promise<Listing[]> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select(`
+      *,
+      category:categories(id, name, slug),
+      listing_images(id, url, sort_order)
+    `)
+    .eq("agency_id", agencyId)
+    .eq("status", "published")
+    .is("admin_removed_at", null)
+    .order("featured_until", { ascending: false, nullsFirst: false })
+    .order("published_at", { ascending: false });
+  if (error) return [];
+  const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];
+  return list.map((l) => ({
+    ...l,
+    listing_images: l.listing_images ?? [],
+    category: l.category ?? null,
+  }));
+}
+
 export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null }; agency?: { name: string; slug: string | null; logo_url: string | null } | null }) | null> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase

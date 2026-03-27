@@ -26,6 +26,7 @@ import {
   Sparkles,
   PhoneCall,
   Star,
+  Building2,
 } from "lucide-react";
 import {
   FeaturedBadge,
@@ -272,59 +273,104 @@ export default async function ListingPage({ params }: Props) {
         </div>
 
         {/* Broker & Agency */}
-        {broker?.slug && (
+        {(broker?.slug || listing.agency?.slug) && (
           <Card>
             <CardContent className="py-4">
-              <div className="flex items-center gap-4">
-                {broker.photo_url ? (
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                    <Image
-                      src={broker.photo_url}
-                      alt={broker.name ?? "Broker"}
-                      fill
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground">
-                    {(broker.name ?? "B").charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="font-medium leading-snug">
-                      {broker.name ?? broker.company ?? "Broker"}
-                    </p>
-                    {listing.agency && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {listing.agency.logo_url && (
-                          <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                            <Image
-                              src={listing.agency.logo_url}
-                              alt=""
-                              fill
-                              className="object-contain"
-                              sizes="16px"
-                            />
-                          </div>
-                        )}
-                        <span className="text-sm text-muted-foreground truncate">
-                          {listing.agency.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/broker/${broker.slug}`}>View profile</Link>
-                    </Button>
-                    <Button size="sm" asChild>
-                      <a href="#enquiry">Enquire</a>
-                    </Button>
+              {broker?.slug ? (
+                <div className="flex items-center gap-4">
+                  {broker.photo_url ? (
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+                      <Image
+                        src={broker.photo_url}
+                        alt={broker.name ?? "Broker"}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground">
+                      {(broker.name ?? "B").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="font-medium leading-snug">
+                        {broker.name ?? broker.company ?? "Broker"}
+                      </p>
+                      {listing.agency && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {listing.agency.logo_url && (
+                            <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
+                              <Image
+                                src={listing.agency.logo_url}
+                                alt=""
+                                fill
+                                className="object-contain"
+                                sizes="16px"
+                              />
+                            </div>
+                          )}
+                          {listing.agency.slug ? (
+                            <Link
+                              href={`/agency/${listing.agency.slug}`}
+                              className="text-sm text-muted-foreground truncate hover:text-foreground hover:underline"
+                            >
+                              {listing.agency.name}
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted-foreground truncate">
+                              {listing.agency.name}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/broker/${broker.slug}`}>View profile</Link>
+                      </Button>
+                      <Button size="sm" asChild>
+                        <a href="#enquiry">Enquire</a>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                listing.agency?.slug && (
+                  <div className="flex items-center gap-4">
+                    {listing.agency.logo_url ? (
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                        <Image
+                          src={listing.agency.logo_url}
+                          alt={listing.agency.name}
+                          fill
+                          className="object-contain p-0.5"
+                          sizes="48px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-medium leading-snug">{listing.agency.name}</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">Agency</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/agency/${listing.agency.slug}`}>View agency</Link>
+                        </Button>
+                        <Button size="sm" asChild>
+                          <a href="#enquiry">Enquire</a>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
             </CardContent>
           </Card>
         )}

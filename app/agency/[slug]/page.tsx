@@ -3,9 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
-import { getProfileBySlug } from "@/lib/actions/profile";
-import { getPublishedListingsByBrokerId } from "@/lib/actions/listings";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAgencyBySlug } from "@/lib/actions/agencies";
+import { getPublishedListingsByAgencyId } from "@/lib/actions/listings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -39,24 +38,23 @@ const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const profile = await getProfileBySlug(slug);
-  if (!profile) return { title: "Broker not found" };
-  const agencyName = profile.agency?.name ?? profile.company;
-  const title = [profile.name, agencyName].filter(Boolean).join(" · ") || "Broker";
+  const agency = await getAgencyBySlug(slug);
+  if (!agency) return { title: "Agency not found" };
+  const title = agency.name;
   const description =
-    profile.bio?.slice(0, 155) ??
-    `${title}: Licensed business broker on Salebiz. View their listings and contact details.`;
-  const url = `${SITE_URL}/broker/${slug}`;
+    agency.bio?.slice(0, 155) ??
+    `${agency.name}: View active business listings and contact details on Salebiz.`;
+  const url = `${SITE_URL}/agency/${slug}`;
   return {
     title,
     description,
     alternates: { canonical: url },
     openGraph: {
-      type: "profile",
+      type: "website",
       title,
       description,
       url,
-      ...(profile.photo_url && { images: [{ url: profile.photo_url, alt: title }] }),
+      ...(agency.logo_url && { images: [{ url: agency.logo_url, alt: title }] }),
     },
     twitter: { card: "summary", title, description },
   };
@@ -65,44 +63,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function formatPrice(listing: { price_type: string; asking_price: number | null }): string {
   if (listing.price_type === "poa") return "POA";
   if (listing.asking_price != null) {
-    return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(Number(listing.asking_price));
+    return new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: "AUD",
+      maximumFractionDigits: 0,
+    }).format(Number(listing.asking_price));
   }
   return "—";
 }
 
-export default async function BrokerProfilePage({ params }: Props) {
+export default async function AgencyPublicPage({ params }: Props) {
   const { slug } = await params;
-  const [session, profile] = await Promise.all([getSession(), getProfileBySlug(slug)]);
-  if (!profile) notFound();
+  const [session, agency] = await Promise.all([getSession(), getAgencyBySlug(slug)]);
+  if (!agency) notFound();
 
-  const listings = await getPublishedListingsByBrokerId(profile.id);
-  const displayName = profile.name || profile.company || "Broker";
-  const agencyName = profile.agency?.name ?? profile.company;
-  const social = profile.social_links;
+  const listings = await getPublishedListingsByAgencyId(agency.id);
+  const social = agency.social_links;
   const hasSocial = social?.linkedin || social?.facebook || social?.instagram;
-  const hasContact = profile.phone || profile.email_public || profile.website;
-  const initial = (displayName).charAt(0).toUpperCase();
+  const hasContact = agency.phone || agency.email || agency.website;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <PublicHeader session={session} maxWidth="max-w-6xl" />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
-        {/* Structured data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "RealEstateAgent",
-              name: displayName,
-              url: `${SITE_URL}/broker/${profile.slug}`,
-              ...(profile.photo_url && { image: profile.photo_url }),
-              ...(profile.bio && { description: profile.bio.slice(0, 300) }),
-              ...(agencyName && { worksFor: { "@type": "Organization", name: agencyName } }),
-              ...(profile.phone && { telephone: profile.phone }),
-              ...(profile.email_public && { email: profile.email_public }),
-              ...(profile.website && { sameAs: [profile.website] }),
+              name: agency.name,
+              url: `${SITE_URL}/agency/${slug}`,
+              ...(agency.logo_url && { image: agency.logo_url }),
+              ...(agency.bio && { description: agency.bio.slice(0, 300) }),
+              ...(agency.phone && { telephone: agency.phone }),
+              ...(agency.email && { email: agency.email }),
+              ...(agency.website && { sameAs: [agency.website] }),
             }),
           }}
         />
@@ -112,47 +109,32 @@ export default async function BrokerProfilePage({ params }: Props) {
             items={[
               { label: "Home", href: "/" },
               { label: "Browse", href: "/search" },
-              { label: displayName },
+              { label: agency.name },
             ]}
           />
 
-          {/* Two-column layout */}
           <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-
-            {/* Left: Profile sidebar */}
             <div className="space-y-4">
               <Card>
                 <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-4">
-                  <Avatar className="h-24 w-24 ring-4 ring-primary/10">
-                    {profile.photo_url && <AvatarImage src={profile.photo_url} alt={displayName} />}
-                    <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">
-                      {initial}
-                    </AvatarFallback>
-                  </Avatar>
+                  {agency.logo_url ? (
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                      <Image
+                        src={agency.logo_url}
+                        alt={agency.name}
+                        fill
+                        className="object-contain p-1"
+                        sizes="96px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-border bg-primary/10">
+                      <Building2 className="h-10 w-10 text-primary" />
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
-                    <h1 className="text-xl font-semibold tracking-tight">{displayName}</h1>
-                    {agencyName && (
-                      <div className="flex items-center justify-center gap-1.5">
-                        {profile.agency?.logo_url ? (
-                          <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                            <Image src={profile.agency.logo_url} alt="" fill className="object-contain" sizes="16px" />
-                          </div>
-                        ) : (
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                        {profile.agency?.slug ? (
-                          <Link
-                            href={`/agency/${profile.agency.slug}`}
-                            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-                          >
-                            {agencyName}
-                          </Link>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">{agencyName}</span>
-                        )}
-                      </div>
-                    )}
+                    <h1 className="text-xl font-semibold tracking-tight">{agency.name}</h1>
                     {listings.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {listings.length} active {listings.length === 1 ? "listing" : "listings"}
@@ -164,25 +146,25 @@ export default async function BrokerProfilePage({ params }: Props) {
                     <>
                       <Separator />
                       <div className="flex flex-col gap-2 w-full">
-                        {profile.phone && (
+                        {agency.phone && (
                           <Button asChild className="w-full gap-2">
-                            <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>
+                            <a href={`tel:${agency.phone.replace(/\s/g, "")}`}>
                               <Phone className="h-4 w-4" />
-                              {profile.phone}
+                              {agency.phone}
                             </a>
                           </Button>
                         )}
-                        {profile.email_public && (
+                        {agency.email && (
                           <Button asChild variant="outline" className="w-full gap-2">
-                            <a href={`mailto:${profile.email_public}`}>
+                            <a href={`mailto:${agency.email}`}>
                               <Mail className="h-4 w-4" />
-                              {profile.email_public}
+                              {agency.email}
                             </a>
                           </Button>
                         )}
-                        {profile.website && (
+                        {agency.website && (
                           <Button asChild variant="outline" className="w-full gap-2">
-                            <a href={profile.website} target="_blank" rel="noopener noreferrer">
+                            <a href={agency.website} target="_blank" rel="noopener noreferrer">
                               <Globe className="h-4 w-4" />
                               Website
                               <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
@@ -224,22 +206,18 @@ export default async function BrokerProfilePage({ params }: Props) {
                 </CardContent>
               </Card>
 
-              {/* About */}
-              {profile.bio && (
+              {agency.bio && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">About</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {profile.bio}
-                    </p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{agency.bio}</p>
                   </CardContent>
                 </Card>
               )}
             </div>
 
-            {/* Right: Listings */}
             <div className="space-y-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -258,7 +236,8 @@ export default async function BrokerProfilePage({ params }: Props) {
                     <div className="grid gap-3">
                       {listings.map((listing) => {
                         const thumb = listing.listing_images?.[0]?.url;
-                        const location = listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
+                        const location =
+                          listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
                         return (
                           <Link
                             key={listing.id}
@@ -325,7 +304,9 @@ export default async function BrokerProfilePage({ params }: Props) {
         <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span suppressHydrationWarning>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
           <div className="flex items-center gap-4">
-            <Link href="/search" className="hover:text-foreground transition-colors">Browse listings</Link>
+            <Link href="/search" className="hover:text-foreground transition-colors">
+              Browse listings
+            </Link>
           </div>
         </div>
       </footer>

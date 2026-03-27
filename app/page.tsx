@@ -23,6 +23,7 @@ import {
   isFeaturedNow,
 } from "@/components/listings/featured-badge";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { NestedNavLink } from "@/components/public/nested-nav-link";
 import {
   ArrowRight,
   TrendingUp,
@@ -146,7 +147,16 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
               </span>
               {listing.agency && (
                 <span className="text-[10px] text-muted-foreground/70 truncate">
-                  {listing.agency.name}
+                  {listing.agency.slug ? (
+                    <NestedNavLink
+                      href={`/agency/${listing.agency.slug}`}
+                      className="hover:text-foreground hover:underline"
+                    >
+                      {listing.agency.name}
+                    </NestedNavLink>
+                  ) : (
+                    listing.agency.name
+                  )}
                 </span>
               )}
             </div>

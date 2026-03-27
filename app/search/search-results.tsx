@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import { NestedNavLink } from "@/components/public/nested-nav-link";
 import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX, User } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,7 +164,16 @@ export function SearchResults({
                         </span>
                         {listing.agency && (
                           <span className="text-[10px] text-muted-foreground/70 truncate">
-                            {listing.agency.name}
+                            {listing.agency.slug ? (
+                              <NestedNavLink
+                                href={`/agency/${listing.agency.slug}`}
+                                className="hover:text-foreground hover:underline"
+                              >
+                                {listing.agency.name}
+                              </NestedNavLink>
+                            ) : (
+                              listing.agency.name
+                            )}
                           </span>
                         )}
                       </div>
