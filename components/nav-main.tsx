@@ -18,6 +18,8 @@ export function NavMain({
     title: string
     url: string
     icon?: React.ReactNode
+    /** If set, item is active when pathname matches any of these paths (prefix match). */
+    activeMatchPaths?: string[]
   }[]
 }) {
   const pathname = usePathname()
@@ -28,9 +30,13 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => {
             const isRoot = item.url === "/dashboard" || item.url === "/admin"
-            const isActive = isRoot
-              ? pathname === item.url
-              : pathname === item.url || pathname.startsWith(item.url + "/")
+            const isActive = item.activeMatchPaths?.length
+              ? item.activeMatchPaths.some(
+                  (p) => pathname === p || pathname.startsWith(p + "/")
+                )
+              : isRoot
+                ? pathname === item.url
+                : pathname === item.url || pathname.startsWith(item.url + "/")
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton

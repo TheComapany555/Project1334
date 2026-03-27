@@ -349,7 +349,7 @@ export async function acceptInvitation(token: string, formData: FormData): Promi
       type: "broker_joined",
       title: `${name || email} joined your agency`,
       message: `A new broker has accepted the invitation to ${agency.name}.`,
-      link: "/dashboard/team",
+      link: "/dashboard/workspace?tab=team",
     }).catch(() => {});
   }
 

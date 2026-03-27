@@ -13,7 +13,11 @@ type Props = {
 };
 
 // Pages that are accessible without an active subscription
-const ALLOWED_PATHS = ["/dashboard/subscribe", "/dashboard/profile"];
+const ALLOWED_PATHS = [
+  "/dashboard/subscribe",
+  "/dashboard/profile",
+  "/dashboard/workspace",
+];
 
 export function SubscriptionGate({ status, isOwner, children }: Props) {
   const pathname = usePathname();

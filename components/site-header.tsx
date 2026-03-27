@@ -28,6 +28,7 @@ export type HeaderUser = {
   name: string | null
   email: string
   role: "broker" | "admin"
+  agencyRole?: "owner" | "member" | null
   profileSlug?: string
   photoUrl?: string | null
 }
@@ -42,6 +43,10 @@ export function SiteHeader({
   const [logoutOpen, setLogoutOpen] = useState(false)
   const displayName = user?.name?.trim() || user?.email || "Account"
   const initial = (user?.name?.trim() || user?.email || "?").charAt(0).toUpperCase()
+  const roleBadgeLabel =
+    user?.role === "broker" && user?.agencyRole === "owner"
+      ? "agency_owner"
+      : user?.role
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -92,9 +97,9 @@ export function SiteHeader({
                     <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                     <Badge
                       variant="secondary"
-                      className="w-fit text-[10px] px-1.5 py-0 mt-0.5 capitalize font-medium"
+                      className="w-fit text-[10px] px-1.5 py-0 mt-0.5 font-medium"
                     >
-                      {user.role}
+                      {roleBadgeLabel}
                     </Badge>
                   </div>
                 </div>
@@ -105,9 +110,9 @@ export function SiteHeader({
               {user.role === "broker" && (
                 <>
                   <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                    <Link href="/dashboard/profile">
+                    <Link href="/dashboard/workspace">
                       <HugeiconsIcon icon={UserCircle02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
-                      Edit profile
+                      Workspace
                     </Link>
                   </DropdownMenuItem>
                   {user.profileSlug && (

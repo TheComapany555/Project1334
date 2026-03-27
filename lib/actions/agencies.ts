@@ -140,6 +140,7 @@ export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
     .select("id, name, phone, photo_url, agency_role, created_at")
     .eq("agency_id", agencyId)
     .eq("role", "broker")
+    .neq("agency_role", "owner")
     .order("created_at", { ascending: true });
   if (error || !profiles?.length) return [];
 

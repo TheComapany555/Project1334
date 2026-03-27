@@ -14,7 +14,6 @@ import {
   MailIcon,
   LogoutIcon,
   ExternalLink,
-  UserMultipleIcon,
   Building03Icon,
   Wallet02Icon,
 } from "@hugeicons/core-free-icons";
@@ -41,17 +40,19 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
+const workspaceMatchPaths = [
+  "/dashboard/workspace",
+  "/dashboard/profile",
+  "/dashboard/agency",
+  "/dashboard/team",
+] as const;
+
 const brokerNav = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Profile", href: "/dashboard/profile", icon: UserIcon },
+  { label: "Workspace", href: "/dashboard/workspace", icon: Building03Icon },
   { label: "Listings", href: "/dashboard/listings", icon: FileIcon },
   { label: "Enquiries", href: "/dashboard/enquiries", icon: MailIcon },
   { label: "Payments", href: "/dashboard/payments", icon: Wallet02Icon },
-] as const;
-
-const ownerOnlyNav = [
-  { label: "Agency", href: "/dashboard/agency", icon: Building03Icon },
-  { label: "Team", href: "/dashboard/team", icon: UserMultipleIcon },
 ] as const;
 
 type SidebarUser = {
@@ -97,29 +98,14 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenu>
               {brokerNav.map((item) => {
                 const isDashboardRoot = item.href === "/dashboard";
-                const isActive = isDashboardRoot
-                  ? pathname === "/dashboard"
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-              {user.agencyRole === "owner" && ownerOnlyNav.map((item) => {
-                const isExact = item.href === "/dashboard/agency";
-                const isActive = isExact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                const isWorkspace = item.href === "/dashboard/workspace";
+                const isActive = isWorkspace
+                  ? workspaceMatchPaths.some(
+                      (p) => pathname === p || pathname.startsWith(p + "/")
+                    )
+                  : isDashboardRoot
+                    ? pathname === "/dashboard"
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
@@ -175,9 +161,9 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile">
+                  <Link href="/dashboard/workspace">
                     <HugeiconsIcon icon={UserIcon} strokeWidth={2} className="size-4" />
-                    Edit profile
+                    Workspace
                   </Link>
                 </DropdownMenuItem>
                 {user.profileSlug && (

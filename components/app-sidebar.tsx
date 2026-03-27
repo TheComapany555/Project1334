@@ -17,12 +17,10 @@ import { ThemeSwitcher } from "@/components/theme-switcher"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   LayoutDashboard,
-  UserIcon,
   FileIcon,
   MailIcon,
   Wallet02Icon,
   Building03Icon,
-  UserMultipleIcon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -35,17 +33,24 @@ export type SidebarUser = {
   agencyName?: string | null
 }
 
+const workspaceActivePaths = [
+  "/dashboard/workspace",
+  "/dashboard/profile",
+  "/dashboard/agency",
+  "/dashboard/team",
+] as const
+
 const brokerNav = [
   { title: "Overview", url: "/dashboard", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
-  { title: "Profile", url: "/dashboard/profile", icon: <HugeiconsIcon icon={UserIcon} strokeWidth={2} /> },
+  {
+    title: "Workspace",
+    url: "/dashboard/workspace",
+    icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+    activeMatchPaths: [...workspaceActivePaths],
+  },
   { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
   { title: "Payments", url: "/dashboard/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },
-]
-
-const ownerNav = [
-  { title: "Agency", url: "/dashboard/agency", icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} /> },
-  { title: "Team", url: "/dashboard/team", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
 ]
 
 export function AppSidebar({
@@ -58,9 +63,7 @@ export function AppSidebar({
     avatar: user.photoUrl ?? "",
   }
 
-  const navItems = user.agencyRole === "owner"
-    ? [...brokerNav, ...ownerNav]
-    : brokerNav
+  const navItems = brokerNav
 
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>
@@ -87,7 +90,12 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <NavUser user={navUser} profileSlug={user.profileSlug} role={user.role} />
+        <NavUser
+          user={navUser}
+          profileSlug={user.profileSlug}
+          role={user.role}
+          agencyRole={user.agencyRole}
+        />
       </SidebarFooter>
     </Sidebar>
   )

@@ -37,14 +37,19 @@ export function NavUser({
   user,
   profileSlug,
   role,
+  agencyRole,
 }: {
   user: { name: string; email: string; avatar: string }
   profileSlug?: string
   role?: "broker" | "admin"
+  agencyRole?: "owner" | "member" | null
 }) {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const { isMobile } = useSidebar()
   const initial = (user.name || user.email).charAt(0).toUpperCase()
+
+  const roleBadgeLabel =
+    role === "broker" && agencyRole === "owner" ? "agency_owner" : role
 
   return (
     <SidebarMenu>
@@ -101,12 +106,12 @@ export function NavUser({
                   <span className="truncate text-xs text-muted-foreground">
                     {user.email}
                   </span>
-                  {role && (
+                  {roleBadgeLabel && (
                     <Badge
                       variant="secondary"
-                      className="w-fit text-[10px] px-1.5 py-0 mt-1 capitalize font-medium"
+                      className="w-fit text-[10px] px-1.5 py-0 mt-1 font-medium"
                     >
-                      {role}
+                      {roleBadgeLabel}
                     </Badge>
                   )}
                 </div>
@@ -118,13 +123,13 @@ export function NavUser({
             {role === "broker" && (
               <>
                 <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                  <Link href="/dashboard/profile">
+                  <Link href="/dashboard/workspace">
                     <HugeiconsIcon
                       icon={UserCircle02Icon}
                       strokeWidth={2}
                       className="size-4 text-muted-foreground"
                     />
-                    Edit profile
+                    Workspace
                   </Link>
                 </DropdownMenuItem>
 

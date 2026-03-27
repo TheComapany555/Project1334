@@ -81,9 +81,9 @@ export function DashboardHeader({ title, description, user }: Props) {
               {user.role === "broker" && (
                 <>
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard/profile">
+                    <Link href="/dashboard/workspace">
                       <HugeiconsIcon icon={UserIcon} strokeWidth={2} className="size-4" />
-                      Edit profile
+                      Workspace
                     </Link>
                   </DropdownMenuItem>
                   {user.profileSlug && (
