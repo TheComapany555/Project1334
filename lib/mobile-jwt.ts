@@ -23,3 +23,13 @@ export async function verifyMobileToken(token: string): Promise<MobileTokenPaylo
   const { payload } = await jwtVerify(token, secret);
   return payload as unknown as MobileTokenPayload;
 }
+
+export async function getMobileUser(request: Request): Promise<MobileTokenPayload | null> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  try {
+    return await verifyMobileToken(authHeader.slice(7));
+  } catch {
+    return null;
+  }
+}

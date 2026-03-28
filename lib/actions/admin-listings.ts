@@ -90,6 +90,96 @@ export async function getListingBySlugAdmin(slug: string) {
   };
 }
 
+/** Admin: fetch a listing by ID for editing (no ownership check). */
+export async function getListingByIdAdmin(id: string) {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select(`
+      *,
+      broker:profiles!broker_id(id, slug, name, company, photo_url),
+      category:categories(id, name, slug),
+      listing_images(id, url, sort_order)
+    `)
+    .eq("id", id)
+    .single();
+  if (error || !data) return null;
+
+  const row = data as Record<string, unknown> & {
+    id: string;
+    broker?:
+      | { id: string; slug: string; name: string | null; company: string | null; photo_url: string | null }[]
+      | { id: string; slug: string; name: string | null; company: string | null; photo_url: string | null };
+  };
+  const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
+
+  const { data: highlightRows } = await supabase
+    .from("listing_highlight_map")
+    .select("highlight_id")
+    .eq("listing_id", row.id);
+  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
+  const { data: highlights } = await supabase
+    .from("listing_highlights")
+    .select("id, label, accent, active")
+    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
+
+  return {
+    ...row,
+    broker: broker ?? undefined,
+    listing_highlights: highlights ?? [],
+  };
+}
+
+/** Admin: update any listing (no ownership check). */
+export async function adminUpdateListing(
+  id: string,
+  fields: {
+    title?: string;
+    category_id?: string | null;
+    location_text?: string;
+    state?: string;
+    suburb?: string;
+    postcode?: string;
+    price_type?: string;
+    asking_price?: number | null;
+    revenue?: number | null;
+    profit?: number | null;
+    lease_details?: string;
+    summary?: string;
+    description?: string;
+    status?: string;
+    listing_tier?: string;
+    tier_product_id?: string | null;
+  },
+  highlightIds?: string[]
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { error } = await supabase
+    .from("listings")
+    .update({
+      ...fields,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Update highlights if provided
+  if (highlightIds !== undefined) {
+    await supabase.from("listing_highlight_map").delete().eq("listing_id", id);
+    if (highlightIds.length > 0) {
+      await supabase.from("listing_highlight_map").insert(
+        highlightIds.map((hid) => ({ listing_id: id, highlight_id: hid }))
+      );
+    }
+  }
+
+  return { ok: true };
+}
+
 export async function adminRemoveListing(listingId: string): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { adminRemoveListing, adminRestoreListing } from "@/lib/actions/admin-listings";
 import { adminSetFeatured, adminRemoveFeatured, adminExtendFeatured } from "@/lib/actions/featured";
-import { Loader2, Star } from "lucide-react";
+import { Loader2, Star, Pencil } from "lucide-react";
 
 type Props = {
   listingId: string;
@@ -69,6 +69,12 @@ export function ListingActions({ listingId, slug, isRemoved, isFeatured, feature
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/listing/${slug}`} target="_blank" rel="noopener noreferrer">
             View
+          </Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/admin/listings/${listingId}/edit`}>
+            <Pencil className="mr-1 h-3.5 w-3.5" />
+            Edit
           </Link>
         </Button>
         <DropdownMenu>

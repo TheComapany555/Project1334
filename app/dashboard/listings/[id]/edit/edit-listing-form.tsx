@@ -87,9 +87,13 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-type Props = { listing: Listing & { highlight_ids?: string[] } };
+type Props = {
+  listing: Listing & { highlight_ids?: string[] };
+  isAdmin?: boolean;
+  onAdminSave?: (id: string, fields: Record<string, unknown>, highlightIds: string[]) => Promise<{ ok: boolean; error?: string }>;
+};
 
-export function EditListingForm({ listing }: Props) {
+export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
@@ -112,8 +116,8 @@ export function EditListingForm({ listing }: Props) {
     listing.tier_product_id ?? null
   );
 
-  // Can change tier only if draft and not yet paid
-  const canChangeTier = listing.status === "draft" && !listing.tier_paid_at;
+  // Can change tier only if draft and not yet paid, or admin can always change
+  const canChangeTier = isAdmin || (listing.status === "draft" && !listing.tier_paid_at);
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(() => {
     if (!listing.description) return undefined;
     try {
@@ -178,15 +182,21 @@ export function EditListingForm({ listing }: Props) {
       description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : data.description || null,
       highlight_ids: data.highlight_ids ?? [],
     };
-    if (canChangeTier) {
+    if (canChangeTier || isAdmin) {
       updatePayload.listing_tier = selectedTier;
       updatePayload.tier_product_id = selectedTierProductId;
     }
-    const result = await updateListing(listing.id, updatePayload);
+
+    let result: { ok: boolean; error?: string };
+    if (isAdmin && onAdminSave) {
+      result = await onAdminSave(listing.id, updatePayload, data.highlight_ids ?? []);
+    } else {
+      result = await updateListing(listing.id, updatePayload);
+    }
     setSaving(false);
     if (result.ok) {
       toast.success("Listing updated.");
-      router.replace("/dashboard/listings");
+      router.replace(isAdmin ? "/admin/listings" : "/dashboard/listings");
     } else {
       toast.error(result.error ?? "Failed to update.");
     }
@@ -304,7 +314,7 @@ export function EditListingForm({ listing }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
         <Button variant="ghost" size="icon" className="shrink-0" asChild>
-          <Link href="/dashboard/listings">
+          <Link href={isAdmin ? "/admin/listings" : "/dashboard/listings"}>
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             <span className="sr-only">Back</span>
           </Link>

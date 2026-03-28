@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { signMobileToken, verifyMobileToken } from "@/lib/mobile-jwt";
+import { generateSlugFromName } from "@/lib/slug";
+import { Resend } from "resend";
+import { verificationEmail, passwordResetEmail } from "@/lib/email-templates";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
+const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 // POST /api/mobile/auth - login
 export async function POST(request: Request) {
@@ -194,13 +202,47 @@ async function handleRegister({
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
 
+  // Create agency for this new broker
+  const agencySlug = generateSlugFromName(name || "agency");
+  const { data: agency } = await supabase
+    .from("agencies")
+    .insert({
+      name: name.trim() || "My Agency",
+      slug: agencySlug,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  const profileSlug = name ? generateSlugFromName(name) : null;
   await supabase.from("profiles").insert({
     id: newUser.id,
     name: name.trim(),
     role: "broker",
-    status: "pending",
+    status: "active",
+    slug: profileSlug,
+    agency_id: agency?.id ?? null,
+    agency_role: agency ? "owner" : null,
     updated_at: new Date().toISOString(),
   });
+
+  // Create verification token and send email
+  const token = nanoid(32);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  await supabase.from("auth_tokens").insert({
+    user_id: newUser.id,
+    type: "email_verification",
+    token,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to: email.toLowerCase().trim(),
+    subject: "Verify your Salebiz account",
+    html: verificationEmail(verifyUrl, name || "there"),
+  }).catch(() => {});
 
   return NextResponse.json({
     message: "Account created. Please check your email to verify your account before signing in.",
@@ -221,8 +263,25 @@ async function handleResetPassword({ email }: { email: string }) {
     .single();
 
   if (user) {
-    // TODO: Send password reset email via Resend
-    // For now just return success - frontend will show "check your email"
+    // Delete old reset tokens
+    await supabase.from("auth_tokens").delete().eq("user_id", user.id).eq("type", "password_reset");
+
+    const token = nanoid(32);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    await supabase.from("auth_tokens").insert({
+      user_id: user.id,
+      type: "password_reset",
+      token,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    const resetUrl = `${APP_URL}/auth/reset?token=${token}`;
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: email.toLowerCase().trim(),
+      subject: "Reset your Salebiz password",
+      html: passwordResetEmail(resetUrl),
+    }).catch(() => {});
   }
 
   return NextResponse.json({ success: true });
