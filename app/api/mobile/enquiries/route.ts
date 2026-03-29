@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getMobileUser } from "@/lib/mobile-jwt";
 
 export async function POST(request: Request) {
   try {
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Listing not found or not available" }, { status: 404 });
     }
 
+    // Attach user_id if the sender is logged in
+    const mobileUser = await getMobileUser(request);
+
     const { error } = await supabase.from("enquiries").insert({
       listing_id,
       broker_id: listing.broker_id,
@@ -44,6 +48,7 @@ export async function POST(request: Request) {
       contact_name: contact_name?.trim() ?? null,
       contact_email: contact_email.toLowerCase().trim(),
       contact_phone: contact_phone?.trim() ?? null,
+      ...(mobileUser ? { user_id: mobileUser.sub } : {}),
     });
 
     if (error) {

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { signMobileToken, verifyMobileToken } from "@/lib/mobile-jwt";
 import { generateSlugFromName } from "@/lib/slug";
 import { Resend } from "resend";
-import { verificationEmail, passwordResetEmail } from "@/lib/email-templates";
+import {
+  verificationEmail,
+  passwordResetEmail,
+  mobileUserOtpEmail,
+} from "@/lib/email-templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -14,7 +19,14 @@ const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 // POST /api/mobile/auth - login
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: string; email?: string; password?: string; name?: string };
+    const body = await request.json() as {
+      action?: string;
+      email?: string;
+      password?: string;
+      name?: string;
+      role?: string;
+      code?: string;
+    };
     const { action = "login" } = body;
 
     if (action === "login") {
@@ -22,7 +34,15 @@ export async function POST(request: Request) {
     }
 
     if (action === "register") {
-      return handleRegister(body as { email: string; password: string; name: string });
+      return handleRegister(body as { email: string; password: string; name: string; role?: string });
+    }
+
+    if (action === "verify-email-otp") {
+      return handleVerifyEmailOtp(body as { email: string; code: string });
+    }
+
+    if (action === "resend-email-otp") {
+      return handleResendEmailOtp(body as { email: string });
     }
 
     if (action === "reset-password") {
@@ -70,6 +90,240 @@ export async function GET(request: Request) {
   }
 }
 
+type LoginNotice = {
+  variant: string;
+  title: string;
+  message: string;
+};
+
+/** Context for the mobile app after sign-in (broker vs buyer, email overlap with agency/broker contacts). */
+async function buildLoginNotice(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  normalizedEmail: string,
+  role: "broker" | "admin" | "user",
+): Promise<LoginNotice> {
+  if (role === "broker" || role === "admin") {
+    return {
+      variant: "broker_account",
+      title: "Signed in as broker",
+      message:
+        "This login is a broker or agency account — not a regular shopper (user) account. Manage listings and your dashboard on salebiz.com.au. You can still browse listings in this app.",
+    };
+  }
+
+  const [{ data: agencyMatch }, { data: brokerPublicMatch }] = await Promise.all([
+    supabase
+      .from("agencies")
+      .select("id")
+      .not("email", "is", null)
+      .ilike("email", normalizedEmail)
+      .limit(1),
+    supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "broker")
+      .not("email_public", "is", null)
+      .ilike("email_public", normalizedEmail)
+      .limit(1),
+  ]);
+
+  const emailUsedAsBrokerOrAgencyContact =
+    (agencyMatch?.length ?? 0) > 0 || (brokerPublicMatch?.length ?? 0) > 0;
+
+  if (emailUsedAsBrokerOrAgencyContact) {
+    return {
+      variant: "buyer_email_matches_broker_contact",
+      title: "Signed in as a user",
+      message:
+        "This email is also used as a broker or agency contact on Salebiz. Here you are signed in as a regular user (shopper), not as a broker. To use broker tools, sign in through salebiz.com.au with your broker account.",
+    };
+  }
+
+  return {
+    variant: "buyer_account",
+    title: "Signed in as a user",
+    message:
+      "You are signed in as a regular user — browse listings, save favourites, and send enquiries. Broker and agency accounts are set up on salebiz.com.au.",
+  };
+}
+
+function generateSixDigitOtp(): string {
+  return randomInt(100000, 1_000_000).toString();
+}
+
+type SupabaseAdmin = ReturnType<typeof createServiceRoleClient>;
+
+async function issueMobileUserOtp(
+  supabase: SupabaseAdmin,
+  userId: string,
+  email: string,
+  displayName: string,
+): Promise<void> {
+  await supabase.from("auth_tokens").delete().eq("user_id", userId).eq("type", "mobile_email_otp");
+
+  const otp = generateSixDigitOtp();
+  const tokenHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  const { error } = await supabase.from("auth_tokens").insert({
+    user_id: userId,
+    type: "mobile_email_otp",
+    token: tokenHash,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  if (error) {
+    console.error("[mobile/auth] issueMobileUserOtp insert:", error);
+    return;
+  }
+
+  await resend.emails
+    .send({
+      from: EMAIL_FROM,
+      to: email,
+      subject: "Your Salebiz verification code",
+      html: mobileUserOtpEmail(otp, displayName || "there"),
+    })
+    .catch((e) => {
+      console.error("[mobile/auth] OTP email send:", e);
+    });
+}
+
+async function handleVerifyEmailOtp({ email, code }: { email: string; code: string }) {
+  const normalized = email.toLowerCase().trim();
+  const digits = String(code ?? "").replace(/\D/g, "");
+  if (!/^\d{6}$/.test(digits)) {
+    return NextResponse.json(
+      { error: "Enter the 6-digit code from your email" },
+      { status: 400 },
+    );
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("id, email_verified_at")
+    .eq("email", normalized)
+    .single();
+
+  if (!userRow) {
+    return NextResponse.json({ error: "Invalid code or email" }, { status: 400 });
+  }
+
+  if (userRow.email_verified_at) {
+    return NextResponse.json({
+      success: true,
+      message: "Email already verified. You can sign in.",
+    });
+  }
+
+  const { data: rows } = await supabase
+    .from("auth_tokens")
+    .select("id, token, expires_at")
+    .eq("user_id", userRow.id)
+    .eq("type", "mobile_email_otp")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const row = rows?.[0];
+  if (!row || new Date(row.expires_at) < new Date()) {
+    return NextResponse.json(
+      { error: "Code expired or invalid. Tap Resend code for a new one." },
+      { status: 400 },
+    );
+  }
+
+  const match = await bcrypt.compare(digits, row.token);
+  if (!match) {
+    return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+  }
+
+  const { data: profile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userRow.id)
+    .maybeSingle();
+
+  if (profileErr) {
+    console.error("[mobile/auth] verify-email-otp profile:", profileErr);
+    return NextResponse.json({ error: "Could not load your account. Try again." }, { status: 500 });
+  }
+
+  if (!profile) {
+    const displayName =
+      normalized
+        .split("@")[0]
+        ?.replace(/[._-]+/g, " ")
+        .replace(/\b\w/g, (c: string) => c.toUpperCase()) || "User";
+    const { error: createProfileErr } = await supabase.from("profiles").insert({
+      id: userRow.id,
+      name: displayName,
+      role: "user",
+      status: "active",
+      updated_at: new Date().toISOString(),
+    });
+    if (createProfileErr) {
+      console.error("[mobile/auth] verify-email-otp create profile:", createProfileErr);
+      return NextResponse.json(
+        {
+          error:
+            "Could not finish setup. Ask your admin to run the latest database migration (profiles role must allow \"user\"), then try again.",
+        },
+        { status: 500 },
+      );
+    }
+  } else if (profile.role !== "user") {
+    return NextResponse.json(
+      { error: "This account must be verified using the link sent to your email." },
+      { status: 400 },
+    );
+  }
+
+  await supabase
+    .from("users")
+    .update({ email_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", userRow.id);
+
+  await supabase.from("auth_tokens").delete().eq("id", row.id);
+
+  return NextResponse.json({
+    success: true,
+    message: "Email verified. You can sign in.",
+  });
+}
+
+async function handleResendEmailOtp({ email }: { email: string }) {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("id, email, email_verified_at")
+    .eq("email", normalized)
+    .single();
+
+  if (!userRow || userRow.email_verified_at) {
+    return NextResponse.json({ success: true });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, name")
+    .eq("id", userRow.id)
+    .single();
+
+  if (profile?.role !== "user") {
+    return NextResponse.json({ success: true });
+  }
+
+  await issueMobileUserOtp(supabase, userRow.id, userRow.email, profile?.name ?? "there");
+
+  return NextResponse.json({ success: true });
+}
+
 async function handleLogin({ email, password }: { email: string; password: string }) {
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
@@ -101,9 +355,10 @@ async function handleLogin({ email, password }: { email: string; password: strin
     .eq("id", userRow.id)
     .single();
 
-  const role = (profile?.role as "broker" | "admin") ?? "broker";
+  const role = (profile?.role as "broker" | "admin" | "user") ?? "user";
   let subscriptionStatus: string | null = null;
 
+  // Agency/subscription checks only apply to brokers, not users
   if (role === "broker" && profile?.agency_id) {
     const { data: agency } = await supabase
       .from("agencies")
@@ -145,6 +400,8 @@ async function handleLogin({ email, password }: { email: string; password: strin
     subscriptionStatus,
   });
 
+  const loginNotice = await buildLoginNotice(supabase, userRow.email, role);
+
   return NextResponse.json({
     token,
     user: {
@@ -157,6 +414,7 @@ async function handleLogin({ email, password }: { email: string; password: strin
       subscriptionStatus,
       photoUrl: profile?.photo_url ?? null,
     },
+    loginNotice,
   });
 }
 
@@ -164,10 +422,12 @@ async function handleRegister({
   email,
   password,
   name,
+  role: requestedRole,
 }: {
   email: string;
   password: string;
   name: string;
+  role?: string;
 }) {
   if (!email || !password || !name) {
     return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 });
@@ -176,6 +436,9 @@ async function handleRegister({
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
+
+  // Mobile app registers as "user" role; web registers as "broker"
+  const isUserRole = requestedRole === "user";
 
   const supabase = createServiceRoleClient();
   const { data: existing } = await supabase
@@ -202,31 +465,65 @@ async function handleRegister({
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
 
-  // Create agency for this new broker
-  const agencySlug = generateSlugFromName(name || "agency");
-  const { data: agency } = await supabase
-    .from("agencies")
-    .insert({
-      name: name.trim() || "My Agency",
-      slug: agencySlug,
+  if (isUserRole) {
+    // Simple "user" role — mobile app verifies email with OTP (no link email)
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: newUser.id,
+      name: name.trim(),
+      role: "user",
       status: "active",
-    })
-    .select("id")
-    .single();
+      updated_at: new Date().toISOString(),
+    });
 
-  const profileSlug = name ? generateSlugFromName(name) : null;
-  await supabase.from("profiles").insert({
-    id: newUser.id,
-    name: name.trim(),
-    role: "broker",
-    status: "active",
-    slug: profileSlug,
-    agency_id: agency?.id ?? null,
-    agency_role: agency ? "owner" : null,
-    updated_at: new Date().toISOString(),
-  });
+    if (profileError) {
+      console.error("[mobile/auth] register user profile:", profileError);
+      await supabase.from("users").delete().eq("id", newUser.id);
+      return NextResponse.json(
+        {
+          error:
+            "Could not create your profile. If this persists, ensure the database allows role \"user\" on profiles (run latest migrations).",
+        },
+        { status: 500 },
+      );
+    }
 
-  // Create verification token and send email
+    await issueMobileUserOtp(supabase, newUser.id, newUser.email, name.trim());
+
+    return NextResponse.json(
+      {
+        verificationRequired: true,
+        message:
+          "We sent a 6-digit code to your email. Enter it in the app to verify your account (code expires in 15 minutes).",
+      },
+      { status: 201 },
+    );
+  } else {
+    // Broker registration — create agency + broker profile
+    const agencySlug = generateSlugFromName(name || "agency");
+    const { data: agency } = await supabase
+      .from("agencies")
+      .insert({
+        name: name.trim() || "My Agency",
+        slug: agencySlug,
+        status: "active",
+      })
+      .select("id")
+      .single();
+
+    const profileSlug = name ? generateSlugFromName(name) : null;
+    await supabase.from("profiles").insert({
+      id: newUser.id,
+      name: name.trim(),
+      role: "broker",
+      status: "active",
+      slug: profileSlug,
+      agency_id: agency?.id ?? null,
+      agency_role: agency ? "owner" : null,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  // Broker (non-mobile) path: link-based verification
   const token = nanoid(32);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
   await supabase.from("auth_tokens").insert({

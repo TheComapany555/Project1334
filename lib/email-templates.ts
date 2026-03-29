@@ -143,6 +143,31 @@ export function verificationEmail(verifyUrl: string, name: string): string {
   `);
 }
 
+/** Mobile app — buyer account email verification (6-digit code, no link). */
+export function mobileUserOtpEmail(code: string, name: string): string {
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      Your verification code
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Enter this code in the Salebiz app to verify your email.
+    </p>
+
+    <p style="margin:0 0 8px 0;">Hi ${name},</p>
+    <p style="margin:0 0 16px 0;">
+      Use the code below to finish setting up your account. It expires in <strong>15 minutes</strong>.
+    </p>
+
+    <p style="margin:0 0 8px 0;font-size:32px;font-weight:700;letter-spacing:8px;color:${BRAND_PRIMARY};text-align:center;font-family:ui-monospace,monospace;">
+      ${code}
+    </p>
+
+    <p style="margin:16px 0 0 0;font-size:13px;color:#888888;">
+      If you didn&#8217;t create an account, you can ignore this email.
+    </p>
+  `);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Email: Password Reset                                              */
 /* ------------------------------------------------------------------ */

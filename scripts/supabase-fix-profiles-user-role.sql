@@ -1,0 +1,1 @@
+-- Deprecated: use apply-mobile-auth-patches-only.sql (includes this + auth_tokens OTP type).
