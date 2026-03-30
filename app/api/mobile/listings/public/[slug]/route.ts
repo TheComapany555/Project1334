@@ -49,10 +49,12 @@ export async function GET(
     if (listing.agency_id) {
       const { data: agencyData } = await supabase
         .from("agencies")
-        .select("id, name, slug, logo_url")
+        .select("id, name, slug, logo_url, phone, email, website, bio, status")
         .eq("id", listing.agency_id)
         .single();
-      agency = agencyData;
+      if (agencyData && agencyData.status === "active") {
+        agency = agencyData;
+      }
     }
 
     // Fetch highlights separately to avoid join issues
