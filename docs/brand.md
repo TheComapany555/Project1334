@@ -22,7 +22,7 @@ Professional palette derived from primary forest green (OKLCH hue 155). Use CSS 
 
 ## Logo
 
-- **Location:** Vercel Blob storage — `Salebiz.png`. Used app-wide (header, auth, sidebars, emails).
+- **Location:** Vercel Blob storage — `SaleBiz logo 2 SVG.svg` (`SALEBIZ_LOGO_URL` in `@/lib/branding`). Used app-wide (header, auth, sidebars, emails).
 - **Minimum size:** 120px width for header; 32px height for favicon/small use.
 - **Backgrounds:** Logo is used across light and dark UI; for dark backgrounds consider an inverted/white variant if needed.
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -29,8 +30,8 @@ export const metadata: Metadata = {
   authors: [{ name: "Salebiz" }],
   creator: "Salebiz",
   icons: {
-    icon: "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg",
-    apple: "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg",
+    icon: SALEBIZ_LOGO_URL,
+    apple: SALEBIZ_LOGO_URL,
   },
   openGraph: {
     type: "website",

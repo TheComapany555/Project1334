@@ -12,6 +12,7 @@ import {
 } from "@stripe/react-stripe-js";
 import type { StripePaymentElementOptions } from "@stripe/stripe-js";
 import stripePromise from "@/lib/stripe-client";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -533,7 +534,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
         <div className="mx-auto max-w-5xl flex items-center justify-between h-14 px-4 sm:px-6">
           <Link href="/dashboard/listings" className="flex items-center gap-2">
             <Image
-              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+              src={SALEBIZ_LOGO_URL}
               alt="Salebiz"
               width={100}
               height={28}

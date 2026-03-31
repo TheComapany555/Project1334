@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 
 /**
  * Brief branded splash screen shown once after login.
@@ -50,7 +51,7 @@ export function DashboardLoader({ children }: { children: React.ReactNode }) {
           }`}
         >
           <Image
-            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+            src={SALEBIZ_LOGO_URL}
             alt="Salebiz"
             width={140}
             height={42}

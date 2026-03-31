@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { SALEBIZ_LOGO_URL } from "@/lib/branding"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -72,7 +73,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
               <Link href="/dashboard" aria-label="Salebiz home" className="flex items-center justify-center">
-                <Image src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg" alt="Salebiz" width={100} height={30} className="h-6 w-auto object-contain" />
+                <Image src={SALEBIZ_LOGO_URL} alt="Salebiz" width={100} height={30} className="h-6 w-auto object-contain" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

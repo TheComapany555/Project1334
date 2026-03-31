@@ -1,16 +1,16 @@
 /** Branded email templates for Salebiz.com.au — hex matches app primary/secondary */
 
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
+
 const BRAND_PRIMARY = "#0d5c2f";
 const BRAND_SECONDARY = "#0d4a2a";
-
-const LOGO_URL = "https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebiz.png";
 
 /* ------------------------------------------------------------------ */
 /*  Base layout                                                        */
 /* ------------------------------------------------------------------ */
 
 function baseLayout(content: string): string {
-  const logoUrl = LOGO_URL;
+  const logoUrl = SALEBIZ_LOGO_URL;
   const year = new Date().getFullYear();
 
   return `<!DOCTYPE html>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
@@ -50,7 +51,7 @@ export function PublicHeader({
           aria-label="Salebiz home"
         >
           <Image
-            src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+            src={SALEBIZ_LOGO_URL}
             alt="Salebiz"
             width={120}
             height={36}
@@ -114,7 +115,7 @@ export function PublicHeader({
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border">
                       <Image
-                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+                        src={SALEBIZ_LOGO_URL}
                         alt="Salebiz"
                         width={110}
                         height={33}
@@ -236,7 +237,7 @@ export function PublicHeader({
                   <div className="flex flex-col h-full">
                     <div className="p-6 border-b border-border">
                       <Image
-                        src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+                        src={SALEBIZ_LOGO_URL}
                         alt="Salebiz"
                         width={110}
                         height={33}

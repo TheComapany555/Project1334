@@ -39,6 +39,7 @@ import {
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 
 const workspaceMatchPaths = [
   "/dashboard/workspace",
@@ -78,7 +79,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             <SidebarMenuButton asChild size="lg" tooltip="Salebiz">
               <Link href="/dashboard" className="flex items-center gap-2">
                 <Image
-                  src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+                  src={SALEBIZ_LOGO_URL}
                   alt="Salebiz"
                   width={100}
                   height={30}

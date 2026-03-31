@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 
 export const metadata: Metadata = {
   title: "Auth | Salebiz",
@@ -17,7 +18,7 @@ export default function AuthLayout({
         <div className="flex justify-center gap-2 md:justify-start">
           <Link href="/" aria-label="Salebiz home">
             <Image
-              src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+              src={SALEBIZ_LOGO_URL}
               alt="Salebiz"
               width={130}
               height={39}

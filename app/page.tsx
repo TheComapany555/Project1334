@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
+import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import {
   MotionDiv,
   MotionH1,
@@ -770,7 +771,7 @@ export default async function HomePage() {
                 className="transition-opacity duration-200 hover:opacity-75 w-fit"
               >
                 <Image
-                  src="https://g44yi0ry58orcc8h.public.blob.vercel-storage.com/Salebizsvg.svg"
+                  src={SALEBIZ_LOGO_URL}
                   alt="Salebiz"
                   width={110}
                   height={33}
