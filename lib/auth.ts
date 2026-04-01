@@ -29,7 +29,21 @@ export const authOptions: NextAuthOptions = {
           .select("role, status, agency_id, agency_role")
           .eq("id", userRow.id)
           .single();
-        const role = (profile?.role as "broker" | "admin") ?? "broker";
+        const role = (profile?.role as "broker" | "admin" | "user") ?? "broker";
+
+        // Buyers (user role) can log in with minimal checks
+        if (role === "user") {
+          return {
+            id: userRow.id,
+            email: userRow.email,
+            emailVerified: userRow.email_verified_at ? new Date(userRow.email_verified_at) : null,
+            role,
+            agencyId: null,
+            agencyRole: null,
+            agencyName: null,
+            subscriptionStatus: null,
+          };
+        }
 
         if (role === "broker") {
           if (profile?.agency_id) {
@@ -149,7 +163,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as "broker" | "admin";
+        session.user.role = token.role as "broker" | "admin" | "user";
         session.user.emailVerified = token.emailVerified as Date | null | undefined;
         session.user.agencyId = (token.agencyId as string) ?? null;
         session.user.agencyRole = (token.agencyRole as "owner" | "member") ?? null;

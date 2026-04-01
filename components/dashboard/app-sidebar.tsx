@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Building03Icon,
   Wallet02Icon,
+  SecurityCheckIcon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -53,6 +54,7 @@ const brokerNav = [
   { label: "Workspace", href: "/dashboard/workspace", icon: Building03Icon },
   { label: "Listings", href: "/dashboard/listings", icon: FileIcon },
   { label: "Enquiries", href: "/dashboard/enquiries", icon: MailIcon },
+  { label: "NDAs", href: "/dashboard/ndas", icon: SecurityCheckIcon },
   { label: "Payments", href: "/dashboard/payments", icon: Wallet02Icon },
 ] as const;
 

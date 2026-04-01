@@ -414,3 +414,79 @@ export async function resetPasswordWithToken(
   return { ok: true };
 }
 
+// ── Buyer (user) registration for web ──
+
+export async function registerBuyer(formData: FormData): Promise<RegisterResult> {
+  const email = (formData.get("email") as string)?.toLowerCase().trim();
+  const password = formData.get("password") as string;
+  const name = (formData.get("name") as string)?.trim();
+  const captchaToken = formData.get("captchaToken") as string | null;
+
+  const captchaOk = await verifyRecaptcha(captchaToken);
+  if (!captchaOk) {
+    return { ok: false, error: "CAPTCHA verification failed. Please try again." };
+  }
+
+  if (!email || !password) {
+    return { ok: false, error: "Email and password are required." };
+  }
+  if (password.length < 8) {
+    return { ok: false, error: "Password must be at least 8 characters." };
+  }
+  if (!name) {
+    return { ok: false, error: "Name is required." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: existing } = await supabase.from("users").select("id").eq("email", email).single();
+  if (existing) {
+    return { ok: false, error: "An account with this email already exists." };
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const { data: newUser, error: insertError } = await supabase
+    .from("users")
+    .insert({
+      email,
+      password_hash: passwordHash,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !newUser) {
+    return { ok: false, error: "Failed to create account. Please try again." };
+  }
+
+  // Create buyer profile (role = "user")
+  await supabase.from("profiles").insert({
+    id: newUser.id,
+    role: "user",
+    status: "active",
+    name,
+    updated_at: new Date().toISOString(),
+  });
+
+  // Send email verification
+  const token = nanoid(32);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await supabase.from("auth_tokens").insert({
+    user_id: newUser.id,
+    type: "email_verification",
+    token,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
+  await resend.emails
+    .send({
+      from: EMAIL_FROM,
+      to: email,
+      subject: "Verify your Salebiz account",
+      html: verificationEmail(verifyUrl, name || "there"),
+    })
+    .catch(() => {});
+
+  return { ok: true };
+}
+

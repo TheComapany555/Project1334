@@ -6,7 +6,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: "broker" | "admin";
+      role: "broker" | "admin" | "user";
       email: string;
       name?: string | null;
       image?: string | null;
@@ -20,7 +20,7 @@ declare module "next-auth" {
 
   interface User {
     id: string;
-    role: "broker" | "admin";
+    role: "broker" | "admin" | "user";
     email: string;
     name?: string | null;
     emailVerified?: Date | null;
@@ -34,7 +34,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
-    role?: "broker" | "admin";
+    role?: "broker" | "admin" | "user";
     emailVerified?: Date | null;
     agencyId?: string | null;
     agencyRole?: AgencyRole | null;

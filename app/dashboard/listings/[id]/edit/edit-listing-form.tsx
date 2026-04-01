@@ -569,6 +569,30 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           </CardContent>
         </Card>
 
+        {/* Document Vault & NDA */}
+        <Card>
+          <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Document Vault &amp; NDA</p>
+              <p className="text-xs text-muted-foreground">
+                Upload confidential documents and configure NDA requirements for buyers.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/listings/${listing.id}/documents`}>
+                  Manage Documents
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/listings/${listing.id}/nda`}>
+                  NDA Settings
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save changes"}

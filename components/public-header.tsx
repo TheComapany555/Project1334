@@ -3,6 +3,7 @@ import Image from "next/image";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { LogoutButton } from "@/components/shared/logout-button";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,8 @@ import {
 import {
   ArrowRight,
   Building2,
+  Heart,
+  GitCompareArrows,
   Menu,
   Search,
 } from "lucide-react";
@@ -38,6 +41,8 @@ export function PublicHeader({
 }: PublicHeaderProps) {
   const isLoggedIn = !!session?.user;
   const isAdmin = session?.user?.role === "admin";
+  const isBroker = session?.user?.role === "broker";
+  const hasDashboard = isAdmin || isBroker;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -73,13 +78,25 @@ export function PublicHeader({
                 </Button>
               )}
               {isLoggedIn ? (
-                <Button
-                  asChild
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
-                >
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
+                hasDashboard ? (
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
+                  >
+                    <Link href="/dashboard">Dashboard</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/saved">
+                        <Heart className="h-4 w-4 mr-1" />
+                        Saved
+                      </Link>
+                    </Button>
+                    <LogoutButton variant="ghost" size="sm" />
+                  </>
+                )
               ) : (
                 <>
                   <Button asChild size="sm" variant="ghost">
@@ -97,7 +114,7 @@ export function PublicHeader({
               <ThemeSwitcher />
             </nav>
 
-            {/* Mobile nav — logo + hamburger only */}
+            {/* Mobile nav — full variant */}
             <div className="flex sm:hidden items-center">
               <Sheet>
                 <SheetTrigger asChild>
@@ -131,13 +148,32 @@ export function PublicHeader({
                         Browse listings
                       </Link>
                       {isLoggedIn ? (
-                        <Link
-                          href="/dashboard"
-                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                        >
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          Dashboard
-                        </Link>
+                        <>
+                          {hasDashboard && (
+                            <Link
+                              href="/dashboard"
+                              className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              Dashboard
+                            </Link>
+                          )}
+                          <Link
+                            href="/saved"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Heart className="h-4 w-4 text-muted-foreground" />
+                            Saved Listings
+                          </Link>
+                          <Link
+                            href="/compare"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <GitCompareArrows className="h-4 w-4 text-muted-foreground" />
+                            Compare
+                          </Link>
+                          {!hasDashboard && <LogoutButton asNavLink />}
+                        </>
                       ) : (
                         <>
                           <Link
@@ -166,12 +202,21 @@ export function PublicHeader({
                     </nav>
                     <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
-                        <Button
-                          asChild
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          <Link href="/dashboard">Dashboard</Link>
-                        </Button>
+                        hasDashboard ? (
+                          <Button
+                            asChild
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Link href="/dashboard">Dashboard</Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            asChild
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Link href="/saved">Saved Listings</Link>
+                          </Button>
+                        )
                       ) : (
                         <Button
                           asChild
@@ -200,14 +245,34 @@ export function PublicHeader({
             {/* Compact desktop nav */}
             <div className="hidden sm:flex items-center gap-2">
               <ThemeSwitcher />
+              {isLoggedIn && (
+                <>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/saved">
+                      <Heart className="h-4 w-4 mr-1" />
+                      Saved
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/compare">
+                      <GitCompareArrows className="h-4 w-4 mr-1" />
+                      Compare
+                    </Link>
+                  </Button>
+                </>
+              )}
               {isLoggedIn ? (
-                <Button size="sm" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
+                hasDashboard ? (
+                  <Button size="sm" asChild>
+                    <Link href="/dashboard">Dashboard</Link>
+                  </Button>
+                ) : (
+                  <LogoutButton variant="ghost" size="sm" />
+                )
               ) : (
                 <>
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href="/auth/register">Create account</Link>
+                    <Link href="/auth/register?tab=buyer">Sign up</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild>
                     <Link href="/auth/login">Sign in</Link>
@@ -219,7 +284,7 @@ export function PublicHeader({
               </Button>
             </div>
 
-            {/* Compact mobile nav — hamburger only */}
+            {/* Compact mobile nav */}
             <div className="flex sm:hidden items-center">
               <Sheet>
                 <SheetTrigger asChild>
@@ -253,13 +318,32 @@ export function PublicHeader({
                         Browse listings
                       </Link>
                       {isLoggedIn ? (
-                        <Link
-                          href="/dashboard"
-                          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                        >
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          Dashboard
-                        </Link>
+                        <>
+                          {hasDashboard && (
+                            <Link
+                              href="/dashboard"
+                              className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              Dashboard
+                            </Link>
+                          )}
+                          <Link
+                            href="/saved"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Heart className="h-4 w-4 text-muted-foreground" />
+                            Saved Listings
+                          </Link>
+                          <Link
+                            href="/compare"
+                            className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <GitCompareArrows className="h-4 w-4 text-muted-foreground" />
+                            Compare
+                          </Link>
+                          {!hasDashboard && <LogoutButton asNavLink />}
+                        </>
                       ) : (
                         <Link
                           href="/auth/login"
@@ -271,12 +355,21 @@ export function PublicHeader({
                     </nav>
                     <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
-                        <Button
-                          asChild
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          <Link href="/dashboard">Dashboard</Link>
-                        </Button>
+                        hasDashboard ? (
+                          <Button
+                            asChild
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Link href="/dashboard">Dashboard</Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            asChild
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Link href="/saved">Saved Listings</Link>
+                          </Button>
+                        )
                       ) : (
                         <Button
                           asChild

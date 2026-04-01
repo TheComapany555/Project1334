@@ -12,6 +12,7 @@ import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { verifyLoginCaptcha } from "@/lib/actions/auth";
 
@@ -27,7 +28,9 @@ const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/search";
+  const initialTab = searchParams.get("tab") === "broker" ? "broker" : "buyer";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [error, setError] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
@@ -75,13 +78,78 @@ export function LoginForm() {
     }
     if (res?.ok) {
       toast.success("Signed in successfully.");
-      router.push(callbackUrl);
+      // Redirect buyers to browse, brokers to dashboard
+      const redirect = activeTab === "broker" ? (searchParams.get("callbackUrl") ?? "/dashboard") : callbackUrl;
+      router.push(redirect);
       router.refresh();
       return;
     }
     setError("Something went wrong. Please try again.");
     toast.error("Something went wrong. Please try again.");
   }
+
+  const loginFormContent = (
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="m@example.com"
+          className={errors.email ? "border-destructive" : ""}
+          {...register("email")}
+        />
+        {errors.email && (
+          <p className="text-xs text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center">
+          <Label htmlFor="password">Password</Label>
+          <Link
+            href="/auth/reset"
+            className="ml-auto text-sm underline-offset-4 hover:underline"
+          >
+            Forgot your password?
+          </Link>
+        </div>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          className={errors.password ? "border-destructive" : ""}
+          {...register("password")}
+        />
+        {errors.password && (
+          <p className="text-xs text-destructive">
+            {errors.password.message}
+          </p>
+        )}
+      </div>
+
+      {RECAPTCHA_SITE_KEY && (
+        <div
+          className="w-full"
+          style={{ transform: "scaleX(1.22)", transformOrigin: "0 0" }}
+        >
+          <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+        </div>
+      )}
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Signing in…
+          </>
+        ) : (
+          "Login"
+        )}
+      </Button>
+    </form>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,68 +164,48 @@ export function LoginForm() {
         <p className="text-sm text-destructive text-center">{error}</p>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="m@example.com"
-            className={errors.email ? "border-destructive" : ""}
-            {...register("email")}
-          />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full">
+          <TabsTrigger value="buyer" className="flex-1">
+            Buyer
+          </TabsTrigger>
+          <TabsTrigger value="broker" className="flex-1">
+            Broker / Agency
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="grid gap-2">
-          <div className="flex items-center">
-            <Label htmlFor="password">Password</Label>
+        <TabsContent value="buyer" className="space-y-4">
+          <p className="text-xs text-muted-foreground text-center">
+            Sign in to save listings, compare businesses, and access documents.
+          </p>
+          {loginFormContent}
+          <div className="text-center text-sm">
+            Don&apos;t have an account?{" "}
             <Link
-              href="/auth/reset"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
+              href="/auth/register?tab=buyer"
+              className="underline underline-offset-4 hover:text-primary"
             >
-              Forgot your password?
+              Create a buyer account
             </Link>
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            className={errors.password ? "border-destructive" : ""}
-            {...register("password")}
-          />
-          {errors.password && (
-            <p className="text-xs text-destructive">{errors.password.message}</p>
-          )}
-        </div>
+        </TabsContent>
 
-        {RECAPTCHA_SITE_KEY && (
-          <div className="w-full" style={{ transform: "scaleX(1.22)", transformOrigin: "0 0" }}>
-            <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
+        <TabsContent value="broker" className="space-y-4">
+          <p className="text-xs text-muted-foreground text-center">
+            Sign in to manage your listings, enquiries, and agency.
+          </p>
+          {loginFormContent}
+          <div className="text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/register?tab=broker"
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Register your agency
+            </Link>
           </div>
-        )}
-
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Signing in…
-            </>
-          ) : (
-            "Login"
-          )}
-        </Button>
-      </form>
-
-      <div className="text-center text-sm">
-        Don&apos;t have an account?{" "}
-        <Link href="/auth/register" className="underline underline-offset-4 hover:text-primary">
-          Sign up
-        </Link>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

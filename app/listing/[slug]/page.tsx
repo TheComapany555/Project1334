@@ -36,6 +36,14 @@ import { EnquiryForm } from "./enquiry-form";
 import { LocationMap } from "@/components/location-map";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { DescriptionRenderer } from "@/components/listings/description-renderer";
+import { FinancialCalculator } from "@/components/listings/financial-calculator";
+import { DocumentVault } from "@/components/listings/document-vault";
+import { FavoriteButton } from "@/components/listings/favorite-button";
+import { CompareButton } from "@/components/listings/compare-button";
+import { getPublicListingDocuments } from "@/lib/actions/documents";
+import { getListingNdaStatus } from "@/lib/actions/nda";
+import { isFavorited } from "@/lib/actions/favorites";
+import { getComparisonListingIds } from "@/lib/actions/comparison";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
@@ -118,6 +126,16 @@ export default async function ListingPage({ params }: Props) {
     listing.location_text ||
     [listing.suburb, listing.state].filter(Boolean).join(", ") ||
     "";
+
+  // Fetch NDA status, documents, favorites, and comparison data
+  const [ndaStatus, documentData, isFav, comparisonIds] = await Promise.all([
+    getListingNdaStatus(listing.id),
+    getPublicListingDocuments(listing.id, session?.user?.id ?? null),
+    session?.user?.id ? isFavorited(listing.id) : Promise.resolve(false),
+    session?.user?.id ? getComparisonListingIds() : Promise.resolve([]),
+  ]);
+  const isInComparison = comparisonIds.includes(listing.id);
+  const isLoggedIn = !!session?.user?.id;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -269,6 +287,20 @@ export default async function ListingPage({ params }: Props) {
                 {formatPrice(listing)}
               </p>
             )}
+            <div className="flex items-center gap-1.5 ml-auto">
+              <FavoriteButton
+                listingId={listing.id}
+                isFavorited={isFav}
+                isLoggedIn={isLoggedIn}
+                size="sm"
+              />
+              <CompareButton
+                listingId={listing.id}
+                isInComparison={isInComparison}
+                isLoggedIn={isLoggedIn}
+                size="sm"
+              />
+            </div>
           </div>
         </div>
 
@@ -526,6 +558,27 @@ export default async function ListingPage({ params }: Props) {
             </dl>
           </CardContent>
         </Card>
+
+        {/* Document Vault */}
+        {documentData.documents.length > 0 && (
+          <DocumentVault
+            listingId={listing.id}
+            documents={documentData.documents}
+            requiresNda={documentData.requiresNda}
+            hasSigned={documentData.hasSigned}
+            ndaText={ndaStatus.ndaText}
+            isLoggedIn={!!session?.user?.id}
+          />
+        )}
+
+        {/* Financial Calculator */}
+        {listing.price_type !== "poa" && listing.asking_price != null && (
+          <FinancialCalculator
+            askingPrice={Number(listing.asking_price)}
+            revenue={listing.revenue ? Number(listing.revenue) : null}
+            profit={listing.profit ? Number(listing.profit) : null}
+          />
+        )}
 
         {/* Interactive Map */}
         {locationText && <LocationMap location={locationText} />}
