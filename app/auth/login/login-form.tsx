@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -78,8 +78,17 @@ export function LoginForm() {
     }
     if (res?.ok) {
       toast.success("Signed in successfully.");
-      // Redirect buyers to browse, brokers to dashboard
-      const redirect = activeTab === "broker" ? (searchParams.get("callbackUrl") ?? "/dashboard") : callbackUrl;
+      // Get actual session role instead of relying on tab selection
+      const session = await getSession();
+      const role = session?.user?.role;
+      let redirect: string;
+      if (role === "admin") {
+        redirect = searchParams.get("callbackUrl") ?? "/admin";
+      } else if (role === "broker") {
+        redirect = searchParams.get("callbackUrl") ?? "/dashboard";
+      } else {
+        redirect = callbackUrl; // buyer → /search (or callbackUrl)
+      }
       router.push(redirect);
       router.refresh();
       return;
@@ -192,7 +201,7 @@ export function LoginForm() {
 
         <TabsContent value="broker" className="space-y-4">
           <p className="text-xs text-muted-foreground text-center">
-            Sign in to manage your listings, enquiries, and agency.
+            Sign in to manage your listings, enquiries, and agency. Admin accounts also use this tab.
           </p>
           {loginFormContent}
           <div className="text-center text-sm">

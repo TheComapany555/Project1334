@@ -23,13 +23,17 @@ export const authOptions: NextAuthOptions = {
         if (userError || !userRow) return null;
         const valid = await bcrypt.compare(credentials.password, userRow.password_hash);
         if (!valid) return null;
-        if (!userRow.email_verified_at) return null;
+
+        // Fetch profile first so we can check role before email verification
         const { data: profile } = await supabase
           .from("profiles")
           .select("role, status, agency_id, agency_role")
           .eq("id", userRow.id)
           .single();
         const role = (profile?.role as "broker" | "admin" | "user") ?? "broker";
+
+        // Admins are created manually — skip email verification requirement
+        if (role !== "admin" && !userRow.email_verified_at) return null;
 
         // Buyers (user role) can log in with minimal checks
         if (role === "user") {

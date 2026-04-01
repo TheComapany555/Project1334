@@ -44,6 +44,7 @@ import { getPublicListingDocuments } from "@/lib/actions/documents";
 import { getListingNdaStatus } from "@/lib/actions/nda";
 import { isFavorited } from "@/lib/actions/favorites";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
+import { ListingViewTracker } from "@/components/listings/listing-view-tracker";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
@@ -140,6 +141,7 @@ export default async function ListingPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <PublicHeader session={session} maxWidth="max-w-6xl" />
+      <ListingViewTracker listingId={listing.id} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10 space-y-6">
         {/* JSON-LD Structured Data */}

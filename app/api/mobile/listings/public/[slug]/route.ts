@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getMobileUser } from "@/lib/mobile-jwt";
 
 // GET /api/mobile/listings/public/[slug] - listing detail by slug (public)
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
     const { slug } = await params;
     const supabase = createServiceRoleClient();
+
+    // Resolve authenticated user (optional — anonymous access still allowed)
+    const mobileUser = await getMobileUser(request).catch(() => null);
+    const userId = mobileUser?.sub ?? null;
 
     // Fetch listing with basic relations
     const { data: listing, error } = await supabase
@@ -77,12 +82,80 @@ export async function GET(
       // Highlights are optional - don't fail the request
     }
 
+    // ── NDA status ──────────────────────────────────────────────────────────
+    let nda: {
+      required: boolean;
+      text: string | null;
+      signed: boolean;
+    } = { required: false, text: null, signed: false };
+
+    try {
+      const { data: ndaRow } = await supabase
+        .from("listing_ndas")
+        .select("nda_text, is_required")
+        .eq("listing_id", listing.id)
+        .single();
+
+      if (ndaRow?.is_required) {
+        let signed = false;
+        if (userId) {
+          const { data: sig } = await supabase
+            .from("nda_signatures")
+            .select("id")
+            .eq("listing_id", listing.id)
+            .eq("user_id", userId)
+            .single();
+          signed = !!sig;
+        }
+        nda = { required: true, text: ndaRow.nda_text, signed };
+      }
+    } catch {
+      // NDA is optional — don't fail
+    }
+
+    // ── Documents ────────────────────────────────────────────────────────────
+    let documents: {
+      id: string;
+      name: string;
+      category: string;
+      is_confidential: boolean;
+      file_url: string | null; // null when locked (NDA required + not signed)
+      file_size: number | null;
+      file_type: string | null;
+    }[] = [];
+
+    try {
+      const { data: docs } = await supabase
+        .from("listing_documents")
+        .select("id, name, category, is_confidential, file_url, file_size, file_type, sort_order")
+        .eq("listing_id", listing.id)
+        .order("sort_order", { ascending: true });
+
+      if (docs && docs.length > 0) {
+        documents = docs.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          category: d.category,
+          is_confidential: d.is_confidential,
+          file_size: d.file_size,
+          file_type: d.file_type,
+          // Strip file_url for confidential docs when NDA required and not signed
+          file_url:
+            d.is_confidential && nda.required && !nda.signed ? null : d.file_url,
+        }));
+      }
+    } catch {
+      // Documents are optional — don't fail
+    }
+
     return NextResponse.json({
       data: {
         ...listing,
         broker,
         agency,
         listing_highlights: highlights,
+        nda,
+        documents,
       },
     });
   } catch (err) {
