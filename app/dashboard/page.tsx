@@ -42,10 +42,10 @@ export default async function DashboardPage() {
   const recent = listings.slice(0, 5)
 
   const statCards = [
-    { title: "Total listings", value: total, footer: "All your business listings" },
-    { title: "Published", value: published, footer: "Live on the marketplace" },
-    { title: "Drafts", value: draft, footer: "Not yet published" },
-    { title: "Enquiries", value: enquiries.length, footer: `${enquiriesThisWeek} this week` },
+    { title: "Total listings", value: total, footer: "All your business listings", href: "/dashboard/listings" },
+    { title: "Published", value: published, footer: "Live on the marketplace", href: "/dashboard/listings" },
+    { title: "Drafts", value: draft, footer: "Not yet published", href: "/dashboard/listings" },
+    { title: "Enquiries", value: enquiries.length, footer: `${enquiriesThisWeek} this week`, href: "/dashboard/enquiries" },
   ]
 
   return (

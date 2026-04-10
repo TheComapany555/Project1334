@@ -80,17 +80,25 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await webFile.arrayBuffer());
 
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, buffer, {
+    // Delete old avatar files to prevent orphans and CDN cache issues
+    const { data: oldFiles } = await supabase.storage.from("avatars").list(mobileUser.sub);
+    if (oldFiles?.length) {
+      await supabase.storage.from("avatars").remove(oldFiles.map((f) => `${mobileUser.sub}/${f.name}`));
+    }
+
+    // Use timestamp in filename to bust CDN cache
+    const uniquePath = `${mobileUser.sub}/avatar-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(uniquePath, buffer, {
       contentType: mime,
-      upsert: true,
     });
     if (uploadError) {
       console.error("[mobile/profile/photo] storage:", uploadError);
       return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
     }
 
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-    const url = `${urlData.publicUrl}?v=${Date.now()}`;
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(uniquePath);
+    const url = urlData.publicUrl;
 
     const { data: updated, error: updateError } = await supabase
       .from("profiles")

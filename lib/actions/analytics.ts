@@ -24,6 +24,7 @@ export type ListingAnalyticsStat = {
   web_views: number;
   mobile_views: number;
   enquiries: number;
+  calls: number;
   saves: number;
   nda_sigs: number;
   avg_duration: number | null;
@@ -43,6 +44,7 @@ export type AnalyticsOverview = {
   web_views: number;
   mobile_views: number;
   enquiries: number;
+  calls: number;
   avg_duration_seconds: number | null;
   engagement_rate: number;
 
@@ -51,6 +53,7 @@ export type AnalyticsOverview = {
   enquiries_trend: number | null;
 
   // All-time totals
+  calls_total: number;
   saves_total: number;
   nda_sigs_total: number;
 
@@ -92,57 +95,99 @@ export async function getBrokerAnalytics(periodDays = 30): Promise<AnalyticsOver
   const periodStart = new Date(now.getTime() - periodDays * 86400_000);
   const prevPeriodStart = new Date(now.getTime() - 2 * periodDays * 86400_000);
 
-  // ─── Parallel data fetch ──────────────────────────────────────────
-  const [viewsRes, enquiriesRes, savesRes, ndaRes] = await Promise.all([
+  const periodStartISO = periodStart.toISOString();
+  const prevPeriodStartISO = prevPeriodStart.toISOString();
+
+  // ─── Parallel data fetch (date-filtered at DB level) ─────────────
+  const [periodViewsRes, prevViewsRes, periodEnqRes, prevEnqRes, savesRes, ndaRes, allViewsRes, allEnqRes, periodCallsRes, allCallsRes] = await Promise.all([
+    // Current period views
     supabase
       .from("listing_views")
       .select("id, listing_id, platform, duration_seconds, viewed_at")
       .in("listing_id", listingIds)
+      .gte("viewed_at", periodStartISO)
       .order("viewed_at", { ascending: false }),
 
+    // Previous period views (for trend)
+    supabase
+      .from("listing_views")
+      .select("id, listing_id, platform")
+      .in("listing_id", listingIds)
+      .gte("viewed_at", prevPeriodStartISO)
+      .lt("viewed_at", periodStartISO),
+
+    // Current period enquiries
     supabase
       .from("enquiries")
       .select("id, listing_id, created_at")
       .in("listing_id", listingIds)
+      .gte("created_at", periodStartISO)
       .order("created_at", { ascending: false }),
 
+    // Previous period enquiries (for trend)
+    supabase
+      .from("enquiries")
+      .select("id")
+      .in("listing_id", listingIds)
+      .gte("created_at", prevPeriodStartISO)
+      .lt("created_at", periodStartISO),
+
+    // All-time saves (lightweight)
     supabase
       .from("user_favorites")
       .select("listing_id")
       .in("listing_id", listingIds),
 
+    // All-time NDA sigs (lightweight)
     supabase
       .from("nda_signatures")
-      .select("listing_id, signed_at")
+      .select("listing_id")
+      .in("listing_id", listingIds),
+
+    // All-time views for per-listing breakdown
+    supabase
+      .from("listing_views")
+      .select("listing_id, platform, duration_seconds")
+      .in("listing_id", listingIds),
+
+    // All-time enquiries for per-listing breakdown
+    supabase
+      .from("enquiries")
+      .select("listing_id")
+      .in("listing_id", listingIds),
+
+    // Current period call clicks
+    supabase
+      .from("call_clicks")
+      .select("listing_id")
+      .in("listing_id", listingIds)
+      .gte("clicked_at", periodStartISO),
+
+    // All-time call clicks for per-listing breakdown
+    supabase
+      .from("call_clicks")
+      .select("listing_id")
       .in("listing_id", listingIds),
   ]);
 
-  const allViews = viewsRes.data ?? [];
-  const allEnquiries = enquiriesRes.data ?? [];
+  const periodViews = periodViewsRes.data ?? [];
+  const prevViews = prevViewsRes.data ?? [];
+  const periodEnquiries = periodEnqRes.data ?? [];
+  const prevEnquiries = prevEnqRes.data ?? [];
   const allSaves = savesRes.data ?? [];
   const allNdaSigs = ndaRes.data ?? [];
-
-  // ─── Period filtering ────────────────────────────────────────────
-  const periodViews = allViews.filter((v) => new Date(v.viewed_at) >= periodStart);
-  const prevViews = allViews.filter(
-    (v) =>
-      new Date(v.viewed_at) >= prevPeriodStart &&
-      new Date(v.viewed_at) < periodStart
-  );
-  const periodEnquiries = allEnquiries.filter(
-    (e) => new Date(e.created_at) >= periodStart
-  );
-  const prevEnquiries = allEnquiries.filter(
-    (e) =>
-      new Date(e.created_at) >= prevPeriodStart &&
-      new Date(e.created_at) < periodStart
-  );
+  const allViews = allViewsRes.data ?? [];
+  const allEnquiries = allEnqRes.data ?? [];
+  const periodCalls = periodCallsRes.data ?? [];
+  const allCalls = allCallsRes.data ?? [];
 
   // ─── KPI aggregates ──────────────────────────────────────────────
   const total_views = periodViews.length;
   const web_views = periodViews.filter((v) => v.platform === "web").length;
   const mobile_views = periodViews.filter((v) => v.platform === "mobile").length;
   const enquiries = periodEnquiries.length;
+  const calls = periodCalls.length;
+  const calls_total = allCalls.length;
   const saves_total = allSaves.length;
   const nda_sigs_total = allNdaSigs.length;
   const engagement_rate =
@@ -190,10 +235,10 @@ export async function getBrokerAnalytics(periodDays = 30): Promise<AnalyticsOver
   // ─── Per-listing (all time) ───────────────────────────────────────
   const listingMap = new Map<
     string,
-    { web: number; mobile: number; durations: number[]; enquiries: number; saves: number; ndas: number }
+    { web: number; mobile: number; durations: number[]; enquiries: number; calls: number; saves: number; ndas: number }
   >();
   for (const id of listingIds) {
-    listingMap.set(id, { web: 0, mobile: 0, durations: [], enquiries: 0, saves: 0, ndas: 0 });
+    listingMap.set(id, { web: 0, mobile: 0, durations: [], enquiries: 0, calls: 0, saves: 0, ndas: 0 });
   }
   for (const v of allViews) {
     const s = listingMap.get(v.listing_id);
@@ -205,6 +250,10 @@ export async function getBrokerAnalytics(periodDays = 30): Promise<AnalyticsOver
   for (const e of allEnquiries) {
     const s = listingMap.get(e.listing_id);
     if (s) s.enquiries++;
+  }
+  for (const c of allCalls) {
+    const s = listingMap.get(c.listing_id);
+    if (s) s.calls++;
   }
   for (const f of allSaves) {
     const s = listingMap.get(f.listing_id);
@@ -228,6 +277,7 @@ export async function getBrokerAnalytics(periodDays = 30): Promise<AnalyticsOver
         web_views: s.web,
         mobile_views: s.mobile,
         enquiries: s.enquiries,
+        calls: s.calls,
         saves: s.saves,
         nda_sigs: s.ndas,
         avg_duration:
@@ -245,10 +295,12 @@ export async function getBrokerAnalytics(periodDays = 30): Promise<AnalyticsOver
     web_views,
     mobile_views,
     enquiries,
+    calls,
     avg_duration_seconds,
     engagement_rate,
     views_trend,
     enquiries_trend,
+    calls_total,
     saves_total,
     nda_sigs_total,
     daily,
@@ -263,10 +315,12 @@ function emptyOverview(periodDays: number): AnalyticsOverview {
     web_views: 0,
     mobile_views: 0,
     enquiries: 0,
+    calls: 0,
     avg_duration_seconds: null,
     engagement_rate: 0,
     views_trend: null,
     enquiries_trend: null,
+    calls_total: 0,
     saves_total: 0,
     nda_sigs_total: 0,
     daily: [],

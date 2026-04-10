@@ -24,7 +24,10 @@ import {
   ExternalLink,
   MessageSquare,
   ChevronRight,
+  UserPlus,
+  Check,
 } from "lucide-react";
+import { saveEnquiryAsContact } from "@/lib/actions/contacts";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-AU", {
@@ -55,6 +58,7 @@ type Props = {
 
 export function EnquiriesTable({ enquiries }: Props) {
   const [selected, setSelected] = useState<EnquiryWithListing | null>(null);
+  const [savedContact, setSavedContact] = useState<string | null>(null);
 
   return (
     <>
@@ -226,18 +230,34 @@ export function EnquiriesTable({ enquiries }: Props) {
                   <p className="text-muted-foreground">{formatDate(selected.created_at)}</p>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant={savedContact === selected.id ? "secondary" : "outline"}
+                    className="flex-1"
+                    disabled={savedContact === selected.id}
+                    onClick={async () => {
+                      const res = await saveEnquiryAsContact(selected.id);
+                      if (res.ok) setSavedContact(selected.id);
+                    }}
+                  >
+                    {savedContact === selected.id ? (
+                      <><Check className="h-3.5 w-3.5 mr-1.5" /> Saved</>
+                    ) : (
+                      <><UserPlus className="h-3.5 w-3.5 mr-1.5" /> Save as contact</>
+                    )}
+                  </Button>
                   <Button asChild size="sm" variant="outline" className="flex-1">
                     <a href={`mailto:${selected.contact_email}`}>
                       <Mail className="h-3.5 w-3.5 mr-1.5" />
-                      Email contact
+                      Email
                     </a>
                   </Button>
                   {selected.contact_phone && (
                     <Button asChild size="sm" variant="outline" className="flex-1">
                       <a href={`tel:${selected.contact_phone}`}>
                         <Phone className="h-3.5 w-3.5 mr-1.5" />
-                        Call contact
+                        Call
                       </a>
                     </Button>
                   )}

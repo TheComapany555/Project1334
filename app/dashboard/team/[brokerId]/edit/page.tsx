@@ -133,7 +133,7 @@ export default function EditBrokerPage() {
     const result = await uploadBrokerPhoto(brokerId, formData);
     setPhotoUploading(false);
     if (result.ok && result.url) {
-      setPhotoUrl(result.url + "?t=" + Date.now());
+      setPhotoUrl(result.url);
       toast.success("Photo updated.");
     } else {
       toast.error(result.error ?? "Upload failed.");

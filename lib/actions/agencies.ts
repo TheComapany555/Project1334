@@ -109,17 +109,25 @@ export async function uploadAgencyLogo(formData: FormData): Promise<{ ok: boolea
   if (!allowed.includes(file.type)) return { ok: false, error: "Only JPEG, PNG, WebP, GIF and SVG are allowed." };
 
   const supabase = createServiceRoleClient();
+
+  // Delete old logo files
+  const folder = `agency-${agencyId}`;
+  const { data: oldFiles } = await supabase.storage.from("logos").list(folder);
+  if (oldFiles?.length) {
+    await supabase.storage.from("logos").remove(oldFiles.map((f) => `${folder}/${f.name}`));
+  }
+
   const ext = file.name.split(".").pop() || "png";
-  const path = `agency-${agencyId}/logo.${ext}`;
+  // Use timestamp in filename to bust CDN cache
+  const path = `${folder}/logo-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage.from("logos").upload(path, file, {
-    upsert: true,
     contentType: file.type,
   });
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
-  const url = `${urlData.publicUrl}?v=${Date.now()}`;
+  const url = urlData.publicUrl;
 
   const { error: updateError } = await supabase
     .from("agencies")
@@ -248,14 +256,20 @@ export async function uploadBrokerPhoto(
     return { ok: false, error: "Only JPEG, PNG, WebP and GIF are allowed." };
   }
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${brokerId}/avatar.${ext}`;
+  // Delete old avatar files
+  const { data: oldFiles } = await supabase.storage.from("avatars").list(brokerId);
+  if (oldFiles?.length) {
+    await supabase.storage.from("avatars").remove(oldFiles.map((f) => `${brokerId}/${f.name}`));
+  }
 
-  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${brokerId}/avatar-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { contentType: file.type });
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-  const url = `${urlData.publicUrl}?v=${Date.now()}`;
+  const url = urlData.publicUrl;
 
   await supabase.from("profiles").update({ photo_url: url, updated_at: new Date().toISOString() }).eq("id", brokerId);
 

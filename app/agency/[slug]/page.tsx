@@ -118,18 +118,18 @@ export default async function AgencyPublicPage({ params }: Props) {
               <Card>
                 <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-4">
                   {agency.logo_url ? (
-                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                    <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
                       <Image
                         src={agency.logo_url}
                         alt={agency.name}
                         fill
                         className="object-contain p-1"
-                        sizes="96px"
+                        sizes="112px"
                       />
                     </div>
                   ) : (
-                    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-border bg-primary/10">
-                      <Building2 className="h-10 w-10 text-primary" />
+                    <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl border border-border bg-primary/10">
+                      <Building2 className="h-12 w-12 text-primary" />
                     </div>
                   )}
 

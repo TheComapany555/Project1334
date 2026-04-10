@@ -62,31 +62,18 @@ export async function getListingBySlugAdmin(slug: string) {
       *,
       broker:profiles!broker_id(slug, name, company, photo_url),
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
     .eq("slug", slug)
     .single();
   if (error || !data) return null;
-  const row = data as Record<string, unknown> & {
-    id: string;
-    broker?:
-      | { slug: string; name: string | null; company: string | null; photo_url: string | null }[]
-      | { slug: string; name: string | null; company: string | null; photo_url: string | null };
-  };
+  const row = data as any;
   const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
-  const { data: highlightRows } = await supabase
-    .from("listing_highlight_map")
-    .select("highlight_id")
-    .eq("listing_id", row.id);
-  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
-  const { data: highlights } = await supabase
-    .from("listing_highlights")
-    .select("id, label, accent, active")
-    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
   return {
     ...row,
     broker: broker ?? undefined,
-    listing_highlights: highlights ?? [],
+    listing_highlights: (row.listing_highlights ?? []).map((m: any) => m.listing_highlights).filter(Boolean),
   };
 }
 
@@ -100,34 +87,20 @@ export async function getListingByIdAdmin(id: string) {
       *,
       broker:profiles!broker_id(id, slug, name, company, photo_url),
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
     .eq("id", id)
     .single();
   if (error || !data) return null;
 
-  const row = data as Record<string, unknown> & {
-    id: string;
-    broker?:
-      | { id: string; slug: string; name: string | null; company: string | null; photo_url: string | null }[]
-      | { id: string; slug: string; name: string | null; company: string | null; photo_url: string | null };
-  };
+  const row = data as any;
   const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
-
-  const { data: highlightRows } = await supabase
-    .from("listing_highlight_map")
-    .select("highlight_id")
-    .eq("listing_id", row.id);
-  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
-  const { data: highlights } = await supabase
-    .from("listing_highlights")
-    .select("id, label, accent, active")
-    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
 
   return {
     ...row,
     broker: broker ?? undefined,
-    listing_highlights: highlights ?? [],
+    listing_highlights: (row.listing_highlights ?? []).map((m: any) => m.listing_highlights).filter(Boolean),
   };
 }
 

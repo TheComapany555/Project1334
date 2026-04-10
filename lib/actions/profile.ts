@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateSlugFromName } from "@/lib/slug";
+import { optimizeLogo } from "@/lib/image-optimizer";
 
 export type ProfileFormData = {
   name: string | null;
@@ -193,17 +194,27 @@ export async function uploadProfilePhoto(formData: FormData): Promise<{ ok: bool
   if (!ALLOWED_TYPES.includes(file.type)) return { ok: false, error: "Only JPEG, PNG, WebP and GIF are allowed." };
 
   const supabase = createServiceRoleClient();
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/avatar.${ext}`;
 
-  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
-    upsert: true,
-    contentType: file.type,
+  // Delete old avatar files to prevent orphans and CDN cache issues
+  const { data: oldFiles } = await supabase.storage.from("avatars").list(userId);
+  if (oldFiles?.length) {
+    await supabase.storage.from("avatars").remove(oldFiles.map((f) => `${userId}/${f.name}`));
+  }
+
+  // Optimize avatar: resize + compress
+  const arrayBuffer = await file.arrayBuffer();
+  const { buffer: optimized, contentType } = await optimizeLogo(Buffer.from(arrayBuffer), { maxWidth: 400 });
+
+  // Use timestamp in filename to bust CDN cache
+  const path = `${userId}/avatar-${Date.now()}.jpg`;
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, optimized, {
+    contentType,
   });
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-  const url = `${urlData.publicUrl}?v=${Date.now()}`;
+  const url = urlData.publicUrl;
 
   const { error: updateError } = await supabase
     .from("profiles")
@@ -223,17 +234,35 @@ export async function uploadProfileLogo(formData: FormData): Promise<{ ok: boole
   if (!allowed.includes(file.type)) return { ok: false, error: "Only JPEG, PNG, WebP, GIF and SVG are allowed." };
 
   const supabase = createServiceRoleClient();
-  const ext = file.name.split(".").pop() || "png";
-  const path = `${userId}/logo.${ext}`;
 
-  const { error: uploadError } = await supabase.storage.from("logos").upload(path, file, {
-    upsert: true,
-    contentType: file.type,
+  // Delete old logo files
+  const { data: oldFiles } = await supabase.storage.from("logos").list(userId);
+  if (oldFiles?.length) {
+    await supabase.storage.from("logos").remove(oldFiles.map((f) => `${userId}/${f.name}`));
+  }
+
+  // Optimize logo: resize + compress (skip SVG)
+  let uploadBuffer: Buffer | File = file;
+  let uploadContentType = file.type;
+  let ext = file.name.split(".").pop() || "png";
+  if (file.type !== "image/svg+xml") {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await optimizeLogo(Buffer.from(arrayBuffer), { maxWidth: 400 });
+    uploadBuffer = result.buffer;
+    uploadContentType = result.contentType;
+    ext = result.ext;
+  }
+
+  // Use timestamp in filename to bust CDN cache
+  const path = `${userId}/logo-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("logos").upload(path, uploadBuffer, {
+    contentType: uploadContentType,
   });
   if (uploadError) return { ok: false, error: uploadError.message };
 
   const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
-  const url = `${urlData.publicUrl}?v=${Date.now()}`;
+  const url = urlData.publicUrl;
 
   const { error: updateError } = await supabase
     .from("profiles")

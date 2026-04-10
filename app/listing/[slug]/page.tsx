@@ -45,6 +45,7 @@ import { getListingNdaStatus } from "@/lib/actions/nda";
 import { isFavorited } from "@/lib/actions/favorites";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
 import { ListingViewTracker } from "@/components/listings/listing-view-tracker";
+import { CallTrackingButton } from "@/components/listings/call-tracking-button";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
@@ -313,17 +314,17 @@ export default async function ListingPage({ params }: Props) {
               {broker?.slug ? (
                 <div className="flex items-center gap-4">
                   {broker.photo_url ? (
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                       <Image
                         src={broker.photo_url}
                         alt={broker.name ?? "Broker"}
                         fill
                         className="object-cover"
-                        sizes="48px"
+                        sizes="56px"
                       />
                     </div>
                   ) : (
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-muted-foreground">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-base font-semibold text-muted-foreground">
                       {(broker.name ?? "B").charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -335,13 +336,13 @@ export default async function ListingPage({ params }: Props) {
                       {listing.agency && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {listing.agency.logo_url && (
-                            <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
+                            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded">
                               <Image
                                 src={listing.agency.logo_url}
                                 alt=""
                                 fill
                                 className="object-contain"
-                                sizes="16px"
+                                sizes="24px"
                               />
                             </div>
                           )}
@@ -361,6 +362,17 @@ export default async function ListingPage({ params }: Props) {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {broker.phone && (
+                        <CallTrackingButton
+                          phone={broker.phone}
+                          listingId={listing.id}
+                          brokerId={listing.broker_id}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          Call
+                        </CallTrackingButton>
+                      )}
                       <Button size="sm" variant="outline" asChild>
                         <Link href={`/broker/${broker.slug}`}>View profile</Link>
                       </Button>
@@ -374,18 +386,18 @@ export default async function ListingPage({ params }: Props) {
                 listing.agency?.slug && (
                   <div className="flex items-center gap-4">
                     {listing.agency.logo_url ? (
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
                         <Image
                           src={listing.agency.logo_url}
                           alt={listing.agency.name}
                           fill
                           className="object-contain p-0.5"
-                          sizes="48px"
+                          sizes="56px"
                         />
                       </div>
                     ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                        <Building2 className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
                     <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">

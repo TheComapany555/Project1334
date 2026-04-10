@@ -178,7 +178,7 @@ export function AgencySettings({ embedded = false }: { embedded?: boolean }) {
     const result = await uploadAgencyLogo(formData);
     setLogoUploading(false);
     if (result.ok && result.url) {
-      setLogoUrl(result.url + "?t=" + Date.now());
+      setLogoUrl(result.url);
       toast.success("Logo updated.");
       router.refresh();
     } else {

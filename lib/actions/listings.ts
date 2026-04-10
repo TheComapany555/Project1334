@@ -12,11 +12,21 @@ import type {
   ListingStatus,
 } from "@/lib/types/listings";
 import { notifyAdmins } from "@/lib/actions/notifications";
+import { optimizeImage } from "@/lib/image-optimizer";
 
 const LISTING_IMAGES_BUCKET = "listing-images";
 const MAX_IMAGES_PER_LISTING = 10;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"];
+const OPTIMIZED_MAX_WIDTH = 1600;
+const OPTIMIZED_QUALITY = 80;
+
+/** Flatten highlights from the nested join table structure into a flat array. */
+function flattenHighlights(listing: any): ListingHighlight[] {
+  return (listing.listing_highlights ?? [])
+    .map((m: any) => m.listing_highlights)
+    .filter(Boolean);
+}
 
 /** Coerce form value to number | null for DB numeric columns (reject "", undefined, NaN). */
 function toNumeric(v: unknown): number | null {
@@ -91,7 +101,8 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
       broker:profiles!broker_id(name, photo_url),
-      agency:agencies!agency_id(name, slug, logo_url)
+      agency:agencies!agency_id(name, slug, logo_url),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `);
 
   if (isOwner) {
@@ -102,28 +113,7 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
 
   const { data: listings, error } = await query.order("updated_at", { ascending: false });
   if (error) return [];
-  const list = (listings ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null; broker?: { name: string | null; photo_url: string | null } | { name: string | null; photo_url: string | null }[] })[];
-  const listingIds = list.map((l) => l.id);
-  const highlightsByListing: Record<string, ListingHighlight[]> = {};
-  if (listingIds.length > 0) {
-    const { data: mapRows } = await supabase
-      .from("listing_highlight_map")
-      .select("listing_id, highlight_id")
-      .in("listing_id", listingIds);
-    const highlightIds = [...new Set((mapRows ?? []).map((r) => r.highlight_id))];
-    const { data: highlights } = await supabase
-      .from("listing_highlights")
-      .select("id, label, accent, active")
-      .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
-    const highlightMap = new Map((highlights ?? []).map((h) => [h.id, h as ListingHighlight]));
-    for (const row of mapRows ?? []) {
-      const h = highlightMap.get(row.highlight_id);
-      if (h) {
-        if (!highlightsByListing[row.listing_id]) highlightsByListing[row.listing_id] = [];
-        highlightsByListing[row.listing_id].push(h);
-      }
-    }
-  }
+  const list = (listings ?? []) as any[];
   return list.map((l) => {
     const rawBroker = l.broker;
     const broker = Array.isArray(rawBroker) ? rawBroker[0] ?? null : rawBroker ?? null;
@@ -131,7 +121,7 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
       ...l,
       listing_images: l.listing_images ?? [],
       category: l.category ?? null,
-      listing_highlights: highlightsByListing[l.id] ?? [],
+      listing_highlights: flattenHighlights(l),
       broker: broker ?? undefined,
     };
   });
@@ -146,7 +136,8 @@ export async function getListingById(id: string): Promise<Listing | null> {
     .select(`
       *,
       category:categories(id, name, slug),
-      listing_images(id, url, sort_order)
+      listing_images(id, url, sort_order),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
     .eq("id", id);
 
@@ -159,21 +150,12 @@ export async function getListingById(id: string): Promise<Listing | null> {
 
   const { data, error } = await query.single();
   if (error || !data) return null;
-  const row = data as Listing & { listing_images?: ListingImage[]; category?: Category | null };
-  const { data: highlightRows } = await supabase
-    .from("listing_highlight_map")
-    .select("highlight_id")
-    .eq("listing_id", id);
-  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
-  const { data: highlights } = await supabase
-    .from("listing_highlights")
-    .select("id, label, accent, active")
-    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
+  const row = data as any;
   return {
     ...row,
     category: row.category ?? null,
     listing_images: row.listing_images ?? [],
-    listing_highlights: (highlights ?? []) as ListingHighlight[],
+    listing_highlights: flattenHighlights(row),
   } as Listing & { listing_highlights?: ListingHighlight[] };
 }
 
@@ -217,7 +199,8 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       broker:profiles!broker_id(name, photo_url),
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
-      agency:agencies!agency_id(name, slug, logo_url)
+      agency:agencies!agency_id(name, slug, logo_url),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `,
       { count: "exact" }
     )
@@ -270,27 +253,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   const total = count ?? 0;
-  const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null; broker?: { name: string | null; photo_url: string | null } | { name: string | null; photo_url: string | null }[] })[];
-  const listingIds = list.map((l) => l.id);
-
-  const highlightsByListing: Record<string, ListingHighlight[]> = {};
-  if (listingIds.length > 0) {
-    const { data: mapRows } = await supabase
-      .from("listing_highlight_map")
-      .select("listing_id, highlight_id")
-      .in("listing_id", listingIds);
-    const highlightIds = [...new Set((mapRows ?? []).map((r) => r.highlight_id))];
-    const { data: highlights } = await supabase
-      .from("listing_highlights")
-      .select("id, label, accent, active")
-      .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
-    const highlightMap = new Map((highlights ?? []).map((h) => [h.id, h as ListingHighlight]));
-    for (const row of mapRows ?? []) {
-      const h = highlightMap.get(row.highlight_id);
-      if (h && !highlightsByListing[row.listing_id]) highlightsByListing[row.listing_id] = [];
-      if (h) highlightsByListing[row.listing_id].push(h);
-    }
-  }
+  const list = (data ?? []) as any[];
 
   const listings = list.map((l) => {
     const broker = Array.isArray(l.broker) ? l.broker[0] : l.broker;
@@ -299,7 +262,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       broker: broker ?? undefined,
       listing_images: l.listing_images ?? [],
       category: l.category ?? null,
-      listing_highlights: highlightsByListing[l.id] ?? [],
+      listing_highlights: flattenHighlights(l),
     };
   });
 
@@ -360,43 +323,31 @@ export async function getPublishedListingsByAgencyId(agencyId: string): Promise<
   }));
 }
 
-export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null }; agency?: { name: string; slug: string | null; logo_url: string | null } | null }) | null> {
+export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null; phone: string | null }; agency?: { name: string; slug: string | null; logo_url: string | null } | null }) | null> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("listings")
     .select(`
       *,
-      broker:profiles!broker_id(slug, name, company, photo_url),
+      broker:profiles!broker_id(slug, name, company, photo_url, phone),
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
-      agency:agencies!agency_id(name, slug, logo_url)
+      agency:agencies!agency_id(name, slug, logo_url),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
     .eq("slug", slug)
     .eq("status", "published")
     .is("admin_removed_at", null)
     .single();
   if (error || !data) return null;
-  const row = data as Listing & {
-    listing_images?: ListingImage[];
-    category?: Category | null;
-    broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null }[];
-  };
+  const row = data as any;
   const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
-  const { data: highlightRows } = await supabase
-    .from("listing_highlight_map")
-    .select("highlight_id")
-    .eq("listing_id", row.id);
-  const highlightIds = (highlightRows ?? []).map((r) => r.highlight_id);
-  const { data: highlights } = await supabase
-    .from("listing_highlights")
-    .select("id, label, accent, active")
-    .in("id", highlightIds.length ? highlightIds : ["00000000-0000-0000-0000-000000000000"]);
   return {
     ...row,
     broker: broker ?? undefined,
     category: row.category ?? null,
     listing_images: row.listing_images ?? [],
-    listing_highlights: (highlights ?? []) as ListingHighlight[],
+    listing_highlights: flattenHighlights(row),
   };
 }
 
@@ -643,10 +594,17 @@ export async function uploadListingImage(listingId: string, formData: FormData):
   if (!file?.size) return { ok: false, error: "No file provided." };
   if (file.size > MAX_IMAGE_SIZE) return { ok: false, error: "Image must be under 5MB." };
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return { ok: false, error: "Only JPEG, PNG, WebP and GIF are allowed." };
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${listingId}/${Date.now()}.${ext}`;
-  const { error: uploadError } = await supabase.storage.from(LISTING_IMAGES_BUCKET).upload(path, file, {
-    contentType: file.type,
+
+  // Optimize image: resize to max width, convert to JPEG, compress
+  const arrayBuffer = await file.arrayBuffer();
+  const { buffer: optimizedBuffer, contentType } = await optimizeImage(
+    Buffer.from(arrayBuffer),
+    { maxWidth: OPTIMIZED_MAX_WIDTH, quality: OPTIMIZED_QUALITY }
+  );
+
+  const path = `${listingId}/${Date.now()}.jpg`;
+  const { error: uploadError } = await supabase.storage.from(LISTING_IMAGES_BUCKET).upload(path, optimizedBuffer, {
+    contentType,
     upsert: false,
   });
   if (uploadError) return { ok: false, error: uploadError.message };
@@ -695,8 +653,10 @@ export async function reorderListingImages(listingId: string, imageIds: string[]
   }
   const { data: listing } = await reorderQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
-  for (let i = 0; i < imageIds.length; i++) {
-    await supabase.from("listing_images").update({ sort_order: i }).eq("id", imageIds[i]).eq("listing_id", listingId);
-  }
+  await Promise.all(
+    imageIds.map((imgId, i) =>
+      supabase.from("listing_images").update({ sort_order: i }).eq("id", imgId).eq("listing_id", listingId)
+    )
+  );
   return { ok: true };
 }

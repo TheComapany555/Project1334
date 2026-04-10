@@ -426,3 +426,92 @@ export function invoiceStatusEmail({
     </p>
   `);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Share listing with contact                                         */
+/* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  Enquiry confirmation (to the buyer who submitted)                  */
+/* ------------------------------------------------------------------ */
+
+export function enquiryConfirmationEmail({
+  contactName,
+  listingTitle,
+  listingUrl,
+  brokerName,
+}: {
+  contactName: string | null;
+  listingTitle: string;
+  listingUrl: string;
+  brokerName: string | null;
+}): string {
+  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
+  const brokerLine = brokerName ? ` The broker (<strong>${brokerName}</strong>) has been notified and` : " The listing broker has been notified and";
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${greeting}
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      Thank you for your enquiry on <strong>${listingTitle}</strong>.${brokerLine} will be in touch with you shortly.
+    </p>
+
+    <div style="margin:0 0 24px;text-align:center;">
+      <a href="${listingUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 32px;border-radius:8px;">
+        View Listing
+      </a>
+    </div>
+
+    <p style="margin:0 0 8px;font-size:13px;color:#888888;">
+      If you didn't submit this enquiry, please ignore this email.
+    </p>
+    <p style="margin:0;font-size:13px;color:#888888;">
+      — The Salebiz Team
+    </p>
+  `);
+}
+
+export function shareListingEmail({
+  contactName,
+  brokerName,
+  listingTitle,
+  listingUrl,
+  price,
+  location,
+}: {
+  contactName: string | null;
+  brokerName: string;
+  listingTitle: string;
+  listingUrl: string;
+  price: string | null;
+  location: string | null;
+}): string {
+  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
+  const details = [price, location].filter(Boolean).join(" &middot; ");
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${greeting}
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      <strong>${brokerName}</strong> thought you might be interested in this business listing:
+    </p>
+
+    <div style="margin:0 0 24px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">
+        ${listingTitle}
+      </p>
+      ${details ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${details}</p>` : ""}
+      <a href="${listingUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
+        View Listing
+      </a>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#888888;">
+      This email was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
+    </p>
+  `);
+}

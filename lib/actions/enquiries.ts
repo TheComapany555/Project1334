@@ -4,7 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@/lib/types/enquiries";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
-import { enquiryNotificationEmail } from "@/lib/email-templates";
+import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -84,6 +84,28 @@ export async function submitEnquiry(
     }).catch(() => {});
   }
 
+  // Confirmation email to the enquirer
+  {
+    const listingUrl = `${APP_URL}/listing/${listing.slug}`;
+    const { data: brokerProfile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("id", listing.broker_id)
+      .single();
+
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: contactEmail,
+      subject: `Your enquiry on "${listing.title}" — Salebiz`,
+      html: enquiryConfirmationEmail({
+        contactName,
+        listingTitle: listing.title,
+        listingUrl,
+        brokerName: brokerProfile?.name ?? null,
+      }),
+    }).catch(() => {});
+  }
+
   // In-app notification for the broker
   await createNotification({
     userId: listing.broker_id,
@@ -129,7 +151,7 @@ export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
     .from("enquiries")
     .select(`
       *,
-      listing:listings(id, title, slug)
+      listing:listings(id, title, slug, category:categories(id, name))
     `);
 
   if (agencyId && agencyRole === "owner") {
@@ -150,11 +172,17 @@ export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
 
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) return [];
-  const rows = (data ?? []) as (Enquiry & { listing?: { id: string; title: string; slug: string }[] })[];
-  return rows.map((r) => ({
-    ...r,
-    listing: Array.isArray(r.listing) ? r.listing[0] ?? null : r.listing ?? null,
-  }));
+  const rows = (data ?? []) as (Enquiry & { listing?: any[] | any })[];
+  return rows.map((r) => {
+    const listing = Array.isArray(r.listing) ? r.listing[0] ?? null : r.listing ?? null;
+    return {
+      ...r,
+      listing: listing ? {
+        ...listing,
+        category: Array.isArray(listing.category) ? listing.category[0] ?? null : listing.category ?? null,
+      } : null,
+    };
+  });
 }
 
 /** Admin: list all enquiries with listing and broker info. */
@@ -167,7 +195,7 @@ export async function getAllEnquiries(options?: {
   await requireAdmin();
   const supabase = createServiceRoleClient();
   const page = Math.max(1, options?.page ?? 1);
-  const pageSize = Math.min(50, Math.max(1, options?.pageSize ?? 20));
+  const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 20));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -193,4 +221,16 @@ export async function getAllEnquiries(options?: {
     broker: Array.isArray(r.broker) ? r.broker[0] ?? null : r.broker ?? null,
   }));
   return { enquiries, total: count ?? 0 };
+}
+
+/** Admin: lightweight fetch of enquiry dates + reasons for charts (no joins, no limit). */
+export async function getEnquiryChartData(): Promise<{ created_at: string; reason: string | null }[]> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("enquiries")
+    .select("created_at, reason")
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return data ?? [];
 }

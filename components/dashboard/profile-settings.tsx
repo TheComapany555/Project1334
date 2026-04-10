@@ -257,7 +257,7 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
     const result = await uploadProfilePhoto(formData);
     setPhotoUploading(false);
     if (result.ok && result.url) {
-      setPhotoUrl(result.url + "?t=" + Date.now());
+      setPhotoUrl(result.url);
       toast.success("Photo updated.");
       router.refresh();
     } else {
@@ -274,7 +274,7 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
     const result = await uploadProfileLogo(formData);
     setLogoUploading(false);
     if (result.ok && result.url) {
-      setLogoUrl(result.url + "?t=" + Date.now());
+      setLogoUrl(result.url);
       toast.success("Logo updated.");
       router.refresh();
     } else {

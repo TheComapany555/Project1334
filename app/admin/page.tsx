@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth-client";
 import { getAdminStats } from "@/lib/actions/admin-stats";
-import { getAllEnquiries } from "@/lib/actions/enquiries";
+import { getAllEnquiries, getEnquiryChartData } from "@/lib/actions/enquiries";
 import { getAllListingsForAdmin } from "@/lib/actions/admin-listings";
 import { SectionCards } from "@/components/section-cards";
 import { ChartOverview } from "@/components/dashboard/chart-overview";
@@ -11,11 +11,11 @@ import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
 
 export default async function AdminPage() {
-  const [session, stats, { enquiries: recentEnquiries }, { enquiries: allEnquiries }, allListings] = await Promise.all([
+  const [session, stats, { enquiries: recentEnquiries }, enquiryChartRows, allListings] = await Promise.all([
     getSession(),
     getAdminStats(),
     getAllEnquiries({ page: 1, pageSize: 10 }),
-    getAllEnquiries({ page: 1, pageSize: 500 }),
+    getEnquiryChartData(),
     getAllListingsForAdmin(),
   ]);
 
@@ -24,14 +24,14 @@ export default async function AdminPage() {
 
   const overviewData = buildOverviewChartData(
     allListings.map((l) => ({ created_at: l.created_at })),
-    allEnquiries.map((e) => ({ created_at: e.created_at }))
+    enquiryChartRows.map((e) => ({ created_at: e.created_at }))
   );
 
   const statCards = [
-    { title: "Agencies", value: totalBrokers, footer: `${stats.brokersActive} active, ${stats.brokersPending} pending` },
-    { title: "Listings", value: totalListings, footer: `${stats.listingsPublished} published, ${stats.listingsDraft} draft` },
-    { title: "Enquiries", value: stats.enquiriesTotal, footer: `${stats.enquiriesLast7Days} in the last 7 days` },
-    { title: "Categories", value: stats.categoriesActive, footer: "Active categories" },
+    { title: "Agencies", value: totalBrokers, footer: `${stats.brokersActive} active, ${stats.brokersPending} pending`, href: "/admin/brokers" },
+    { title: "Listings", value: totalListings, footer: `${stats.listingsPublished} published, ${stats.listingsDraft} draft`, href: "/admin/listings" },
+    { title: "Enquiries", value: stats.enquiriesTotal, footer: `${stats.enquiriesLast7Days} in the last 7 days`, href: "/admin/enquiries" },
+    { title: "Categories", value: stats.categoriesActive, footer: "Active categories", href: "/admin/categories" },
   ];
 
   return (

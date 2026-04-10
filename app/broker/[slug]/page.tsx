@@ -123,9 +123,9 @@ export default async function BrokerProfilePage({ params }: Props) {
             <div className="space-y-4">
               <Card>
                 <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-4">
-                  <Avatar className="h-24 w-24 ring-4 ring-primary/10">
+                  <Avatar className="h-28 w-28 ring-4 ring-primary/10">
                     {profile.photo_url && <AvatarImage src={profile.photo_url} alt={displayName} />}
-                    <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">
+                    <AvatarFallback className="text-3xl font-semibold bg-primary/10 text-primary">
                       {initial}
                     </AvatarFallback>
                   </Avatar>
@@ -135,11 +135,11 @@ export default async function BrokerProfilePage({ params }: Props) {
                     {agencyName && (
                       <div className="flex items-center justify-center gap-1.5">
                         {profile.agency?.logo_url ? (
-                          <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                            <Image src={profile.agency.logo_url} alt="" fill className="object-contain" sizes="16px" />
+                          <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded">
+                            <Image src={profile.agency.logo_url} alt="" fill className="object-contain" sizes="24px" />
                           </div>
                         ) : (
-                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
                         )}
                         {profile.agency?.slug ? (
                           <Link

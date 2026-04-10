@@ -18,7 +18,7 @@ export type Enquiry = {
 };
 
 export type EnquiryWithListing = Enquiry & {
-  listing?: { id: string; title: string; slug: string } | null;
+  listing?: { id: string; title: string; slug: string; category?: { id: string; name: string } | null } | null;
 };
 
 export type EnquiryWithListingAndBroker = EnquiryWithListing & {

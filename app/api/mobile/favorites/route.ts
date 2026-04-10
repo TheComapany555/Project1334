@@ -27,10 +27,10 @@ export async function GET(request: Request) {
 
     const listingIds = favRows.map((r) => r.listing_id);
 
-    // Fetch full listing data
+    // Fetch only fields needed for listing cards
     const { data: listings } = await supabase
       .from("listings")
-      .select("*, category:categories(id, name), listing_images(id, url, sort_order)")
+      .select("id, slug, title, asking_price, price_type, revenue, location_text, is_featured, category:categories(id, name), listing_images(id, url, sort_order)")
       .in("id", listingIds)
       .eq("status", "published");
 

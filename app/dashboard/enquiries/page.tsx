@@ -1,4 +1,5 @@
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries";
+import { getCategories } from "@/lib/actions/listings";
 import { buildEnquiriesChartData } from "@/lib/chart-data";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { CHART_COLORS } from "@/lib/chart-theme";
@@ -16,7 +17,10 @@ const REASON_COLORS: Record<string, string> = {
 };
 
 export default async function EnquiriesPage() {
-  const enquiries = await getEnquiriesByBroker();
+  const [enquiries, categories] = await Promise.all([
+    getEnquiriesByBroker(),
+    getCategories(),
+  ]);
   const total = enquiries.length;
 
   const newThisWeek = enquiries.filter((e) => {
@@ -65,7 +69,10 @@ export default async function EnquiriesPage() {
         />
       </div>
 
-      <EnquiriesClientView enquiries={enquiries} />
+      <EnquiriesClientView
+        enquiries={enquiries}
+        categoryOptions={categories.map((c) => ({ value: c.id, label: c.name }))}
+      />
     </div>
   );
 }

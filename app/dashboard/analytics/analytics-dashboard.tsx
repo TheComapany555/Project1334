@@ -29,6 +29,7 @@ import {
   TrendingUp,
   Smartphone,
   Globe,
+  Phone,
 } from "lucide-react";
 import type { AnalyticsOverview } from "@/lib/actions/analytics";
 
@@ -285,6 +286,13 @@ export function AnalyticsDashboard({ initialData }: Props) {
           accent={C_ENQUIRY}
         />
         <KpiCard
+          icon={<Phone className="h-4 w-4" />}
+          label="Calls"
+          value={fmtNum(data.calls)}
+          sub={`${data.calls_total} all time`}
+          accent="#10b981"
+        />
+        <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}
           label="Engagement"
           value={`${data.engagement_rate}%`}
@@ -438,6 +446,7 @@ export function AnalyticsDashboard({ initialData }: Props) {
                     { label: "Views", value: data.total_views, color: C_PRIMARY },
                     { label: "Saves", value: data.saves_total, color: "#ec4899" },
                     { label: "Enquiries", value: data.enquiries, color: C_ENQUIRY },
+                    { label: "Calls", value: data.calls_total, color: "#10b981" },
                     { label: "NDA signed", value: data.nda_sigs_total, color: "#8b5cf6" },
                   ].map((row) => {
                     const pct =

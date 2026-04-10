@@ -31,10 +31,12 @@ const REASON_OPTIONS = Object.entries(ENQUIRY_REASON_LABELS).map(
 
 type Props = {
   enquiries: EnquiryWithListing[];
+  categoryOptions?: { value: string; label: string }[];
 };
 
-export function EnquiriesClientView({ enquiries }: Props) {
+export function EnquiriesClientView({ enquiries, categoryOptions = [] }: Props) {
   const [reason, setReason] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [page, setPage] = useState(1);
   const [isFiltering, setIsFiltering] = useState(false);
   const filterTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -51,11 +53,13 @@ export function EnquiriesClientView({ enquiries }: Props) {
 
   const total = enquiries.length;
 
-  // Filter
+  // Filter by reason and/or category
   const filtered = useMemo(() => {
-    if (!reason) return enquiries;
-    return enquiries.filter((e) => e.reason === reason);
-  }, [enquiries, reason]);
+    let result = enquiries;
+    if (reason) result = result.filter((e) => e.reason === reason);
+    if (categoryId) result = result.filter((e) => e.listing?.category?.id === categoryId);
+    return result;
+  }, [enquiries, reason, categoryId]);
 
   const filteredTotal = filtered.length;
   const totalPages = Math.ceil(filteredTotal / PAGE_SIZE) || 1;
@@ -79,12 +83,34 @@ export function EnquiriesClientView({ enquiries }: Props) {
           <CardDescription className="mt-0.5">
             {total === 0
               ? "No enquiries yet."
-              : reason
+              : reason || categoryId
                 ? `Showing ${filteredTotal} of ${total} enquir${total === 1 ? "y" : "ies"}. Click a row to view details.`
                 : `${total} enquir${total === 1 ? "y" : "ies"}. Click a row to view details.`}
           </CardDescription>
         </div>
-        <div className="flex items-center gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-2 ml-auto shrink-0 flex-wrap">
+          {categoryOptions.length > 0 && (
+            <Select
+              value={categoryId || "all"}
+              onValueChange={(val) => {
+                setCategoryId(val === "all" ? "" : val);
+                setPage(1);
+                triggerFilterAnimation();
+              }}
+            >
+              <SelectTrigger className="w-[160px]" aria-label="Filter by category">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categoryOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={reason || "all"} onValueChange={handleReasonChange}>
             <SelectTrigger className="w-[160px]" aria-label="Filter by reason">
               <SelectValue placeholder="All reasons" />
@@ -148,6 +174,7 @@ export function EnquiriesClientView({ enquiries }: Props) {
               variant="ghost"
               onClick={() => {
                 setReason("");
+                setCategoryId("");
                 setPage(1);
                 triggerFilterAnimation();
               }}

@@ -54,6 +54,7 @@ const brokerNav = [
   { label: "Workspace", href: "/dashboard/workspace", icon: Building03Icon },
   { label: "Listings", href: "/dashboard/listings", icon: FileIcon },
   { label: "Enquiries", href: "/dashboard/enquiries", icon: MailIcon },
+  { label: "Contacts", href: "/dashboard/contacts", icon: UserIcon },
   { label: "NDAs", href: "/dashboard/ndas", icon: SecurityCheckIcon },
   { label: "Payments", href: "/dashboard/payments", icon: Wallet02Icon },
 ] as const;

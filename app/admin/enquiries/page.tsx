@@ -1,4 +1,4 @@
-import { getAllEnquiries } from "@/lib/actions/enquiries";
+import { getAllEnquiries, getEnquiryChartData } from "@/lib/actions/enquiries";
 import { getBrokersForAdmin } from "@/lib/actions/admin-brokers";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { buildEnquiriesChartData } from "@/lib/chart-data";
@@ -15,9 +15,10 @@ const REASON_COLORS: Record<string, string> = {
 };
 
 export default async function AdminEnquiriesPage() {
-  const [brokers, { enquiries }] = await Promise.all([
+  const [brokers, { enquiries }, chartRows] = await Promise.all([
     getBrokersForAdmin(),
-    getAllEnquiries({ page: 1, pageSize: 500 }),
+    getAllEnquiries({ page: 1, pageSize: 100 }),
+    getEnquiryChartData(),
   ]);
 
   const brokerOptions = brokers.map((b) => ({
@@ -25,13 +26,13 @@ export default async function AdminEnquiriesPage() {
     label: b.name || b.company || b.email || b.id,
   }));
 
-  // Chart data
+  // Chart data from lightweight query
   const enquiriesChartData = buildEnquiriesChartData(
-    enquiries.map((e) => ({ created_at: e.created_at }))
+    chartRows.map((e) => ({ created_at: e.created_at }))
   );
 
   const reasonCounts = new Map<string, number>();
-  for (const e of enquiries) {
+  for (const e of chartRows) {
     const label = (e.reason && ENQUIRY_REASON_LABELS[e.reason]) || "Other";
     reasonCounts.set(label, (reasonCounts.get(label) || 0) + 1);
   }
