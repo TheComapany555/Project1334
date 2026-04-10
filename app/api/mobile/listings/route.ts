@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     const { data: rows, error: fullError } = await supabase
       .from("listings")
       .select(
-        "id, slug, title, asking_price, price_type, revenue, location_text, is_featured, summary, state, suburb, category:categories(id, name), listing_images(id, url, sort_order), listing_highlights:listing_highlight_map(listing_highlights(id, name, icon))",
+        "*, category:categories(id, name), listing_images(id, url, sort_order), listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))",
       )
       .in("id", orderedIds);
 
