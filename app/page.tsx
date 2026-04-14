@@ -807,6 +807,18 @@ export default async function HomePage() {
               >
                 Sign in
               </Link>
+              <Link
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors w-fit py-0.5"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors w-fit py-0.5"
+              >
+                Terms of Service
+              </Link>
             </div>
 
             {/* Get started */}

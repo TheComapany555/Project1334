@@ -200,6 +200,14 @@ export function PublicHeader({
                         </Link>
                       )}
                     </nav>
+                    <div className="px-4 pt-2 pb-1 flex items-center gap-4 text-xs text-muted-foreground">
+                      <Link href="/privacy" className="hover:text-foreground transition-colors">
+                        Privacy
+                      </Link>
+                      <Link href="/terms" className="hover:text-foreground transition-colors">
+                        Terms
+                      </Link>
+                    </div>
                     <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
                         hasDashboard ? (
@@ -353,6 +361,14 @@ export function PublicHeader({
                         </Link>
                       )}
                     </nav>
+                    <div className="px-4 pt-2 pb-1 flex items-center gap-4 text-xs text-muted-foreground">
+                      <Link href="/privacy" className="hover:text-foreground transition-colors">
+                        Privacy
+                      </Link>
+                      <Link href="/terms" className="hover:text-foreground transition-colors">
+                        Terms
+                      </Link>
+                    </div>
                     <div className="p-4 border-t border-border space-y-3">
                       {isLoggedIn ? (
                         hasDashboard ? (
