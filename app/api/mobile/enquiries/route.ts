@@ -19,9 +19,21 @@ export async function POST(request: Request) {
       contact_name?: string;
       contact_email: string;
       contact_phone?: string;
+      interest?: string;
+      consent_marketing?: boolean;
     };
 
-    const { listing_id, broker_id, reason, message, contact_name, contact_email, contact_phone } = body;
+    const {
+      listing_id,
+      broker_id,
+      reason,
+      message,
+      contact_name,
+      contact_email,
+      contact_phone,
+      interest,
+      consent_marketing,
+    } = body;
 
     if (!listing_id || !broker_id || !message || !contact_email) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -55,6 +67,8 @@ export async function POST(request: Request) {
       contact_name: contact_name?.trim() ?? null,
       contact_email: contact_email.toLowerCase().trim(),
       contact_phone: contact_phone?.trim() ?? null,
+      interest: interest?.trim() || null,
+      consent_marketing: !!consent_marketing,
       ...(mobileUser ? { user_id: mobileUser.sub } : {}),
     });
 
@@ -66,7 +80,7 @@ export async function POST(request: Request) {
     // Send emails in parallel (fire-and-forget)
     const listingUrl = `${APP_URL}/listing/${listing.slug}`;
     const dashboardUrl = `${APP_URL}/dashboard/enquiries`;
-    const reasonLabel = reason && ENQUIRY_REASON_LABELS[reason] ? ENQUIRY_REASON_LABELS[reason] : reason || "—";
+    const reasonLabel = reason && ENQUIRY_REASON_LABELS[reason] ? ENQUIRY_REASON_LABELS[reason] : reason || "Not specified";
 
     // Fetch broker email and name
     const [brokerUserRes, brokerProfileRes] = await Promise.all([

@@ -2,23 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { Advertisement } from "@/lib/types/advertising";
 import { toggleAdStatus, deleteAd } from "@/lib/actions/admin-advertising";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,35 +29,29 @@ const PLACEMENT_LABELS: Record<string, string> = {
   listing: "Listing page",
 };
 
+const PLACEMENT_OPTIONS = [
+  { value: "homepage", label: "Homepage" },
+  { value: "search", label: "Search results" },
+  { value: "listing", label: "Listing page" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "expired", label: "Expired" },
+];
+
 function isExpired(ad: Advertisement): boolean {
   return !!ad.end_date && new Date(ad.end_date) < new Date();
+}
+
+function effectiveStatus(ad: Advertisement): string {
+  return isExpired(ad) ? "expired" : ad.status;
 }
 
 export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [placementFilter, setPlacementFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    let result = ads;
-    if (statusFilter !== "all") {
-      if (statusFilter === "expired") {
-        result = result.filter((a) => isExpired(a));
-      } else {
-        result = result.filter((a) => a.status === statusFilter && !isExpired(a));
-      }
-    }
-    if (placementFilter !== "all") {
-      result = result.filter((a) => a.placement === placementFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((a) => a.title.toLowerCase().includes(q));
-    }
-    return result;
-  }, [ads, statusFilter, placementFilter, search]);
 
   async function handleToggle(id: string) {
     const res = await toggleAdStatus(id);
@@ -89,125 +75,176 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
     }
   }
 
+  const columns = useMemo<ColumnDef<Advertisement>[]>(
+    () => [
+      {
+        accessorKey: "title",
+        meta: { label: "Title" },
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Title" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={
+              isExpired(row.original)
+                ? "font-medium opacity-60 max-w-[220px] truncate inline-block"
+                : "font-medium max-w-[220px] truncate inline-block"
+            }
+          >
+            {row.original.title}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "placement",
+        meta: { label: "Placement" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Placement" />
+        ),
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-xs capitalize">
+            {PLACEMENT_LABELS[row.original.placement] ?? row.original.placement}
+          </Badge>
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "status",
+        accessorFn: (row) => effectiveStatus(row),
+        meta: { label: "Status" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Status" />
+        ),
+        cell: ({ row }) => {
+          const expired = isExpired(row.original);
+          if (expired) {
+            return (
+              <Badge variant="secondary" className="border-0">
+                Expired
+              </Badge>
+            );
+          }
+          return (
+            <Badge
+              variant={
+                row.original.status === "active" ? "success" : "secondary"
+              }
+              className="border-0 capitalize"
+            >
+              {row.original.status}
+            </Badge>
+          );
+        },
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "schedule",
+        meta: { label: "Schedule" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Schedule" />
+        ),
+        accessorFn: (row) => row.start_date,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            <span>{formatDate(row.original.start_date)}</span>
+            {row.original.end_date ? (
+              <>
+                <span className="mx-1">→</span>
+                <span>{formatDate(row.original.end_date)}</span>
+              </>
+            ) : (
+              <span className="text-xs ml-1">(no expiry)</span>
+            )}
+          </span>
+        ),
+        sortingFn: (a, b) =>
+          new Date(a.original.start_date).getTime() -
+          new Date(b.original.start_date).getTime(),
+      },
+      {
+        accessorKey: "impression_count",
+        meta: { label: "Impressions" },
+        header: ({ column }) => (
+          <div className="text-right">
+            <DataTableColumnHeader column={column} title="Impressions" />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="text-right text-sm tabular-nums">
+            {row.original.impression_count.toLocaleString()}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "click_count",
+        meta: { label: "Clicks" },
+        header: ({ column }) => (
+          <div className="text-right">
+            <DataTableColumnHeader column={column} title="Clicks" />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="text-right text-sm tabular-nums">
+            {row.original.click_count.toLocaleString()}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/admin/advertising/${row.original.id}/edit`}>
+                Edit
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleToggle(row.original.id)}
+            >
+              {row.original.status === "active" ? "Deactivate" : "Activate"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeletingId(row.original.id)}
+            >
+              Delete
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 pt-4 pb-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search ads..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={placementFilter} onValueChange={setPlacementFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Placement" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All placements</SelectItem>
-            <SelectItem value="homepage">Homepage</SelectItem>
-            <SelectItem value="search">Search results</SelectItem>
-            <SelectItem value="listing">Listing page</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="px-4 pb-4">
+        <DataTable
+          columns={columns}
+          data={ads}
+          searchColumnId="title"
+          searchPlaceholder="Search ads by title…"
+          facetedFilters={[
+            {
+              columnId: "placement",
+              title: "Placement",
+              options: PLACEMENT_OPTIONS,
+            },
+            { columnId: "status", title: "Status", options: STATUS_OPTIONS },
+          ]}
+          initialSorting={[{ id: "schedule", desc: true }]}
+        />
       </div>
-      <div className="px-4 pb-2">
-        <p className="text-xs text-muted-foreground">{filtered.length} of {ads.length} ads</p>
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Placement</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Schedule</TableHead>
-            <TableHead className="text-right">Impressions</TableHead>
-            <TableHead className="text-right">Clicks</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((ad) => {
-            const expired = isExpired(ad);
-            return (
-              <TableRow key={ad.id} className={expired ? "opacity-60" : ""}>
-                <TableCell className="font-medium max-w-[200px] truncate">
-                  {ad.title}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {PLACEMENT_LABELS[ad.placement] ?? ad.placement}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {expired ? (
-                    <Badge variant="secondary" className="border-0">
-                      Expired
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant={
-                        ad.status === "active" ? "success" : "secondary"
-                      }
-                      className="border-0 capitalize"
-                    >
-                      {ad.status}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  <span>{formatDate(ad.start_date)}</span>
-                  {ad.end_date && (
-                    <>
-                      <span className="mx-1">→</span>
-                      <span>{formatDate(ad.end_date)}</span>
-                    </>
-                  )}
-                  {!ad.end_date && (
-                    <span className="text-xs ml-1">(no expiry)</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right text-sm tabular-nums">
-                  {ad.impression_count.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right text-sm tabular-nums">
-                  {ad.click_count.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/admin/advertising/${ad.id}/edit`}>
-                        Edit
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggle(ad.id)}
-                    >
-                      {ad.status === "active" ? "Deactivate" : "Activate"}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeletingId(ad.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
 
-      {/* Delete confirmation */}
       <AlertDialog
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}

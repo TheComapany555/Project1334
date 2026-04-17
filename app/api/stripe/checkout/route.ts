@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   // Verify listing ownership
   let query = supabase
     .from("listings")
-    .select("id, title, broker_id, agency_id")
+    .select("id, title, broker_id, agency_id, category_id")
     .eq("id", listingId);
 
   if (agencyId && agencyRole === "owner") {
@@ -58,7 +58,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Create payment record with product reference
+  // Resolve scope:
+  // - For 'featured' products use the product's scope (defaults to 'homepage' for legacy rows)
+  // - For 'listing_tier' products there's no scope; webhook will apply legacy behaviour
+  const featuredScope =
+    product.product_type === "featured"
+      ? (product.scope ?? "homepage")
+      : null;
+
+  // If the product is category-scoped, the category must match the listing's
+  // category. (admin enforces this at product setup; double-check here.)
+  if (
+    product.product_type === "featured" &&
+    product.category_id &&
+    product.category_id !== listing.category_id
+  ) {
+    return NextResponse.json(
+      { error: "This featured package is not available for this listing's category." },
+      { status: 400 }
+    );
+  }
+
+  const featuredCategoryId =
+    product.product_type === "featured" &&
+    (product.scope === "category" || product.scope === "both")
+      ? listing.category_id
+      : null;
+
+  // Create payment record with product + scope reference
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
     .insert({
@@ -70,6 +97,8 @@ export async function POST(req: NextRequest) {
       amount: product.price,
       currency: product.currency,
       status: "pending",
+      featured_scope: featuredScope,
+      featured_category_id: featuredCategoryId,
     })
     .select("id")
     .single();
@@ -103,6 +132,10 @@ export async function POST(req: NextRequest) {
       listing_id: listingId,
       product_id: productId,
       package_days: String(product.duration_days ?? 0),
+      ...(featuredScope ? { featured_scope: featuredScope } : {}),
+      ...(featuredCategoryId
+        ? { featured_category_id: featuredCategoryId }
+        : {}),
     },
     success_url: `${origin}/dashboard/payments?success=true&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/dashboard/listings?cancelled=true`,

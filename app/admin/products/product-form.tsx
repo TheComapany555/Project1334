@@ -7,7 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { createProduct, updateProduct } from "@/lib/actions/products";
-import type { Product } from "@/lib/types/products";
+import type { FeaturedScope, Product } from "@/lib/types/products";
+import { FEATURED_SCOPE_LABELS } from "@/lib/types/products";
+import type { Category } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,15 +31,25 @@ const productSchema = z.object({
   currency: z.string().min(1),
   duration_days: z.string().optional().or(z.literal("")),
   product_type: z.enum(["featured", "listing_tier", "subscription"]),
+  scope: z.enum(["homepage", "category", "both", "none"]),
+  category_id: z.string(),
 });
 
 type FormValues = z.infer<typeof productSchema>;
 
 type ProductFormProps = {
   product?: Product;
+  categories: Category[];
 };
 
-export function ProductForm({ product }: ProductFormProps) {
+const SCOPE_HELP: Record<FeaturedScope, string> = {
+  homepage: "Sells the homepage feature slot. Category is ignored.",
+  category:
+    "Sells the per-category feature slot. Pick which category this price applies to.",
+  both: "Sells homepage + category bundle. Optionally pin to a single category.",
+};
+
+export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEdit = !!product;
@@ -57,8 +69,16 @@ export function ProductForm({ product }: ProductFormProps) {
       currency: product?.currency ?? "aud",
       duration_days: product?.duration_days ? String(product.duration_days) : "",
       product_type: product?.product_type ?? "featured",
+      scope: (product?.scope as FormValues["scope"] | undefined) ?? "homepage",
+      category_id: product?.category_id ?? "",
     },
   });
+
+  const productType = watch("product_type");
+  const scope = watch("scope");
+  const isFeatured = productType === "featured";
+  const showCategory = isFeatured && (scope === "category" || scope === "both");
+  const categoryRequired = isFeatured && scope === "category";
 
   async function onSubmit(values: FormValues) {
     const priceNum = parseFloat(values.price);
@@ -72,43 +92,44 @@ export function ProductForm({ product }: ProductFormProps) {
       return;
     }
 
+    if (categoryRequired && !values.category_id) {
+      toast.error("Pick a category for category-scoped pricing");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const priceInCents = Math.round(priceNum * 100);
       const durationDays = durationNum || null;
 
-      if (isEdit && product) {
-        const res = await updateProduct(product.id, {
-          name: values.name,
-          description: values.description || null,
-          price: priceInCents,
-          currency: values.currency,
-          duration_days: durationDays,
-          product_type: values.product_type,
-        });
-        if (res.ok) {
-          toast.success("Plan updated");
-          router.refresh();
-          router.push("/admin/products");
-        } else {
-          toast.error(res.error ?? "Failed to update product");
-        }
+      const resolvedScope: FeaturedScope | null = isFeatured
+        ? (values.scope as FeaturedScope)
+        : null;
+      const resolvedCategoryId = isFeatured && showCategory && values.category_id
+        ? values.category_id
+        : null;
+
+      const payload = {
+        name: values.name,
+        description: values.description || null,
+        price: priceInCents,
+        currency: values.currency,
+        duration_days: durationDays,
+        product_type: values.product_type,
+        scope: resolvedScope,
+        category_id: resolvedCategoryId,
+      };
+
+      const res = isEdit && product
+        ? await updateProduct(product.id, payload)
+        : await createProduct(payload);
+
+      if (res.ok) {
+        toast.success(isEdit ? "Plan updated" : "Plan created");
+        router.refresh();
+        router.push("/admin/products");
       } else {
-        const res = await createProduct({
-          name: values.name,
-          description: values.description || null,
-          price: priceInCents,
-          currency: values.currency,
-          duration_days: durationDays,
-          product_type: values.product_type,
-        });
-        if (res.ok) {
-          toast.success("Plan created");
-          router.refresh();
-          router.push("/admin/products");
-        } else {
-          toast.error(res.error ?? "Failed to create product");
-        }
+        toast.error(res.error ?? `Failed to ${isEdit ? "update" : "create"} product`);
       }
     } finally {
       setIsSubmitting(false);
@@ -155,6 +176,59 @@ export function ProductForm({ product }: ProductFormProps) {
           Controls where this plan appears for agencies.
         </p>
       </div>
+
+      {isFeatured && (
+        <div className="space-y-2">
+          <Label>Placement scope</Label>
+          <Select
+            value={watch("scope")}
+            onValueChange={(v) => setValue("scope", v as FormValues["scope"])}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(["homepage", "category", "both"] as FeaturedScope[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {FEATURED_SCOPE_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{SCOPE_HELP[scope as FeaturedScope]}</p>
+        </div>
+      )}
+
+      {showCategory && (
+        <div className="space-y-2">
+          <Label htmlFor="category_id">
+            Category {categoryRequired && <span className="text-destructive">*</span>}
+            {!categoryRequired && (
+              <span className="text-xs text-muted-foreground font-normal ml-1">
+                (optional, leave empty to apply to all categories)
+              </span>
+            )}
+          </Label>
+          <Select
+            value={watch("category_id") || "__none"}
+            onValueChange={(v) => setValue("category_id", v === "__none" ? "" : v)}
+          >
+            <SelectTrigger id="category_id">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {!categoryRequired && (
+                <SelectItem value="__none">All categories</SelectItem>
+              )}
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">

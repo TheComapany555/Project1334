@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import {
+  FeaturedBadge,
+  isFeaturedNow,
+} from "@/components/listings/featured-badge";
 import { ListingActions } from "./listing-actions";
-import { Search } from "lucide-react";
 
 type AdminListing = {
   id: string;
@@ -22,98 +24,163 @@ type AdminListing = {
   broker?: { name: string | null; company: string | null } | null;
 };
 
+const STATUS_OPTIONS = [
+  { value: "published", label: "Published" },
+  { value: "draft", label: "Draft" },
+  { value: "under_offer", label: "Under offer" },
+  { value: "sold", label: "Sold" },
+  { value: "unpublished", label: "Unpublished" },
+];
+
+const VISIBILITY_OPTIONS = [
+  { value: "visible", label: "Visible" },
+  { value: "removed", label: "Removed" },
+];
+
+const FEATURED_OPTIONS = [
+  { value: "yes", label: "Featured" },
+  { value: "no", label: "Not featured" },
+];
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [visibilityFilter, setVisibilityFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    let result = listings;
-    if (statusFilter !== "all") {
-      result = result.filter((l) => l.status === statusFilter);
-    }
-    if (visibilityFilter === "removed") {
-      result = result.filter((l) => !!l.admin_removed_at);
-    } else if (visibilityFilter === "visible") {
-      result = result.filter((l) => !l.admin_removed_at);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((l) =>
-        l.title.toLowerCase().includes(q) ||
-        l.broker?.name?.toLowerCase().includes(q) ||
-        l.broker?.company?.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [listings, statusFilter, visibilityFilter, search]);
+  const columns = useMemo<ColumnDef<AdminListing>[]>(
+    () => [
+      {
+        accessorKey: "title",
+        meta: { label: "Title" },
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Title" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.title}</span>
+        ),
+      },
+      {
+        id: "broker",
+        accessorFn: (row) => row.broker?.name ?? row.broker?.company ?? "",
+        meta: { label: "Broker" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Broker" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.broker?.name ??
+              row.original.broker?.company ??
+              "Not specified"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        meta: { label: "Status" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Status" />
+        ),
+        cell: ({ row }) => (
+          <StatusBadge status={row.original.status} className="border-0" />
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "visibility",
+        accessorFn: (row) => (row.admin_removed_at ? "removed" : "visible"),
+        meta: { label: "Visibility" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Visibility" />
+        ),
+        cell: ({ row }) => {
+          const isRemoved = !!row.original.admin_removed_at;
+          return (
+            <StatusBadge
+              status={isRemoved ? "removed" : "active"}
+              label={isRemoved ? "Removed" : "Visible"}
+              className="border-0"
+            />
+          );
+        },
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "featured",
+        accessorFn: (row) => (isFeaturedNow(row.featured_until) ? "yes" : "no"),
+        meta: { label: "Featured" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Featured" />
+        ),
+        cell: ({ row }) =>
+          isFeaturedNow(row.original.featured_until) ? (
+            <FeaturedBadge size="sm" />
+          ) : (
+            <Badge variant="outline" className="text-xs border-0 text-muted-foreground">
+              No
+            </Badge>
+          ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        accessorKey: "created_at",
+        meta: { label: "Created" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Created" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {formatDate(row.original.created_at)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <ListingActions
+            listingId={row.original.id}
+            slug={row.original.slug}
+            isRemoved={!!row.original.admin_removed_at}
+            isFeatured={row.original.is_featured}
+            featuredUntil={row.original.featured_until}
+          />
+        ),
+      },
+    ],
+    []
+  );
 
   return (
-    <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 pt-4 pb-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search listings..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="published">Published</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="under_offer">Under offer</SelectItem>
-            <SelectItem value="sold">Sold</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Visibility" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All visibility</SelectItem>
-            <SelectItem value="visible">Visible</SelectItem>
-            <SelectItem value="removed">Removed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="px-4 pb-2">
-        <p className="text-xs text-muted-foreground">{filtered.length} of {listings.length} listings</p>
-      </div>
-      <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Broker</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Visibility</TableHead>
-            <TableHead>Featured</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="w-[180px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
-            <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No listings found.</TableCell></TableRow>
-          ) : filtered.map((l) => {
-            const isRemoved = !!l.admin_removed_at;
-            return (
-              <TableRow key={l.id}>
-                <TableCell className="font-medium">{l.title}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{l.broker?.name ?? l.broker?.company ?? "—"}</TableCell>
-                <TableCell><StatusBadge status={l.status} className="border-0" /></TableCell>
-                <TableCell><StatusBadge status={isRemoved ? "removed" : "active"} label={isRemoved ? "Removed" : "Visible"} className="border-0" /></TableCell>
-                <TableCell>{isFeaturedNow(l.featured_until) ? <FeaturedBadge size="sm" /> : <Badge variant="outline" className="text-xs border-0">—</Badge>}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">{formatDate(l.created_at)}</TableCell>
-                <TableCell><ListingActions listingId={l.id} slug={l.slug} isRemoved={isRemoved} isFeatured={l.is_featured} featuredUntil={l.featured_until} /></TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      </div>
-    </>
+    <div className="px-4 pb-4">
+      <DataTable
+        columns={columns}
+        data={listings}
+        searchColumnId={["title", "broker"]}
+        searchPlaceholder="Search by title or broker…"
+        facetedFilters={[
+          { columnId: "status", title: "Status", options: STATUS_OPTIONS },
+          {
+            columnId: "visibility",
+            title: "Visibility",
+            options: VISIBILITY_OPTIONS,
+          },
+          {
+            columnId: "featured",
+            title: "Featured",
+            options: FEATURED_OPTIONS,
+          },
+        ]}
+        initialSorting={[{ id: "created_at", desc: true }]}
+      />
+    </div>
   );
 }

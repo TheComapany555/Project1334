@@ -473,23 +473,152 @@ export function enquiryConfirmationEmail({
   `);
 }
 
+export function externalShareInviteEmail({
+  recipientName,
+  brokerName,
+  brokerCompany,
+  brokerPhotoUrl,
+  brokerProfileUrl,
+  listingTitle,
+  inviteUrl,
+  price,
+  location,
+  customMessage,
+  ndaRequired,
+  expiresInDays,
+}: {
+  recipientName: string | null;
+  brokerName: string;
+  brokerCompany: string | null;
+  brokerPhotoUrl: string | null;
+  brokerProfileUrl: string | null;
+  listingTitle: string;
+  inviteUrl: string;
+  price: string | null;
+  location: string | null;
+  customMessage: string | null;
+  ndaRequired: boolean;
+  expiresInDays: number;
+}): string {
+  const greeting = recipientName ? `Hi ${recipientName},` : "Hi,";
+  const details = [price, location].filter(Boolean).join(" &middot; ");
+  const senderLabel = brokerCompany
+    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
+    : `<strong>${brokerName}</strong>`;
+
+  const messageBlock = customMessage?.trim()
+    ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
+        <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
+          Message from ${brokerName}
+        </p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
+
+  const brokerCard = `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;background:#f6faf7;border-radius:8px;border:1px solid #dce8df;">
+      <tr>
+        <td style="padding:16px 20px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              ${brokerPhotoUrl
+                ? `<td style="padding-right:14px;vertical-align:middle;">
+                    <img src="${brokerPhotoUrl}" alt="${brokerName}" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #dce8df;" />
+                  </td>`
+                : ""}
+              <td style="vertical-align:middle;">
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0a0a0a;">${brokerName}</p>
+                ${brokerCompany ? `<p style="margin:2px 0 0;font-size:12px;color:#6b7280;">${brokerCompany}</p>` : ""}
+                ${brokerProfileUrl ? `<p style="margin:6px 0 0;font-size:12px;"><a href="${brokerProfileUrl}" style="color:${BRAND_PRIMARY};text-decoration:underline;">View broker profile</a></p>` : ""}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>`;
+
+  const ndaNotice = ndaRequired
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;background-color:#fef9ef;border-left:4px solid #e6a817;border-radius:4px;">
+        <tr>
+          <td style="padding:12px 16px;font-size:13px;color:#7a5d00;">
+            <strong>Confidentiality required.</strong> You will be asked to sign a short non-disclosure agreement before viewing the full details.
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      A business listing has been shared with you
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      ${greeting}
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${senderLabel} has shared this opportunity with you on Salebiz.com.au.
+    </p>
+
+    ${brokerCard}
+
+    ${messageBlock}
+
+    <div style="margin:0 0 20px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">
+        ${listingTitle}
+      </p>
+      ${details ? `<p style="margin:0;font-size:14px;color:#6b7280;">${details}</p>` : ""}
+    </div>
+
+    ${ndaNotice}
+
+    ${ctaButton(inviteUrl, "View Listing")}
+
+    <p style="margin:8px 0 4px 0;font-size:13px;color:#888888;text-align:center;">
+      This link will create a free buyer account and lasts for ${expiresInDays} days.
+    </p>
+
+    <p style="margin:16px 0 0 0;font-size:12px;color:#aaaaaa;word-break:break-all;">
+      Or copy this link: ${inviteUrl}
+    </p>
+  `);
+}
+
 export function shareListingEmail({
   contactName,
   brokerName,
+  brokerCompany,
   listingTitle,
   listingUrl,
   price,
   location,
+  customMessage,
+  unsubscribeUrl,
 }: {
   contactName: string | null;
   brokerName: string;
+  brokerCompany?: string | null;
   listingTitle: string;
   listingUrl: string;
   price: string | null;
   location: string | null;
+  customMessage?: string | null;
+  unsubscribeUrl?: string | null;
 }): string {
   const greeting = contactName ? `Hi ${contactName},` : "Hi,";
   const details = [price, location].filter(Boolean).join(" &middot; ");
+  const senderLabel = brokerCompany
+    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
+    : `<strong>${brokerName}</strong>`;
+
+  const messageBlock = customMessage?.trim()
+    ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
+        <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
+          Message from ${brokerName}
+        </p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
 
   return baseLayout(`
     <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
@@ -497,8 +626,10 @@ export function shareListingEmail({
     </p>
 
     <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
-      <strong>${brokerName}</strong> thought you might be interested in this business listing:
+      ${senderLabel} thought you might be interested in this business listing:
     </p>
+
+    ${messageBlock}
 
     <div style="margin:0 0 24px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
       <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">
@@ -510,8 +641,13 @@ export function shareListingEmail({
       </a>
     </div>
 
-    <p style="margin:0;font-size:13px;color:#888888;">
+    <p style="margin:0 0 8px;font-size:13px;color:#888888;">
       This email was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
     </p>
+    ${unsubscribeUrl
+      ? `<p style="margin:0;font-size:12px;color:#aaaaaa;">
+        <a href="${unsubscribeUrl}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
+      </p>`
+      : ""}
   `);
 }

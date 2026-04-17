@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getProductById } from "@/lib/actions/products";
+import { getCategories } from "@/lib/actions/listings";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
@@ -15,7 +16,10 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function EditProductPage({ params }: Props) {
   const { id } = await params;
-  const product = await getProductById(id);
+  const [product, categories] = await Promise.all([
+    getProductById(id),
+    getCategories(),
+  ]);
   if (!product) notFound();
 
   return (
@@ -34,7 +38,7 @@ export default async function EditProductPage({ params }: Props) {
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
-          <ProductForm product={product} />
+          <ProductForm product={product} categories={categories} />
         </CardContent>
       </Card>
     </div>

@@ -75,6 +75,12 @@ export async function POST(req: NextRequest) {
       const paymentId = paymentIntent.metadata?.payment_id;
       const listingId = paymentIntent.metadata?.listing_id;
       const packageDays = Number(paymentIntent.metadata?.package_days ?? 0);
+      const scope =
+        (paymentIntent.metadata?.featured_scope as
+          | "homepage"
+          | "category"
+          | "both"
+          | undefined) ?? "homepage";
 
       if (paymentId && listingId && packageDays) {
         await supabase
@@ -82,20 +88,7 @@ export async function POST(req: NextRequest) {
           .update({ status: "paid", paid_at: new Date().toISOString() })
           .eq("id", paymentId);
 
-        const now = new Date();
-        const featuredUntil = new Date(
-          now.getTime() + packageDays * 24 * 60 * 60 * 1000
-        );
-
-        await supabase
-          .from("listings")
-          .update({
-            is_featured: true,
-            featured_from: now.toISOString(),
-            featured_until: featuredUntil.toISOString(),
-            featured_package_days: packageDays,
-          })
-          .eq("id", listingId);
+        await applyFeaturedToListing(supabase, listingId, packageDays, scope);
       } else {
         await supabase
           .from("payments")
@@ -287,6 +280,12 @@ async function handleFeaturedPayment(
   const paymentId = session.metadata?.payment_id;
   const listingId = session.metadata?.listing_id;
   const packageDays = Number(session.metadata?.package_days ?? 0);
+  const scope =
+    (session.metadata?.featured_scope as
+      | "homepage"
+      | "category"
+      | "both"
+      | undefined) ?? "homepage";
 
   if (!paymentId || !listingId || !packageDays) return;
 
@@ -305,20 +304,79 @@ async function handleFeaturedPayment(
     })
     .eq("id", paymentId);
 
+  await applyFeaturedToListing(supabase, listingId, packageDays, scope);
+}
+
+/**
+ * Set scope-aware featured timestamps on a listing without clobbering an
+ * existing scope. e.g. paying for "category" while "homepage" is still active
+ * extends category only. is_featured / featured_until are kept in sync as
+ * the max across both scope-untils for legacy queries that still read them.
+ */
+async function applyFeaturedToListing(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  listingId: string,
+  packageDays: number,
+  scope: "homepage" | "category" | "both"
+) {
   const now = new Date();
-  const featuredUntil = new Date(
-    now.getTime() + packageDays * 24 * 60 * 60 * 1000
+  const newUntil = new Date(now.getTime() + packageDays * 24 * 60 * 60 * 1000);
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select(
+      "featured_homepage_until, featured_category_until, featured_scope"
+    )
+    .eq("id", listingId)
+    .single();
+
+  // For each scope, extend from the later of (now, current scope expiry)
+  const homepageBase =
+    listing?.featured_homepage_until &&
+    new Date(listing.featured_homepage_until) > now
+      ? new Date(listing.featured_homepage_until)
+      : now;
+  const categoryBase =
+    listing?.featured_category_until &&
+    new Date(listing.featured_category_until) > now
+      ? new Date(listing.featured_category_until)
+      : now;
+
+  const newHomepage = new Date(
+    homepageBase.getTime() + packageDays * 24 * 60 * 60 * 1000
+  );
+  const newCategory = new Date(
+    categoryBase.getTime() + packageDays * 24 * 60 * 60 * 1000
   );
 
-  await supabase
-    .from("listings")
-    .update({
-      is_featured: true,
-      featured_from: now.toISOString(),
-      featured_until: featuredUntil.toISOString(),
-      featured_package_days: packageDays,
-    })
-    .eq("id", listingId);
+  const payload: Record<string, unknown> = {
+    is_featured: true,
+    featured_from: now.toISOString(),
+    featured_package_days: packageDays,
+    featured_scope: scope,
+  };
+
+  if (scope === "homepage") {
+    payload.featured_homepage_until = newHomepage.toISOString();
+  } else if (scope === "category") {
+    payload.featured_category_until = newCategory.toISOString();
+  } else {
+    payload.featured_homepage_until = newHomepage.toISOString();
+    payload.featured_category_until = newCategory.toISOString();
+  }
+
+  // Keep legacy featured_until = max(homepage_until, category_until, newUntil)
+  // so older code paths continue to work.
+  const candidates = [newUntil];
+  if (payload.featured_homepage_until)
+    candidates.push(new Date(payload.featured_homepage_until as string));
+  if (payload.featured_category_until)
+    candidates.push(new Date(payload.featured_category_until as string));
+  payload.featured_until = new Date(
+    Math.max(...candidates.map((d) => d.getTime()))
+  ).toISOString();
+
+  await supabase.from("listings").update(payload).eq("id", listingId);
 }
 
 async function handleSubscriptionPayment(
@@ -443,17 +501,14 @@ async function handleListingTierPayment(
       published_at: existingListing?.published_at ?? now.toISOString(),
     };
 
-    // If the tier is 'featured', also set featured fields
-    if (listingTier === "featured" && packageDays > 0) {
-      const featuredUntil = new Date(
-        now.getTime() + packageDays * 24 * 60 * 60 * 1000
-      );
-      payload.is_featured = true;
-      payload.featured_from = now.toISOString();
-      payload.featured_until = featuredUntil.toISOString();
-      payload.featured_package_days = packageDays;
-    }
-
     await supabase.from("listings").update(payload).eq("id", listingId);
+
+    // If the tier is 'featured', also apply scope-aware featured fields
+    if (listingTier === "featured" && packageDays > 0) {
+      const scope =
+        (metadata.featured_scope as "homepage" | "category" | "both" | undefined) ??
+        "homepage";
+      await applyFeaturedToListing(supabase, listingId, packageDays, scope);
+    }
   }
 }

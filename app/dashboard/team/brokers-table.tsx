@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Search, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { RemoveBrokerButton } from "./invitation-actions";
 
 type Broker = {
@@ -20,82 +21,132 @@ type Broker = {
   created_at: string;
 };
 
+const ROLE_OPTIONS = [
+  { value: "owner", label: "Owner" },
+  { value: "member", label: "Member" },
+];
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function BrokersTable({ brokers }: { brokers: Broker[] }) {
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return brokers;
-    const q = search.toLowerCase();
-    return brokers.filter((b) =>
-      b.name?.toLowerCase().includes(q) ||
-      b.email.toLowerCase().includes(q) ||
-      b.phone?.toLowerCase().includes(q)
-    );
-  }, [brokers, search]);
+  const columns = useMemo<ColumnDef<Broker>[]>(
+    () => [
+      {
+        id: "broker",
+        accessorFn: (row) => row.name ?? row.email,
+        meta: { label: "Broker" },
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Broker" />
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3 min-w-0">
+            <UserAvatar
+              name={row.original.name}
+              email={row.original.email}
+              photoUrl={row.original.photo_url}
+            />
+            <span className="font-medium truncate">
+              {row.original.name ?? "Not set"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "email",
+        meta: { label: "Email" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Email" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.email}</span>
+        ),
+      },
+      {
+        accessorKey: "phone",
+        meta: { label: "Phone" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Phone" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.phone ?? "Not set"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "agency_role",
+        meta: { label: "Role" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Role" />
+        ),
+        cell: ({ row }) => (
+          <Badge
+            variant={
+              row.original.agency_role === "owner" ? "default" : "secondary"
+            }
+          >
+            {row.original.agency_role === "owner" ? "Owner" : "Member"}
+          </Badge>
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        accessorKey: "created_at",
+        meta: { label: "Joined" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Joined" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {formatDate(row.original.created_at)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button variant="ghost" size="sm" className="h-7 gap-1" asChild>
+              <Link href={`/dashboard/team/${row.original.id}/edit`}>
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Link>
+            </Button>
+            {row.original.agency_role !== "owner" && (
+              <RemoveBrokerButton
+                brokerId={row.original.id}
+                brokerName={row.original.name}
+              />
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
-    <>
-      {brokers.length > 3 && (
-        <div className="px-4 pt-4 pb-2">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search brokers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-          </div>
-        </div>
-      )}
-      <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Broker</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Joined</TableHead>
-            <TableHead className="w-[160px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
-            <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No brokers found.</TableCell></TableRow>
-          ) : filtered.map((b) => (
-            <TableRow key={b.id}>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <UserAvatar name={b.name} email={b.email} photoUrl={b.photo_url} />
-                  <span className="font-medium">{b.name ?? "—"}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{b.email}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{b.phone ?? "—"}</TableCell>
-              <TableCell>
-                <Badge variant={b.agency_role === "owner" ? "default" : "secondary"}>
-                  {b.agency_role === "owner" ? "Owner" : "Member"}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{formatDate(b.created_at)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-7 gap-1" asChild>
-                    <Link href={`/dashboard/team/${b.id}/edit`}>
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Link>
-                  </Button>
-                  {b.agency_role !== "owner" && (
-                    <RemoveBrokerButton brokerId={b.id} brokerName={b.name} />
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </div>
-    </>
+    <div className="px-4 pb-4">
+      <DataTable
+        columns={columns}
+        data={brokers}
+        searchColumnId={["broker", "email", "phone"]}
+        searchPlaceholder="Search by name, email or phone…"
+        facetedFilters={[
+          { columnId: "agency_role", title: "Role", options: ROLE_OPTIONS },
+        ]}
+        initialSorting={[{ id: "created_at", desc: true }]}
+      />
+    </div>
   );
 }

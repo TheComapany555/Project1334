@@ -24,6 +24,7 @@ import {
   Building03Icon,
   SecurityCheckIcon,
   Analytics01Icon,
+  UserMultipleIcon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -53,6 +54,7 @@ const brokerNav = [
   },
   { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
+  { title: "Contacts", url: "/dashboard/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
   {
     title: "NDAs",
     url: "/dashboard/ndas",

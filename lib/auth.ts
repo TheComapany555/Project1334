@@ -208,5 +208,20 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
     verifyRequest: "/auth/verify",
   },
+  // Silence the noisy JWT_SESSION_ERROR that fires when a visitor has a stale
+  // cookie from a previous NEXTAUTH_SECRET. It is harmless: getServerSession
+  // already returns null in that case, we just don't want it flooding the logs.
+  logger: {
+    error(code, metadata) {
+      if (code === "JWT_SESSION_ERROR") return;
+      console.error(`[next-auth][error][${code}]`, metadata);
+    },
+    warn(code) {
+      console.warn(`[next-auth][warn][${code}]`);
+    },
+    debug() {
+      // suppressed
+    },
+  },
   secret: process.env.NEXTAUTH_SECRET,
 };

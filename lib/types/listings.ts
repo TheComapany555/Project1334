@@ -50,6 +50,9 @@ export type Listing = {
   featured_from: string | null;
   featured_until: string | null;
   featured_package_days: number | null;
+  featured_scope: "homepage" | "category" | "both" | null;
+  featured_homepage_until: string | null;
+  featured_category_until: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;

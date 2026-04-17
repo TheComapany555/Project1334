@@ -14,6 +14,8 @@ export type Enquiry = {
   contact_name: string | null;
   contact_email: string;
   contact_phone: string | null;
+  interest: string | null;
+  consent_marketing: boolean;
   created_at: string;
 };
 

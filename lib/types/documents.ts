@@ -15,6 +15,14 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   other: "Other",
 };
 
+export type DocumentApprovalStatus = "pending" | "approved" | "rejected";
+
+export const DOCUMENT_APPROVAL_LABELS: Record<DocumentApprovalStatus, string> = {
+  pending: "Pending Review",
+  approved: "Approved",
+  rejected: "Rejected",
+};
+
 export type ListingDocument = {
   id: string;
   listing_id: string;
@@ -27,4 +35,8 @@ export type ListingDocument = {
   sort_order: number;
   uploaded_by: string | null;
   created_at: string;
+  approval_status: DocumentApprovalStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
 };

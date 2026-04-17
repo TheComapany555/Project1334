@@ -2,8 +2,8 @@ import { getAllNdaSignatures, getAdminNdaStats } from "@/lib/actions/nda";
 import { NdaSignaturesTable } from "./nda-signatures-table";
 
 export default async function AdminNdasPage() {
-  const [{ signatures, total }, stats] = await Promise.all([
-    getAllNdaSignatures({ page: 1, pageSize: 20 }),
+  const [{ signatures }, stats] = await Promise.all([
+    getAllNdaSignatures({ page: 1, pageSize: 500 }),
     getAdminNdaStats(),
   ]);
 
@@ -18,11 +18,7 @@ export default async function AdminNdasPage() {
         </p>
       </div>
 
-      <NdaSignaturesTable
-        initialSignatures={signatures}
-        initialTotal={total}
-        stats={stats}
-      />
+      <NdaSignaturesTable signatures={signatures} stats={stats} />
     </div>
   );
 }

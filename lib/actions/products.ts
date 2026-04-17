@@ -3,7 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import type { Product } from "@/lib/types/products";
+import type { FeaturedScope, Product } from "@/lib/types/products";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -14,15 +14,22 @@ async function requireAdmin() {
 }
 
 /** Get all products (admin). */
-export async function getAllProducts(): Promise<Product[]> {
+export async function getAllProducts(): Promise<
+  (Product & { category?: { id: string; name: string } | null })[]
+> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select("*, category:categories(id, name)")
     .order("created_at", { ascending: false });
   if (error) return [];
-  return (data ?? []) as Product[];
+  return (data ?? []).map((p) => {
+    const cat = Array.isArray((p as { category?: unknown }).category)
+      ? (p as { category: { id: string; name: string }[] }).category[0] ?? null
+      : ((p as { category: { id: string; name: string } | null }).category ?? null);
+    return { ...(p as Product), category: cat };
+  });
 }
 
 /** Get active products. Optionally filter by product_type.
@@ -128,6 +135,8 @@ export async function createProduct(form: {
   currency: string;
   duration_days: number | null;
   product_type?: string;
+  category_id?: string | null;
+  scope?: FeaturedScope | null;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
@@ -141,6 +150,8 @@ export async function createProduct(form: {
       currency: form.currency || "aud",
       duration_days: form.duration_days,
       product_type: form.product_type || "featured",
+      category_id: form.category_id ?? null,
+      scope: form.scope ?? null,
       status: "active",
     })
     .select("id")
@@ -160,6 +171,8 @@ export async function updateProduct(
     currency?: string;
     duration_days?: number | null;
     product_type?: string;
+    category_id?: string | null;
+    scope?: FeaturedScope | null;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
@@ -177,6 +190,8 @@ export async function updateProduct(
     payload.duration_days = form.duration_days;
   if (form.product_type !== undefined)
     payload.product_type = form.product_type;
+  if (form.category_id !== undefined) payload.category_id = form.category_id;
+  if (form.scope !== undefined) payload.scope = form.scope;
 
   const { error } = await supabase
     .from("products")
@@ -185,6 +200,52 @@ export async function updateProduct(
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * Get featured product variants applicable to a listing.
+ * Returns the broker self-serve options, grouped by scope:
+ * - homepage: products with scope='homepage' and category_id IS NULL
+ * - category: products scoped to the listing's category (scope='category')
+ * - both: products with scope='both' (homepage + category bundle)
+ *
+ * Falls back gracefully: if no per-category product exists for the listing's
+ * category, the homepage prices act as the implicit baseline (broker only sees
+ * the homepage option in that case).
+ */
+export async function getFeaturedOptionsForListing(
+  listingCategoryId: string | null
+): Promise<{
+  homepage: Product[];
+  category: Product[];
+  both: Product[];
+}> {
+  const supabase = createServiceRoleClient();
+
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("status", "active")
+    .eq("product_type", "featured")
+    .order("duration_days", { ascending: true });
+
+  const all = (data ?? []) as Product[];
+
+  return {
+    homepage: all.filter(
+      (p) => (p.scope === "homepage" || p.scope === null) && !p.category_id
+    ),
+    category: listingCategoryId
+      ? all.filter(
+          (p) => p.scope === "category" && p.category_id === listingCategoryId
+        )
+      : [],
+    both: all.filter(
+      (p) =>
+        p.scope === "both" &&
+        (!p.category_id || p.category_id === listingCategoryId)
+    ),
+  };
 }
 
 /** Toggle product status (active ↔ inactive). */

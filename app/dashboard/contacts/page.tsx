@@ -1,11 +1,13 @@
 import { getContacts } from "@/lib/actions/contacts";
+import { getContactTags } from "@/lib/actions/contact-tags";
 import { getListingsByBroker } from "@/lib/actions/listings";
 import { PageHeader } from "@/components/admin/page-header";
 import { ContactsClientView } from "./contacts-client-view";
 
 export default async function ContactsPage() {
-  const [contacts, listings] = await Promise.all([
+  const [contacts, tags, listings] = await Promise.all([
     getContacts(),
+    getContactTags(),
     getListingsByBroker(),
   ]);
 
@@ -19,7 +21,11 @@ export default async function ContactsPage() {
         title="Contacts"
         description="Your saved contacts from enquiries and manual entries. Send listings directly via email."
       />
-      <ContactsClientView contacts={contacts} listings={publishedListings} />
+      <ContactsClientView
+        contacts={contacts}
+        tags={tags}
+        listings={publishedListings}
+      />
     </div>
   );
 }

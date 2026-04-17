@@ -214,6 +214,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
     const term = `%${escaped}%`;
     query = query.or(`title.ilike.${term},summary.ilike.${term},description.ilike.${term}`);
   }
+  let categoryFilterApplied = false;
   if (params.category?.trim()) {
     const { data: cat } = await supabase
       .from("categories")
@@ -221,7 +222,10 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       .eq("slug", params.category.trim())
       .eq("active", true)
       .single();
-    if (cat?.id) query = query.eq("category_id", cat.id);
+    if (cat?.id) {
+      query = query.eq("category_id", cat.id);
+      categoryFilterApplied = true;
+    }
   }
   if (params.highlight_id?.trim()) {
     const { data: mapRows } = await supabase
@@ -243,8 +247,14 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   if (params.profit_min != null) query = query.gte("profit", Number(params.profit_min));
   if (params.profit_max != null) query = query.lte("profit", Number(params.profit_max));
 
-  // Featured listings always rank first, then apply user-selected sort
-  query = query.order("featured_until", { ascending: false, nullsFirst: false });
+  // Featured listings rank first, scoped to the surface being viewed:
+  // - Category-filtered queries promote listings featured in that category.
+  // - Generic browse/search promotes listings featured on the homepage.
+  // Listings featured only in the other scope fall through to normal ordering.
+  const featuredOrderColumn = categoryFilterApplied
+    ? "featured_category_until"
+    : "featured_homepage_until";
+  query = query.order(featuredOrderColumn, { ascending: false, nullsFirst: false });
 
   const sort = params.sort ?? "newest";
   if (sort === "newest") query = query.order("published_at", { ascending: false, nullsFirst: false });
@@ -288,7 +298,7 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
     .eq("broker_id", brokerId)
     .eq("status", "published")
     .is("admin_removed_at", null)
-    .order("featured_until", { ascending: false, nullsFirst: false })
+    .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false });
   if (error) return [];
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];

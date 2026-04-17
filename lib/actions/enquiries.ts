@@ -23,6 +23,8 @@ export async function submitEnquiry(
   const contactName = (formData.get("contact_name") as string)?.trim() || null;
   const contactPhone = (formData.get("contact_phone") as string)?.trim() || null;
   const reason = (formData.get("reason") as string)?.trim() || null;
+  const interest = (formData.get("interest") as string)?.trim() || null;
+  const consentMarketing = formData.get("consent_marketing") === "true";
 
   if (!message || message.length < 10) {
     return { ok: false, error: "Please enter a message (at least 10 characters)." };
@@ -52,6 +54,8 @@ export async function submitEnquiry(
       contact_name: contactName,
       contact_email: contactEmail,
       contact_phone: contactPhone,
+      interest,
+      consent_marketing: consentMarketing,
     })
     .select("id, created_at")
     .single();
@@ -64,7 +68,7 @@ export async function submitEnquiry(
     .single();
   const brokerEmail = brokerUser?.email;
   if (brokerEmail) {
-    const reasonLabel = reason && ENQUIRY_REASON_LABELS[reason] ? ENQUIRY_REASON_LABELS[reason] : reason || "—";
+    const reasonLabel = reason && ENQUIRY_REASON_LABELS[reason] ? ENQUIRY_REASON_LABELS[reason] : reason || "Not specified";
     const listingUrl = `${APP_URL}/listing/${listing.slug}`;
     const dashboardUrl = `${APP_URL}/dashboard/enquiries`;
     await resend.emails.send({

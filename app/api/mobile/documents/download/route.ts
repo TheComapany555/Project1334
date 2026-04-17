@@ -19,12 +19,17 @@ export async function GET(request: Request) {
 
     const { data: doc } = await supabase
       .from("listing_documents")
-      .select("id, listing_id, file_url, is_confidential")
+      .select("id, listing_id, file_url, is_confidential, approval_status")
       .eq("id", doc_id)
       .single();
 
     if (!doc) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    // Only approved documents are accessible to buyers
+    if (doc.approval_status !== "approved") {
+      return NextResponse.json({ error: "Document not available" }, { status: 404 });
     }
 
     // Verify listing is published

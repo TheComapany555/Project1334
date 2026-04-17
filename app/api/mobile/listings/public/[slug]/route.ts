@@ -129,6 +129,7 @@ export async function GET(
         .from("listing_documents")
         .select("id, name, category, is_confidential, file_url, file_size, file_type, sort_order")
         .eq("listing_id", listing.id)
+        .eq("approval_status", "approved")
         .order("sort_order", { ascending: true });
 
       if (docs && docs.length > 0) {

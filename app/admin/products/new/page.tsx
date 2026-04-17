@@ -7,9 +7,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { getCategories } from "@/lib/actions/listings";
 import { ProductForm } from "../product-form";
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  const categories = await getCategories();
   return (
     <div className="space-y-6">
       <PageHeader
@@ -26,7 +28,7 @@ export default function NewProductPage() {
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
-          <ProductForm />
+          <ProductForm categories={categories} />
         </CardContent>
       </Card>
     </div>

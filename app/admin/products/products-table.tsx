@@ -1,24 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { Product } from "@/lib/types/products";
+import { FEATURED_SCOPE_LABELS } from "@/lib/types/products";
 import { toggleProductStatus } from "@/lib/actions/products";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { formatDate } from "@/lib/utils";
 
 function formatPrice(cents: number, currency: string): string {
@@ -29,28 +22,21 @@ function formatPrice(cents: number, currency: string): string {
   }).format(cents / 100);
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  featured: "Featured upgrade",
-  listing_tier: "Listing visibility",
-  subscription: "Subscription",
-};
+type ProductWithCategory = Product & { category?: { id: string; name: string } | null };
 
-export function ProductsTable({ products }: { products: Product[] }) {
+const TYPE_OPTIONS = [
+  { value: "featured", label: "Featured upgrade" },
+  { value: "listing_tier", label: "Listing visibility" },
+  { value: "subscription", label: "Subscription" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
+export function ProductsTable({ products }: { products: ProductWithCategory[] }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    let result = products;
-    if (statusFilter !== "all") result = result.filter((p) => p.status === statusFilter);
-    if (typeFilter !== "all") result = result.filter((p) => p.product_type === typeFilter);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
-    }
-    return result;
-  }, [products, statusFilter, typeFilter, search]);
 
   async function handleToggle(id: string) {
     const res = await toggleProductStatus(id);
@@ -62,98 +48,183 @@ export function ProductsTable({ products }: { products: Product[] }) {
     }
   }
 
+  const columns = useMemo<ColumnDef<ProductWithCategory>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        meta: { label: "Name" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Name" />
+        ),
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium leading-tight">{row.original.name}</p>
+            {row.original.description && (
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[280px] truncate">
+                {row.original.description}
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "product_type",
+        meta: { label: "Type" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Type" />
+        ),
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-xs capitalize">
+            {row.original.product_type.replace("_", " ")}
+          </Badge>
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "scope",
+        accessorFn: (row) => row.scope ?? "",
+        meta: { label: "Scope" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Scope" />
+        ),
+        cell: ({ row }) => {
+          const isFeatured = row.original.product_type === "featured";
+          if (!isFeatured || !row.original.scope) {
+            return <span className="text-xs text-muted-foreground">N/A</span>;
+          }
+          return (
+            <Badge variant="secondary" className="text-xs">
+              {FEATURED_SCOPE_LABELS[row.original.scope]}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "category",
+        accessorFn: (row) => row.category?.name ?? "",
+        meta: { label: "Category" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Category" />
+        ),
+        cell: ({ row }) => {
+          const isFeatured = row.original.product_type === "featured";
+          if (!isFeatured) {
+            return <span className="text-xs text-muted-foreground">N/A</span>;
+          }
+          if (row.original.category?.name) {
+            return <span className="text-sm">{row.original.category.name}</span>;
+          }
+          if (row.original.scope === "homepage") {
+            return <span className="text-xs text-muted-foreground">N/A</span>;
+          }
+          return (
+            <span className="text-xs text-muted-foreground italic">
+              All categories
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "price",
+        meta: { label: "Price" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Price" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm font-medium tabular-nums">
+            {formatPrice(row.original.price, row.original.currency)}
+          </span>
+        ),
+        sortingFn: (a, b) => a.original.price - b.original.price,
+      },
+      {
+        accessorKey: "duration_days",
+        meta: { label: "Duration" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Duration" />
+        ),
+        cell: ({ row }) => {
+          const days = row.original.duration_days;
+          if (!days) {
+            return <span className="text-sm text-muted-foreground">N/A</span>;
+          }
+          return (
+            <Badge variant="outline" className="text-xs">
+              {days} days
+            </Badge>
+          );
+        },
+        sortingFn: (a, b) =>
+          (a.original.duration_days ?? 0) - (b.original.duration_days ?? 0),
+      },
+      {
+        accessorKey: "status",
+        meta: { label: "Status" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Status" />
+        ),
+        cell: ({ row }) => (
+          <Badge
+            variant={row.original.status === "active" ? "success" : "secondary"}
+            className="border-0 capitalize"
+          >
+            {row.original.status}
+          </Badge>
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        accessorKey: "created_at",
+        meta: { label: "Created" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Created" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {formatDate(row.original.created_at)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/admin/products/${row.original.id}/edit`}>Edit</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleToggle(row.original.id)}
+            >
+              {row.original.status === "active" ? "Deactivate" : "Activate"}
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
-    <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 pt-4 pb-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search plans..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-[170px] h-9"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="featured">Featured upgrade</SelectItem>
-            <SelectItem value="listing_tier">Listing visibility</SelectItem>
-            <SelectItem value="subscription">Subscription</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="px-4 pb-2">
-        <p className="text-xs text-muted-foreground">{filtered.length} of {products.length} plans</p>
-      </div>
-    <div className="overflow-x-auto">
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>Price</TableHead>
-          <TableHead>Duration</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filtered.map((product) => (
-          <TableRow key={product.id}>
-            <TableCell className="font-medium">{product.name}</TableCell>
-            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-              {product.description ?? "—"}
-            </TableCell>
-            <TableCell className="text-sm font-medium">
-              {formatPrice(product.price, product.currency)}
-            </TableCell>
-            <TableCell>
-              {product.duration_days ? (
-                <Badge variant="outline" className="text-xs">
-                  {product.duration_days} days
-                </Badge>
-              ) : (
-                <span className="text-sm text-muted-foreground">—</span>
-              )}
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant={product.status === "active" ? "success" : "secondary"}
-                className="border-0 capitalize"
-              >
-                {product.status}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {formatDate(product.created_at)}
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/admin/products/${product.id}/edit`}>
-                    Edit
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleToggle(product.id)}
-                >
-                  {product.status === "active" ? "Deactivate" : "Activate"}
-                </Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div className="px-4 pb-4">
+      <DataTable
+        columns={columns}
+        data={products}
+        searchColumnId="name"
+        searchPlaceholder="Search plans by name…"
+        facetedFilters={[
+          { columnId: "product_type", title: "Type", options: TYPE_OPTIONS },
+          { columnId: "status", title: "Status", options: STATUS_OPTIONS },
+        ]}
+        defaultPageSize={10}
+        initialSorting={[{ id: "created_at", desc: true }]}
+      />
     </div>
-    </>
   );
 }

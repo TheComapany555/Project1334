@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AgencyActions } from "./agency-actions";
-import { Search } from "lucide-react";
 
 type Agency = {
   id: string;
@@ -20,93 +19,138 @@ type Agency = {
   created_at: string;
 };
 
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "active", label: "Active" },
+  { value: "disabled", label: "Disabled" },
+];
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    let result = agencies;
-    if (statusFilter !== "all") {
-      result = result.filter((a) => a.status === statusFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((a) =>
-        a.name.toLowerCase().includes(q) ||
-        a.email?.toLowerCase().includes(q) ||
-        a.owner_name?.toLowerCase().includes(q) ||
-        a.owner_email.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [agencies, statusFilter, search]);
+  const columns = useMemo<ColumnDef<Agency>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        meta: { label: "Agency" },
+        enableHiding: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Agency" />
+        ),
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium leading-tight">{row.original.name}</p>
+            {row.original.email && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {row.original.email}
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "owner",
+        accessorFn: (row) => row.owner_name ?? row.owner_email,
+        meta: { label: "Owner" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Owner" />
+        ),
+        cell: ({ row }) => (
+          <div>
+            <p className="text-sm leading-tight">
+              {row.original.owner_name ?? "Not specified"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {row.original.owner_email}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "broker_count",
+        meta: { label: "Brokers" },
+        header: ({ column }) => (
+          <div className="text-center">
+            <DataTableColumnHeader column={column} title="Brokers" />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="text-center text-sm tabular-nums">
+            {row.original.broker_count}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "listing_count",
+        meta: { label: "Listings" },
+        header: ({ column }) => (
+          <div className="text-center">
+            <DataTableColumnHeader column={column} title="Listings" />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="text-center text-sm tabular-nums">
+            {row.original.listing_count}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        meta: { label: "Status" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Status" />
+        ),
+        cell: ({ row }) => (
+          <StatusBadge status={row.original.status} className="border-0" />
+        ),
+        filterFn: (row, id, value: string[]) =>
+          value.includes(row.getValue<string>(id)),
+      },
+      {
+        accessorKey: "created_at",
+        meta: { label: "Created" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Created" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {formatDate(row.original.created_at)}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <AgencyActions
+            agencyId={row.original.id}
+            status={row.original.status}
+          />
+        ),
+      },
+    ],
+    []
+  );
 
   return (
-    <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center px-4 pt-4 pb-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search agencies..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="disabled">Disabled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="px-4 pb-2">
-        <p className="text-xs text-muted-foreground">{filtered.length} of {agencies.length} agencies</p>
-      </div>
-      <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Agency</TableHead>
-            <TableHead>Owner</TableHead>
-            <TableHead className="text-center">Brokers</TableHead>
-            <TableHead className="text-center">Listings</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="w-[100px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
-            <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No agencies found.</TableCell></TableRow>
-          ) : filtered.map((a) => (
-            <TableRow key={a.id}>
-              <TableCell>
-                <div>
-                  <p className="font-medium">{a.name}</p>
-                  {a.email && <p className="text-xs text-muted-foreground">{a.email}</p>}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div>
-                  <p className="text-sm">{a.owner_name ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">{a.owner_email}</p>
-                </div>
-              </TableCell>
-              <TableCell className="text-center">{a.broker_count}</TableCell>
-              <TableCell className="text-center">{a.listing_count}</TableCell>
-              <TableCell><StatusBadge status={a.status} className="border-0" /></TableCell>
-              <TableCell className="text-muted-foreground text-sm">{formatDate(a.created_at)}</TableCell>
-              <TableCell><AgencyActions agencyId={a.id} status={a.status} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </div>
-    </>
+    <div className="px-4 pb-4">
+      <DataTable
+        columns={columns}
+        data={agencies}
+        searchColumnId={["name", "owner"]}
+        searchPlaceholder="Search agencies, owners or emails…"
+        facetedFilters={[
+          { columnId: "status", title: "Status", options: STATUS_OPTIONS },
+        ]}
+        initialSorting={[{ id: "created_at", desc: true }]}
+      />
+    </div>
   );
 }

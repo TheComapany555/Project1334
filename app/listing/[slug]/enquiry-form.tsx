@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { FieldError } from "@/components/ui/field-error";
 import { submitEnquiry } from "@/lib/actions/enquiries";
-import { Loader2, CheckCircle2, Send, Mail, User, Phone, PhoneCall } from "lucide-react";
+import { Loader2, CheckCircle2, Send, Mail, User, Phone, PhoneCall, Target } from "lucide-react";
 
 const REASON_OPTIONS = [
   { value: "general", label: "General enquiry" },
@@ -41,6 +42,8 @@ const enquirySchema = z.object({
   contact_name: z.string(),
   contact_email: z.string().email("Enter a valid email address"),
   contact_phone: z.string(),
+  interest: z.string(),
+  consent_marketing: z.boolean(),
 });
 
 type FormData = z.infer<typeof enquirySchema>;
@@ -67,10 +70,13 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
       contact_name: "",
       contact_email: "",
       contact_phone: "",
+      interest: "",
+      consent_marketing: false,
     },
   });
 
   const reason = watch("reason");
+  const consentMarketing = watch("consent_marketing");
 
   function handleRequestCallback() {
     setCallbackMode(true);
@@ -105,6 +111,8 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
     if (data.contact_name) formData.set("contact_name", data.contact_name);
     if (data.contact_phone) formData.set("contact_phone", data.contact_phone);
     if (data.reason) formData.set("reason", data.reason);
+    if (data.interest) formData.set("interest", data.interest);
+    formData.set("consent_marketing", data.consent_marketing ? "true" : "false");
 
     const result = await submitEnquiry(listingId, formData);
     if (result.ok) {
@@ -279,6 +287,40 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
                 />
               </div>
               <FieldError message={errors.contact_phone?.message} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="enquiry-interest">
+                What are you looking for? (optional)
+              </Label>
+              <div className="relative">
+                <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="enquiry-interest"
+                  type="text"
+                  placeholder="e.g. Cafe in Sydney under $500k"
+                  className="pl-9"
+                  {...register("interest")}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Helps the broker match you with similar listings.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
+              <Checkbox
+                id="enquiry-consent"
+                checked={consentMarketing}
+                onCheckedChange={(v) => setValue("consent_marketing", v === true)}
+              />
+              <Label
+                htmlFor="enquiry-consent"
+                className="text-xs font-normal leading-relaxed text-muted-foreground"
+              >
+                I agree to be added to the broker&apos;s contact list and receive
+                relevant listings by email. You can opt out at any time.
+              </Label>
             </div>
 
             <Button type="submit" disabled={isSubmitting} className="w-full gap-2">

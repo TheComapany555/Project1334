@@ -106,7 +106,8 @@ export async function uploadListingDocument(
 
   const fileUrl = urlData?.signedUrl ?? filePath;
 
-  // Insert document record
+  // Insert document record. New uploads start as 'pending' so they are
+  // hidden from buyers until the broker explicitly approves them.
   const { data: doc, error: insertError } = await supabase
     .from("listing_documents")
     .insert({
@@ -118,6 +119,7 @@ export async function uploadListingDocument(
       category,
       is_confidential: isConfidential,
       uploaded_by: userId,
+      approval_status: "pending",
     })
     .select("*")
     .single();
@@ -172,6 +174,98 @@ export async function updateDocumentOrder(
   return { ok: true };
 }
 
+// ── Broker: Approve / Reject Documents ──
+
+export async function approveListingDocument(
+  listingId: string,
+  documentId: string
+): Promise<{ ok: true; document: ListingDocument } | { ok: false; error: string }> {
+  const { userId } = await requireBroker();
+
+  if (!(await verifyListingOwnership(listingId, userId))) {
+    return { ok: false, error: "You do not own this listing." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: doc, error } = await supabase
+    .from("listing_documents")
+    .update({
+      approval_status: "approved",
+      approved_by: userId,
+      approved_at: new Date().toISOString(),
+      rejection_reason: null,
+    })
+    .eq("id", documentId)
+    .eq("listing_id", listingId)
+    .select("*")
+    .single();
+
+  if (error || !doc) return { ok: false, error: "Failed to approve document." };
+  return { ok: true, document: doc };
+}
+
+export async function rejectListingDocument(
+  listingId: string,
+  documentId: string,
+  reason: string
+): Promise<{ ok: true; document: ListingDocument } | { ok: false; error: string }> {
+  const { userId } = await requireBroker();
+
+  if (!(await verifyListingOwnership(listingId, userId))) {
+    return { ok: false, error: "You do not own this listing." };
+  }
+
+  const trimmed = reason?.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Please provide a rejection reason." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: doc, error } = await supabase
+    .from("listing_documents")
+    .update({
+      approval_status: "rejected",
+      approved_by: userId,
+      approved_at: new Date().toISOString(),
+      rejection_reason: trimmed,
+    })
+    .eq("id", documentId)
+    .eq("listing_id", listingId)
+    .select("*")
+    .single();
+
+  if (error || !doc) return { ok: false, error: "Failed to reject document." };
+  return { ok: true, document: doc };
+}
+
+export async function resetDocumentApproval(
+  listingId: string,
+  documentId: string
+): Promise<{ ok: true; document: ListingDocument } | { ok: false; error: string }> {
+  const { userId } = await requireBroker();
+
+  if (!(await verifyListingOwnership(listingId, userId))) {
+    return { ok: false, error: "You do not own this listing." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: doc, error } = await supabase
+    .from("listing_documents")
+    .update({
+      approval_status: "pending",
+      approved_by: null,
+      approved_at: null,
+      rejection_reason: null,
+    })
+    .eq("id", documentId)
+    .eq("listing_id", listingId)
+    .select("*")
+    .single();
+
+  if (error || !doc) return { ok: false, error: "Failed to reset document." };
+  return { ok: true, document: doc };
+}
+
 // ── Public: Get documents for a listing (respects NDA) ──
 
 export async function getPublicListingDocuments(
@@ -201,11 +295,12 @@ export async function getPublicListingDocuments(
     hasSigned = !!sig;
   }
 
-  // Get all documents
+  // Get approved documents only. Pending and rejected docs are hidden from buyers.
   const { data: docs } = await supabase
     .from("listing_documents")
     .select("*")
     .eq("listing_id", listingId)
+    .eq("approval_status", "approved")
     .order("sort_order", { ascending: true });
 
   const allDocs = docs ?? [];
