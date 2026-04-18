@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const featured = searchParams.get("featured");
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "10"), 50);
+    const nowIso = new Date().toISOString();
 
     const supabase = createServiceRoleClient();
 
@@ -58,7 +59,22 @@ export async function GET(request: Request) {
         }
       }
     }
-    if (featured === "true") idBuilder = idBuilder.eq("is_featured", true);
+    if (featured === "true") {
+      idBuilder = idBuilder.gt("featured_homepage_until", nowIso);
+    }
+
+    // Match web search: category browse boosts featured_category_until; otherwise homepage slot.
+    if (category_id) {
+      idBuilder = idBuilder.order("featured_category_until", {
+        ascending: false,
+        nullsFirst: false,
+      });
+    } else {
+      idBuilder = idBuilder.order("featured_homepage_until", {
+        ascending: false,
+        nullsFirst: false,
+      });
+    }
 
     switch (sort) {
       case "price_asc":

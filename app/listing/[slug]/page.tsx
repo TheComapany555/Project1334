@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import {
   FeaturedBadge,
-  isFeaturedNow,
+  isListingFeaturedAnywhere,
 } from "@/components/listings/featured-badge";
 import { EnquiryForm } from "./enquiry-form";
 import { LocationMap } from "@/components/location-map";
@@ -237,7 +237,7 @@ export default async function ListingPage({ params }: Props) {
         )}
 
         {/* Featured banner */}
-        {isFeaturedNow(listing.featured_until) && (
+        {isListingFeaturedAnywhere(listing) && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2.5 text-sm">
             <Star className="h-4 w-4 text-amber-500 fill-amber-500 shrink-0" />
             <span className="font-medium text-amber-700 dark:text-amber-400">
@@ -273,7 +273,7 @@ export default async function ListingPage({ params }: Props) {
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl leading-tight">
               {listing.title}
             </h1>
-            {isFeaturedNow(listing.featured_until) && <FeaturedBadge />}
+            {isListingFeaturedAnywhere(listing) && <FeaturedBadge />}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
             {locationText && (

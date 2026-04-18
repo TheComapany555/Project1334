@@ -16,7 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import {
+  FeaturedBadge,
+  isListingFeaturedAnywhere,
+} from "@/components/listings/featured-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,7 +163,7 @@ export function ListingsTable({
             <span className="font-medium truncate max-w-[260px]">
               {row.original.title}
             </span>
-            {isFeaturedNow(row.original.featured_until) && (
+            {isListingFeaturedAnywhere(row.original) && (
               <FeaturedBadge size="sm" />
             )}
           </div>
@@ -366,7 +369,7 @@ export function ListingsTable({
                     <DropdownMenuItem asChild>
                       <Link href={`/dashboard/listings/${listing.id}/feature`}>
                         <HugeiconsIcon icon={StarIcon} className="size-4" />
-                        {isFeaturedNow(listing.featured_until)
+                        {isListingFeaturedAnywhere(listing)
                           ? "Extend featured"
                           : "Feature this listing"}
                       </Link>

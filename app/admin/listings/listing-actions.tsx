@@ -22,23 +22,35 @@ import {
 } from "@/components/ui/alert-dialog";
 import { adminRemoveListing, adminRestoreListing } from "@/lib/actions/admin-listings";
 import { adminSetFeatured, adminRemoveFeatured, adminExtendFeatured } from "@/lib/actions/featured";
+import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
 import { Loader2, Star, Pencil } from "lucide-react";
 
 type Props = {
   listingId: string;
   slug: string;
   isRemoved: boolean;
-  isFeatured?: boolean;
-  featuredUntil?: string | null;
+  featured_homepage_until?: string | null;
+  featured_category_until?: string | null;
+  featured_until?: string | null;
 };
 
-export function ListingActions({ listingId, slug, isRemoved, isFeatured, featuredUntil }: Props) {
+export function ListingActions({
+  listingId,
+  slug,
+  isRemoved,
+  featured_homepage_until,
+  featured_category_until,
+  featured_until,
+}: Props) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [featuredOpen, setFeaturedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isCurrentlyFeatured = isFeatured && featuredUntil && new Date(featuredUntil) > new Date();
+  const isCurrentlyFeatured = isListingFeaturedAnywhere({
+    featured_homepage_until,
+    featured_category_until,
+    featured_until,
+  });
 
   async function handleRemove() {
     setLoading(true);

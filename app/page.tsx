@@ -21,7 +21,7 @@ import {
 } from "@/components/motion";
 import {
   FeaturedBadge,
-  isFeaturedNow,
+  isFeaturedBadgeForBrowseSurface,
 } from "@/components/listings/featured-badge";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { NestedNavLink } from "@/components/public/nested-nav-link";
@@ -113,7 +113,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
             <Building2 className="h-9 w-9 text-muted-foreground/25" />
           </div>
         )}
-        {isFeaturedNow(listing.featured_until) && (
+        {isFeaturedBadgeForBrowseSurface(listing, "homepage") && (
           <div className="absolute top-2.5 right-2.5 z-10">
             <FeaturedBadge size="sm" />
           </div>

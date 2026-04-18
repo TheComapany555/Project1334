@@ -40,6 +40,8 @@ type FormValues = z.infer<typeof productSchema>;
 type ProductFormProps = {
   product?: Product;
   categories: Category[];
+  /** When creating a plan, pre-select featured scope (e.g. from /admin/products/new?focus=category). */
+  initialFeaturedScope?: FeaturedScope;
 };
 
 const SCOPE_HELP: Record<FeaturedScope, string> = {
@@ -49,7 +51,7 @@ const SCOPE_HELP: Record<FeaturedScope, string> = {
   both: "Sells homepage + category bundle. Optionally pin to a single category.",
 };
 
-export function ProductForm({ product, categories }: ProductFormProps) {
+export function ProductForm({ product, categories, initialFeaturedScope }: ProductFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEdit = !!product;
@@ -69,7 +71,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       currency: product?.currency ?? "aud",
       duration_days: product?.duration_days ? String(product.duration_days) : "",
       product_type: product?.product_type ?? "featured",
-      scope: (product?.scope as FormValues["scope"] | undefined) ?? "homepage",
+      scope:
+        (product?.scope as FormValues["scope"] | undefined) ??
+        (initialFeaturedScope && !product ? initialFeaturedScope : "homepage"),
       category_id: product?.category_id ?? "",
     },
   });

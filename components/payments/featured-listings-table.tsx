@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Listing } from "@/lib/types/listings";
-import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import { FeaturedBadge } from "@/components/listings/featured-badge";
+import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -25,8 +26,12 @@ export function FeaturedListingsTable({
 }: FeaturedListingsTableProps) {
   const filtered = listings.filter((l) =>
     type === "active"
-      ? isFeaturedNow(l.featured_until)
-      : !isFeaturedNow(l.featured_until) && l.featured_until != null
+      ? isListingFeaturedAnywhere(l)
+      : !isListingFeaturedAnywhere(l) &&
+          (l.featured_until != null ||
+            l.featured_homepage_until != null ||
+            l.featured_category_until != null ||
+            l.featured_from != null)
   );
 
   if (filtered.length === 0) {
@@ -58,7 +63,16 @@ export function FeaturedListingsTable({
           const broker = Array.isArray(listing.broker)
             ? listing.broker[0]
             : listing.broker;
-          const isActive = isFeaturedNow(listing.featured_until);
+          const isActive = isListingFeaturedAnywhere(listing);
+          const displayUntil =
+            [
+              listing.featured_homepage_until,
+              listing.featured_category_until,
+              listing.featured_until,
+            ]
+              .filter(Boolean)
+              .map((d) => new Date(d as string).getTime())
+              .reduce((a, b) => Math.max(a, b), 0) || null;
 
           return (
             <TableRow key={listing.id}>
@@ -100,8 +114,8 @@ export function FeaturedListingsTable({
               </TableCell>
               <TableCell>
                 <span className="text-sm text-muted-foreground">
-                  {listing.featured_until
-                    ? formatDate(listing.featured_until)
+                  {displayUntil
+                    ? formatDate(new Date(displayUntil).toISOString())
                     : "—"}
                 </span>
               </TableCell>

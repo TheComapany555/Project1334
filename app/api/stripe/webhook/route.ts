@@ -310,8 +310,8 @@ async function handleFeaturedPayment(
 /**
  * Set scope-aware featured timestamps on a listing without clobbering an
  * existing scope. e.g. paying for "category" while "homepage" is still active
- * extends category only. is_featured / featured_until are kept in sync as
- * the max across both scope-untils for legacy queries that still read them.
+ * extends category only. is_featured is true if either scope is still active;
+ * featured_until is the latest end date (legacy / analytics).
  */
 async function applyFeaturedToListing(
   supabase: ReturnType<typeof createServiceRoleClient>,
@@ -320,7 +320,6 @@ async function applyFeaturedToListing(
   scope: "homepage" | "category" | "both"
 ) {
   const now = new Date();
-  const newUntil = new Date(now.getTime() + packageDays * 24 * 60 * 60 * 1000);
 
   const { data: listing } = await supabase
     .from("listings")
@@ -350,7 +349,6 @@ async function applyFeaturedToListing(
   );
 
   const payload: Record<string, unknown> = {
-    is_featured: true,
     featured_from: now.toISOString(),
     featured_package_days: packageDays,
     featured_scope: scope,
@@ -365,16 +363,23 @@ async function applyFeaturedToListing(
     payload.featured_category_until = newCategory.toISOString();
   }
 
-  // Keep legacy featured_until = max(homepage_until, category_until, newUntil)
-  // so older code paths continue to work.
-  const candidates = [newUntil];
-  if (payload.featured_homepage_until)
-    candidates.push(new Date(payload.featured_homepage_until as string));
-  if (payload.featured_category_until)
-    candidates.push(new Date(payload.featured_category_until as string));
-  payload.featured_until = new Date(
-    Math.max(...candidates.map((d) => d.getTime()))
-  ).toISOString();
+  const finalHp =
+    scope === "homepage" || scope === "both"
+      ? newHomepage.toISOString()
+      : listing?.featured_homepage_until ?? null;
+  const finalCat =
+    scope === "category" || scope === "both"
+      ? newCategory.toISOString()
+      : listing?.featured_category_until ?? null;
+
+  const hpMs = finalHp ? new Date(finalHp).getTime() : 0;
+  const catMs = finalCat ? new Date(finalCat).getTime() : 0;
+  payload.is_featured = hpMs > now.getTime() || catMs > now.getTime();
+  const stampTimes = [hpMs, catMs].filter((t) => t > 0);
+  payload.featured_until =
+    stampTimes.length > 0
+      ? new Date(Math.max(...stampTimes)).toISOString()
+      : null;
 
   await supabase.from("listings").update(payload).eq("id", listingId);
 }

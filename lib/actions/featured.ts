@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { Listing } from "@/lib/types/listings";
+import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
 
 async function requireBroker() {
   const session = await getServerSession(authOptions);
@@ -25,6 +26,15 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
+const nowIso = () => new Date().toISOString();
+
+/** Active if either scope is still featured (matches buyer-facing rules). */
+function featuredOrFilter() {
+  const iso = nowIso();
+  // Quote ISO timestamps for PostgREST (colons in value).
+  return `featured_homepage_until.gt."${iso}",featured_category_until.gt."${iso}"`;
+}
+
 /** Get active featured listings for broker. */
 export async function getBrokerFeaturedListings(): Promise<Listing[]> {
   const { userId } = await requireBroker();
@@ -38,11 +48,13 @@ export async function getBrokerFeaturedListings(): Promise<Listing[]> {
       listing_images(id, url, sort_order)
     `)
     .eq("broker_id", userId)
-    .gt("featured_until", new Date().toISOString())
-    .order("featured_until", { ascending: false });
+    .or(featuredOrFilter())
+    .order("featured_homepage_until", { ascending: false, nullsFirst: false })
+    .order("featured_category_until", { ascending: false, nullsFirst: false });
 
   if (error) return [];
-  return (data ?? []) as Listing[];
+  const rows = (data ?? []) as Listing[];
+  return rows.filter((l) => isListingFeaturedAnywhere(l));
 }
 
 /** Get active featured listings for agency brokers. */
@@ -63,14 +75,34 @@ export async function getAgencyFeaturedListings(): Promise<Listing[]> {
       broker:profiles!broker_id(name, company)
     `)
     .eq("agency_id", agencyId)
-    .gt("featured_until", new Date().toISOString())
-    .order("featured_until", { ascending: false });
+    .or(featuredOrFilter())
+    .order("featured_homepage_until", { ascending: false, nullsFirst: false })
+    .order("featured_category_until", { ascending: false, nullsFirst: false });
 
   if (error) return [];
-  return (data ?? []) as Listing[];
+  const rows = (data ?? []) as Listing[];
+  return rows.filter((l) => isListingFeaturedAnywhere(l));
 }
 
-/** Admin: set a listing as featured manually. */
+function syncLegacyFeaturedFields(payload: Record<string, unknown>, row: {
+  featured_homepage_until?: string | null;
+  featured_category_until?: string | null;
+}) {
+  const now = new Date();
+  const hp = row.featured_homepage_until
+    ? new Date(row.featured_homepage_until).getTime()
+    : 0;
+  const cat = row.featured_category_until
+    ? new Date(row.featured_category_until).getTime()
+    : 0;
+  const active = hp > now.getTime() || cat > now.getTime();
+  payload.is_featured = active;
+  const times = [hp, cat].filter((t) => t > 0);
+  payload.featured_until =
+    times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
+}
+
+/** Admin: set a listing as featured manually (homepage scope; matches broker-paid “homepage”). */
 export async function adminSetFeatured(
   listingId: string,
   days: number
@@ -78,17 +110,41 @@ export async function adminSetFeatured(
   await requireAdmin();
   const supabase = createServiceRoleClient();
 
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("featured_homepage_until, featured_category_until")
+    .eq("id", listingId)
+    .single();
+
+  if (!listing) return { ok: false, error: "Listing not found" };
+
   const now = new Date();
-  const featuredUntil = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const homepageBase =
+    listing.featured_homepage_until &&
+    new Date(listing.featured_homepage_until) > now
+      ? new Date(listing.featured_homepage_until)
+      : now;
+  const hpUntil = new Date(
+    homepageBase.getTime() + days * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const nextRow = {
+    featured_homepage_until: hpUntil,
+    featured_category_until: listing.featured_category_until ?? null,
+  };
+
+  const payload: Record<string, unknown> = {
+    featured_from: now.toISOString(),
+    featured_package_days: days,
+    featured_scope: "homepage",
+    featured_homepage_until: hpUntil,
+  };
+
+  syncLegacyFeaturedFields(payload, nextRow);
 
   const { error } = await supabase
     .from("listings")
-    .update({
-      is_featured: true,
-      featured_from: now.toISOString(),
-      featured_until: featuredUntil.toISOString(),
-      featured_package_days: days,
-    })
+    .update(payload)
     .eq("id", listingId);
 
   if (error) return { ok: false, error: error.message };
@@ -108,6 +164,9 @@ export async function adminRemoveFeatured(
       is_featured: false,
       featured_from: null,
       featured_until: null,
+      featured_homepage_until: null,
+      featured_category_until: null,
+      featured_scope: null,
       featured_package_days: null,
     })
     .eq("id", listingId);
@@ -116,7 +175,7 @@ export async function adminRemoveFeatured(
   return { ok: true };
 }
 
-/** Admin: extend featured period by N days. */
+/** Admin: extend active featured windows by N days (each scope that is still active). */
 export async function adminExtendFeatured(
   listingId: string,
   additionalDays: number
@@ -126,33 +185,47 @@ export async function adminExtendFeatured(
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("featured_until")
+    .select("featured_homepage_until, featured_category_until")
     .eq("id", listingId)
     .single();
 
   if (!listing) return { ok: false, error: "Listing not found" };
 
-  // Extend from current featured_until or from now if expired
-  const base = listing.featured_until
-    ? new Date(
-        Math.max(
-          new Date(listing.featured_until).getTime(),
-          Date.now()
-        )
-      )
-    : new Date();
+  const now = Date.now();
+  const addMs = additionalDays * 24 * 60 * 60 * 1000;
 
-  const newUntil = new Date(
-    base.getTime() + additionalDays * 24 * 60 * 60 * 1000
-  );
+  let nextHp: string | null = listing.featured_homepage_until ?? null;
+  let nextCat: string | null = listing.featured_category_until ?? null;
+
+  const hpMs = nextHp ? new Date(nextHp).getTime() : 0;
+  const catMs = nextCat ? new Date(nextCat).getTime() : 0;
+  const hpActive = hpMs > now;
+  const catActive = catMs > now;
+
+  if (!hpActive && !catActive) {
+    return { ok: false, error: "Listing has no active featured period to extend" };
+  }
+
+  if (hpActive) {
+    nextHp = new Date(hpMs + addMs).toISOString();
+  }
+  if (catActive) {
+    nextCat = new Date(catMs + addMs).toISOString();
+  }
+
+  const payload: Record<string, unknown> = {
+    featured_homepage_until: nextHp,
+    featured_category_until: nextCat,
+  };
+
+  syncLegacyFeaturedFields(payload, {
+    featured_homepage_until: nextHp,
+    featured_category_until: nextCat,
+  });
 
   const { error } = await supabase
     .from("listings")
-    .update({
-      is_featured: true,
-      featured_until: newUntil.toISOString(),
-      featured_from: listing.featured_until ? undefined : new Date().toISOString(),
-    })
+    .update(payload)
     .eq("id", listingId);
 
   if (error) return { ok: false, error: error.message };

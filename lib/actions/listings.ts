@@ -322,7 +322,7 @@ export async function getPublishedListingsByAgencyId(agencyId: string): Promise<
     .eq("agency_id", agencyId)
     .eq("status", "published")
     .is("admin_removed_at", null)
-    .order("featured_until", { ascending: false, nullsFirst: false })
+    .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false });
   if (error) return [];
   const list = (data ?? []) as (Listing & { listing_images?: ListingImage[]; category?: Category | null })[];

@@ -192,14 +192,17 @@ export async function updatePaymentStatus(
           updated_at: now.toISOString(),
         };
 
-        // Featured tier also gets featured fields
+        // Featured tier: homepage boost (same as legacy featured tier behaviour)
         if (tier === "featured" && payment.package_days > 0) {
           const featuredUntil = new Date(
             now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
           );
+          const iso = featuredUntil.toISOString();
           updatePayload.is_featured = true;
           updatePayload.featured_from = now.toISOString();
-          updatePayload.featured_until = featuredUntil.toISOString();
+          updatePayload.featured_until = iso;
+          updatePayload.featured_homepage_until = iso;
+          updatePayload.featured_scope = "homepage";
           updatePayload.featured_package_days = payment.package_days;
         }
 
@@ -208,16 +211,19 @@ export async function updatePaymentStatus(
           .update(updatePayload)
           .eq("id", payment.listing_id);
       } else {
-        // Legacy featured payment
+        // Legacy featured payment → homepage scope
         const featuredUntil = new Date(
           now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
         );
+        const iso = featuredUntil.toISOString();
         await supabase
           .from("listings")
           .update({
             is_featured: true,
             featured_from: now.toISOString(),
-            featured_until: featuredUntil.toISOString(),
+            featured_until: iso,
+            featured_homepage_until: iso,
+            featured_scope: "homepage",
             featured_package_days: payment.package_days,
           })
           .eq("id", payment.listing_id);

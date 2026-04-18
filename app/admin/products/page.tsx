@@ -7,12 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { PlusIcon, Package } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import Link from "next/link";
-import { ProductsTable } from "./products-table";
+import { ProductsAdminTabs } from "./products-admin-tabs";
 
 export default async function AdminProductsPage() {
   const products = await getAllProducts();
@@ -57,38 +55,14 @@ export default async function AdminProductsPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">All plans</CardTitle>
-          <CardDescription>
-            Plans and upgrades available to agencies. Active items appear during checkout.
-          </CardDescription>
-        </CardHeader>
-        <Separator />
-        <CardContent className="p-0">
-          {products.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                <Package className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium">No plans yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Create your first plan to enable subscriptions and listing upgrades.
-                </p>
-              </div>
-              <Button asChild size="sm" className="gap-1.5">
-                <Link href="/admin/products/new">
-                  <PlusIcon className="h-4 w-4" />
-                  Add plan
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <ProductsTable products={products} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <h2 className="text-sm font-medium text-foreground">Plans</h2>
+        <p className="text-sm text-muted-foreground max-w-2xl">
+          Switch tabs to manage everything together or focus on category-based featured pricing.
+        </p>
+      </div>
+
+      <ProductsAdminTabs products={products} />
     </div>
   );
 }

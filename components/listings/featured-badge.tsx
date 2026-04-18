@@ -1,6 +1,23 @@
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  isFeaturedNow,
+  isHomepageFeaturedNow,
+  isCategoryFeaturedNow,
+  isListingFeaturedAnywhere,
+  isFeaturedBadgeForBrowseSurface,
+  type FeaturedTimestamps,
+} from "@/lib/featured-dates";
+
+export type { FeaturedTimestamps };
+export {
+  isFeaturedNow,
+  isHomepageFeaturedNow,
+  isCategoryFeaturedNow,
+  isListingFeaturedAnywhere,
+  isFeaturedBadgeForBrowseSurface,
+};
 
 type FeaturedBadgeProps = {
   className?: string;
@@ -21,10 +38,4 @@ export function FeaturedBadge({ className, size = "default" }: FeaturedBadgeProp
       Featured
     </Badge>
   );
-}
-
-/** Check if a listing is currently featured based on featured_until. */
-export function isFeaturedNow(featuredUntil: string | null): boolean {
-  if (!featuredUntil) return false;
-  return new Date(featuredUntil) > new Date();
 }

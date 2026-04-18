@@ -6,10 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import {
-  FeaturedBadge,
-  isFeaturedNow,
-} from "@/components/listings/featured-badge";
+import { FeaturedBadge } from "@/components/listings/featured-badge";
+import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
 import { ListingActions } from "./listing-actions";
 
 type AdminListing = {
@@ -19,6 +17,8 @@ type AdminListing = {
   status: string;
   is_featured: boolean;
   featured_until: string | null;
+  featured_homepage_until: string | null;
+  featured_category_until: string | null;
   admin_removed_at: string | null;
   created_at: string;
   broker?: { name: string | null; company: string | null } | null;
@@ -113,13 +113,13 @@ export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
       },
       {
         id: "featured",
-        accessorFn: (row) => (isFeaturedNow(row.featured_until) ? "yes" : "no"),
+        accessorFn: (row) => (isListingFeaturedAnywhere(row) ? "yes" : "no"),
         meta: { label: "Featured" },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Featured" />
         ),
         cell: ({ row }) =>
-          isFeaturedNow(row.original.featured_until) ? (
+          isListingFeaturedAnywhere(row.original) ? (
             <FeaturedBadge size="sm" />
           ) : (
             <Badge variant="outline" className="text-xs border-0 text-muted-foreground">
@@ -150,8 +150,9 @@ export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
             listingId={row.original.id}
             slug={row.original.slug}
             isRemoved={!!row.original.admin_removed_at}
-            isFeatured={row.original.is_featured}
-            featuredUntil={row.original.featured_until}
+            featured_homepage_until={row.original.featured_homepage_until}
+            featured_category_until={row.original.featured_category_until}
+            featured_until={row.original.featured_until}
           />
         ),
       },

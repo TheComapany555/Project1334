@@ -5,7 +5,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FeaturedBadge, isFeaturedNow } from "@/components/listings/featured-badge";
+import {
+  FeaturedBadge,
+  isFeaturedBadgeForBrowseSurface,
+} from "@/components/listings/featured-badge";
 import { NestedNavLink } from "@/components/public/nested-nav-link";
 import { MapPin, Building2, ChevronLeft, ChevronRight, SearchX, User } from "lucide-react";
 
@@ -58,6 +61,9 @@ export function SearchResults({
 }: Props) {
   const qs = (overrides: Record<string, string>) =>
     buildQueryString(currentParams, overrides);
+
+  const browseSurface =
+    currentParams.category?.trim() !== "" ? "category" : "homepage";
 
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -127,7 +133,7 @@ export function SearchResults({
                   )}
 
                   {/* Featured badge overlaid on image */}
-                  {isFeaturedNow(listing.featured_until) && (
+                  {isFeaturedBadgeForBrowseSurface(listing, browseSurface) && (
                     <div className="absolute top-2 left-2">
                       <FeaturedBadge size="sm" />
                     </div>

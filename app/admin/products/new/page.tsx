@@ -9,8 +9,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getCategories } from "@/lib/actions/listings";
 import { ProductForm } from "../product-form";
+import type { FeaturedScope } from "@/lib/types/products";
 
-export default async function NewProductPage() {
+type Props = {
+  searchParams: Promise<{ focus?: string }>;
+};
+
+export default async function NewProductPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const initialFeaturedScope: FeaturedScope | undefined =
+    params.focus === "category" ? "category" : undefined;
+
   const categories = await getCategories();
   return (
     <div className="space-y-6">
@@ -28,7 +37,10 @@ export default async function NewProductPage() {
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
-          <ProductForm categories={categories} />
+          <ProductForm
+            categories={categories}
+            initialFeaturedScope={initialFeaturedScope}
+          />
         </CardContent>
       </Card>
     </div>
