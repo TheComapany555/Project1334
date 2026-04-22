@@ -39,17 +39,27 @@ import {
   ArrowUpRight,
   ShieldCheck,
   CheckCircle2,
+  ScrollText,
+  LayoutList,
+  Receipt,
+  MessageSquare,
+  Database,
+  BarChart2,
+  Activity,
+  Wrench,
+  Globe2,
+  CheckSquare,
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Terms of Service",
+  title: "Terms & Conditions",
   description:
-    "The terms that govern your use of the Salebiz marketplace, including broker, agency, and buyer responsibilities.",
+    "The terms that govern your access to and use of the Salebiz marketplace, including broker, agency, and buyer responsibilities.",
   alternates: { canonical: "/terms" },
 };
 
-const LAST_UPDATED = "14 April 2026";
-const EFFECTIVE_DATE = "14 April 2026";
+const LAST_UPDATED = "21 April 2026";
+const EFFECTIVE_DATE = "21 April 2026";
 
 type Section = {
   id: string;
@@ -61,299 +71,477 @@ type Section = {
 
 const sections: Section[] = [
   {
-    id: "eligibility",
+    id: "about",
     number: "01",
-    title: "Who can use Salebiz",
-    icon: UserCircle2,
-    content: (
-      <p>
-        You must be at least 18 years old and able to enter into a legally
-        binding contract under Australian law. If you register on behalf of a
-        business or agency, you warrant that you are authorised to bind that
-        entity.
-      </p>
-    ),
-  },
-  {
-    id: "accounts",
-    number: "02",
-    title: "Accounts",
-    icon: KeyRound,
-    content: (
-      <p>
-        You are responsible for maintaining the confidentiality of your
-        credentials and for all activity under your account. Please notify us
-        immediately of any unauthorised access. We may suspend or terminate
-        accounts that violate these Terms or are used unlawfully.
-      </p>
-    ),
-  },
-  {
-    id: "what-salebiz-is",
-    number: "03",
-    title: "What Salebiz is (and is not)",
+    title: "About the Salebiz Platform",
     icon: Building2,
     content: (
-      <p>
-        Salebiz is a marketplace that connects brokers and agencies listing
-        businesses for sale with prospective buyers. We do not own, sell, broker,
-        inspect, or guarantee the quality, legality, safety, or accuracy of any
-        listing. Transactions are between the buyer and the broker or seller.
-        You should obtain independent legal, financial, and due diligence advice
-        before entering any transaction.
-      </p>
+      <>
+        <p>
+          Salebiz is an online technology platform designed to connect verified
+          business brokers with potential buyers of businesses. The Platform
+          allows:
+        </p>
+        <ul>
+          <li>Verified brokers to list businesses for sale</li>
+          <li>Buyers to browse available listings</li>
+          <li>Buyers to contact brokers</li>
+          <li>Brokers to manage client communications</li>
+          <li>Buyers to sign digital Non-Disclosure Agreements (NDAs)</li>
+          <li>Storage of messages, documents, and listing materials</li>
+          <li>Access to listing analytics and reporting</li>
+        </ul>
+        <p>
+          Salebiz provides technology services only. Salebiz does not act as a
+          broker or agent, provide financial or legal advice, participate in
+          negotiations, or guarantee business sales. All transactions occur
+          directly between brokers and buyers.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "acceptance",
+    number: "02",
+    title: "Acceptance of terms",
+    icon: CheckSquare,
+    content: (
+      <>
+        <p>By:</p>
+        <ul>
+          <li>Creating an account</li>
+          <li>Accessing the Platform</li>
+          <li>Browsing listings</li>
+          <li>Uploading content</li>
+          <li>Signing NDAs</li>
+          <li>Communicating through the Platform</li>
+        </ul>
+        <p>
+          you agree to these Terms. If you do not agree, you must immediately
+          stop using the Platform.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "eligibility",
+    number: "03",
+    title: "Eligibility to use the Platform",
+    icon: UserCircle2,
+    content: (
+      <>
+        <p>You must:</p>
+        <ul>
+          <li>Be at least 18 years old</li>
+          <li>Provide accurate information</li>
+          <li>Use the Platform lawfully</li>
+          <li>Not impersonate any person</li>
+        </ul>
+        <p>Brokers must:</p>
+        <ul>
+          <li>Be legally authorised to act as brokers</li>
+          <li>Maintain any required licences</li>
+          <li>Provide verification documents when requested</li>
+        </ul>
+        <p>
+          Salebiz reserves the right to verify user identity, request
+          supporting documentation, refuse access, or suspend accounts at its
+          sole discretion.
+        </p>
+      </>
     ),
   },
   {
     id: "broker-obligations",
     number: "04",
-    title: "Broker and agency obligations",
+    title: "Broker verification and responsibilities",
     icon: Handshake,
     content: (
-      <ul>
-        <li>
-          You must hold any licence or registration required by Australian state
-          or territory law to act as a business broker or real-estate agent.
-        </li>
-        <li>
-          Listings must be accurate, current, and not misleading. Financial
-          figures, lease details, and photos must be truthful.
-        </li>
-        <li>
-          You must have the right to upload any documents, logos, or images you
-          post. You grant Salebiz a non-exclusive licence to host, display, and
-          distribute that content as part of the Service.
-        </li>
-        <li>
-          You must not list prohibited businesses, scams, or anything that
-          violates Australian law.
-        </li>
-        <li>
-          You must respond to buyer enquiries professionally and respect any NDA
-          you issue or sign through the Service.
-        </li>
-      </ul>
+      <>
+        <p>Only verified brokers may list businesses on Salebiz.</p>
+        <p>Brokers are solely responsible for:</p>
+        <ul>
+          <li>Listing accuracy</li>
+          <li>Financial information</li>
+          <li>Images and documents</li>
+          <li>Marketing statements</li>
+          <li>Legal compliance</li>
+          <li>Representations made to buyers</li>
+        </ul>
+        <p>
+          Brokers warrant that all listing information is true, accurate, not
+          misleading, and complies with all applicable laws. Salebiz does not
+          independently verify listing information and accepts no responsibility
+          for inaccurate listings, misleading content, or financial
+          misrepresentation. All liability rests with the listing broker.
+        </p>
+      </>
     ),
   },
   {
     id: "buyer-obligations",
     number: "05",
-    title: "Buyer obligations",
+    title: "Buyer responsibilities",
     icon: Search,
     content: (
-      <ul>
-        <li>Use your real name and contact details when submitting enquiries.</li>
-        <li>
-          Respect the confidentiality of information shared under an NDA. Misuse
-          may result in legal action by the broker or seller.
-        </li>
-        <li>Do not harass brokers or send unsolicited commercial messages.</li>
-      </ul>
+      <>
+        <p>Buyers agree to:</p>
+        <ul>
+          <li>Use the Platform responsibly</li>
+          <li>Provide truthful information</li>
+          <li>Respect confidentiality</li>
+          <li>Comply with signed NDAs</li>
+          <li>Use information only for legitimate purposes</li>
+        </ul>
+        <p>Buyers must not:</p>
+        <ul>
+          <li>Copy confidential business materials</li>
+          <li>Share protected information</li>
+          <li>Attempt to bypass brokers</li>
+          <li>Misuse listing content</li>
+        </ul>
+        <p>Violation may result in account suspension or legal action.</p>
+      </>
+    ),
+  },
+  {
+    id: "ndas",
+    number: "06",
+    title: "Non-Disclosure Agreements (NDAs)",
+    icon: ScrollText,
+    content: (
+      <>
+        <p>
+          Certain listing information may require buyers to sign a
+          Non-Disclosure Agreement. By signing an NDA, users agree to:
+        </p>
+        <ul>
+          <li>Maintain confidentiality</li>
+          <li>Use information solely for evaluation</li>
+          <li>Not disclose information to third parties</li>
+          <li>Protect confidential business data</li>
+        </ul>
+        <p>
+          Signed NDAs are legally binding, stored electronically, and may be
+          used as legal evidence. Failure to comply may result in legal
+          enforcement.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "listings",
+    number: "07",
+    title: "Listings and content",
+    icon: LayoutList,
+    content: (
+      <>
+        <p>
+          Brokers control their listings. Salebiz reserves the right to review,
+          modify, remove, or reject listings at its discretion. Listings must
+          be truthful, accurate, not misleading, and comply with applicable
+          laws. Salebiz does not guarantee listing success, buyer engagement,
+          or transaction completion.
+        </p>
+      </>
     ),
   },
   {
     id: "payments",
-    number: "06",
-    title: "Subscriptions and payments",
+    number: "08",
+    title: "Fees and payments",
     icon: CreditCard,
     content: (
       <>
         <p>
-          Agencies may purchase subscriptions, listing tiers, or featured
-          placements through Stripe. Prices are shown in AUD and include GST
-          where applicable. Subscriptions renew automatically until cancelled.
-          Cancellation takes effect at the end of the current billing period,
-          and we do not provide refunds for partial periods except where
-          required by Australian Consumer Law.
+          Salebiz charges fees only to brokers. Buyers are not charged fees to
+          browse listings or contact brokers through the Platform. All broker
+          payments must be conducted through the official website at{" "}
+          <a
+            href="https://www.salebiz.com.au"
+            className="font-medium text-primary hover:underline"
+          >
+            salebiz.com.au
+          </a>
+          .
+        </p>
+        <p>Broker fees may include:</p>
+        <ul>
+          <li>Monthly subscription fees</li>
+          <li>Per-listing fees</li>
+          <li>Featured listing fees</li>
+          <li>Promotional upgrade fees</li>
+        </ul>
+        <p>
+          All fees must be paid, are processed through the Salebiz website, are
+          non-refundable except where required by law, and may be changed from
+          time to time. Failure to pay required fees may result in suspension
+          of broker accounts, removal of listings, or restricted platform
+          access.
         </p>
         <p>
-          Featured listings and tier upgrades are one-off purchases tied to a
-          specific listing and run for the duration stated at checkout.
+          Salebiz does not handle payments related to the sale of businesses
+          between brokers and buyers. All transaction payments between brokers
+          and buyers occur independently of Salebiz.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "transaction-disclaimer",
+    number: "09",
+    title: "Platform transaction disclaimer",
+    icon: Receipt,
+    content: (
+      <>
+        <p>
+          Salebiz is not a party to any business sale transaction between
+          brokers and buyers. Salebiz does not handle sale funds, provide
+          escrow services, guarantee transactions, or verify transaction
+          completion. All negotiations, agreements, and payments relating to
+          the sale of businesses occur directly between brokers and buyers.
+        </p>
+        <p>
+          Salebiz accepts no responsibility for transaction disputes, failed
+          transactions, financial losses, or buyer or broker conduct.
         </p>
       </>
     ),
   },
   {
     id: "acceptable-use",
-    number: "07",
+    number: "10",
     title: "Acceptable use",
     icon: Ban,
     content: (
       <>
-        <p>You agree not to:</p>
+        <p>Users must not:</p>
         <ul>
-          <li>Post false, misleading, defamatory, or unlawful content.</li>
-          <li>Scrape, crawl, or reverse-engineer the Service.</li>
-          <li>
-            Attempt to bypass authentication, rate limits, or security controls.
-          </li>
-          <li>Use the Service to send spam or unsolicited marketing.</li>
-          <li>Infringe any intellectual property or privacy rights.</li>
-          <li>Upload malware or disruptive code.</li>
+          <li>Upload false or misleading listings</li>
+          <li>Attempt unauthorised access</li>
+          <li>Interfere with Platform systems</li>
+          <li>Use automated scraping tools</li>
+          <li>Upload malicious software</li>
+          <li>Abuse messaging features</li>
         </ul>
+        <p>
+          Violation may result in immediate suspension, permanent termination,
+          or legal enforcement.
+        </p>
       </>
     ),
   },
   {
-    id: "moderation",
-    number: "08",
-    title: "Content moderation",
-    icon: ShieldAlert,
+    id: "messaging",
+    number: "11",
+    title: "Messaging and communication",
+    icon: MessageSquare,
     content: (
-      <p>
-        We may remove any listing, message, image, or document, suspend
-        accounts, or restrict visibility at our discretion where content
-        breaches these Terms, is suspected to be fraudulent, or is flagged by a
-        user.
-      </p>
+      <>
+        <p>
+          Salebiz enables communication between users. Users are responsible
+          for message content, professional conduct, and accuracy of
+          communication. Messages may be stored for security, legal, and
+          operational purposes.
+        </p>
+      </>
     ),
   },
   {
     id: "ip",
-    number: "09",
+    number: "12",
     title: "Intellectual property",
     icon: Copyright,
     content: (
-      <p>
-        The Service, including its design, logos, code, and trademarks, is owned
-        by Salebiz and its licensors. You retain ownership of content you upload
-        but grant us a non-exclusive, royalty-free, worldwide licence to host
-        and display it for the purpose of operating the Service.
-      </p>
+      <>
+        <p>
+          All Platform materials, including software, design, branding,
+          databases, and system architecture, remain the property of THE
+          COMPANY MARKETING PTY LTD. Users retain ownership of uploaded
+          content; however, users grant Salebiz a licence to store content,
+          display listings, promote listings, and operate the Platform.
+        </p>
+      </>
     ),
   },
   {
-    id: "third-parties",
-    number: "10",
-    title: "Third-party services",
-    icon: Puzzle,
+    id: "data-storage",
+    number: "13",
+    title: "Data storage and security",
+    icon: Database,
     content: (
-      <p>
-        The Service integrates with third parties including Stripe, Supabase,
-        Resend, and Google reCAPTCHA. Your use of those services is subject to
-        their own terms and privacy policies.
-      </p>
+      <>
+        <p>Salebiz stores user data, listings, messages, documents, and NDAs using Supabase and related secure cloud technologies. While reasonable security measures are used, no system is completely secure. Users accept inherent technology risks.</p>
+      </>
     ),
   },
   {
-    id: "disclaimers",
-    number: "11",
-    title: "Disclaimers",
-    icon: TriangleAlert,
+    id: "analytics",
+    number: "14",
+    title: "Analytics and reporting",
+    icon: BarChart2,
+    content: (
+      <>
+        <p>Salebiz provides analytics tools which may include listing views, buyer interactions, and engagement metrics. Analytics are informational only, may not be exact, and do not guarantee outcomes.</p>
+      </>
+    ),
+  },
+  {
+    id: "availability",
+    number: "15",
+    title: "Platform availability",
+    icon: Activity,
     content: (
       <p>
-        The Service is provided on an &ldquo;as is&rdquo; and &ldquo;as
-        available&rdquo; basis. To the maximum extent permitted by law, Salebiz
-        disclaims all warranties, whether express or implied, including fitness
-        for purpose and non-infringement. We do not warrant that the Service
-        will be uninterrupted or error free. Nothing in these Terms excludes
-        rights you have under the Australian Consumer Law that cannot lawfully
-        be excluded.
+        Salebiz does not guarantee continuous operation, uninterrupted service,
+        or error-free functionality. Maintenance may occur at any time.
       </p>
     ),
   },
   {
     id: "liability",
-    number: "12",
+    number: "16",
     title: "Limitation of liability",
     icon: Scale,
     content: (
-      <p>
-        To the maximum extent permitted by law, Salebiz&rsquo;s total liability
-        arising out of or in connection with the Service is limited to the fees
-        you paid us in the 12 months preceding the claim. We are not liable for
-        indirect, incidental, special, consequential, or punitive damages, or
-        for loss of profits, revenue, data, or business opportunity.
-      </p>
+      <>
+        <p>To the maximum extent permitted by law, Salebiz is not liable for:</p>
+        <ul>
+          <li>Loss of profits</li>
+          <li>Business losses</li>
+          <li>Data loss</li>
+          <li>Listing inaccuracies</li>
+          <li>Buyer or broker behaviour</li>
+          <li>Failed transactions</li>
+        </ul>
+        <p>Use of the Platform is at your own risk.</p>
+      </>
     ),
   },
   {
     id: "indemnity",
-    number: "13",
+    number: "17",
     title: "Indemnity",
     icon: HandCoins,
     content: (
       <p>
-        You agree to indemnify and hold Salebiz harmless from any claims,
-        damages, liabilities, and costs arising from your content, your use of
-        the Service, or your breach of these Terms.
+        Users agree to indemnify Salebiz against claims, losses, damages, and
+        legal costs resulting from breach of these Terms, misuse of the
+        Platform, or false listings.
       </p>
     ),
   },
   {
     id: "termination",
-    number: "14",
-    title: "Termination",
+    number: "18",
+    title: "Suspension and termination",
     icon: LogOut,
     content: (
       <p>
-        You may close your account at any time. We may suspend or terminate your
-        access immediately if you breach these Terms or if we are required to do
-        so by law. Provisions that by their nature survive termination,
-        including intellectual property, disclaimers, liability, and indemnity,
-        continue to apply.
+        Salebiz may suspend or terminate accounts if Terms are breached, fraud
+        is suspected, payment obligations are unmet, or illegal conduct occurs.
+        Access may be removed without notice.
+      </p>
+    ),
+  },
+  {
+    id: "third-parties",
+    number: "19",
+    title: "Third-party services",
+    icon: Puzzle,
+    content: (
+      <>
+        <p>Salebiz relies on third-party services, which may include:</p>
+        <ul>
+          <li>Cloud storage providers</li>
+          <li>Payment processors</li>
+          <li>Analytics tools</li>
+        </ul>
+        <p>Salebiz is not liable for third-party failures.</p>
+      </>
+    ),
+  },
+  {
+    id: "platform-changes",
+    number: "20",
+    title: "Changes to the Platform",
+    icon: Wrench,
+    content: (
+      <p>
+        Salebiz may add new features, remove features, or modify services at
+        any time.
       </p>
     ),
   },
   {
     id: "changes",
-    number: "15",
-    title: "Changes",
+    number: "21",
+    title: "Changes to terms",
     icon: RefreshCw,
     content: (
       <p>
-        We may update these Terms from time to time. Material changes will be
-        notified in app or by email. Continued use of the Service after changes
-        take effect constitutes acceptance.
+        Salebiz may update these Terms. Updated Terms become effective once
+        published. Continued use means acceptance.
       </p>
     ),
   },
   {
     id: "governing-law",
-    number: "16",
+    number: "22",
     title: "Governing law",
     icon: Gavel,
     content: (
       <p>
-        These Terms are governed by the laws of New South Wales, Australia. You
-        submit to the exclusive jurisdiction of the courts of New South Wales
-        for any dispute.
+        These Terms are governed by the laws of New South Wales, Australia. All
+        disputes are subject to the courts of New South Wales.
+      </p>
+    ),
+  },
+  {
+    id: "international",
+    number: "23",
+    title: "International use",
+    icon: Globe2,
+    content: (
+      <p>
+        Salebiz may operate internationally. Users outside Australia must
+        comply with local laws and accept Australian jurisdiction.
       </p>
     ),
   },
   {
     id: "contact",
-    number: "17",
-    title: "Contact",
+    number: "24",
+    title: "Contact information",
     icon: Mail,
     content: (
       <>
-        <p>Questions about these Terms? We are happy to help.</p>
+        <p>Legal enquiries:</p>
         <div className="not-prose mt-4 rounded-xl border border-border bg-muted/40 p-5">
           <p className="text-sm font-semibold text-foreground">
-            Salebiz Pty Ltd
+            THE COMPANY MARKETING PTY LTD
           </p>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex items-start gap-2">
-              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
+              <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <dt className="text-muted-foreground">Support</dt>
-                <dd>
-                  <a
-                    href="mailto:support@salebiz.com.au"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    support@salebiz.com.au
-                  </a>
+                <dt className="text-muted-foreground">Address</dt>
+                <dd className="text-foreground">
+                  7/24 Hickson Rd<br />Millers Point NSW 2000<br />Australia
                 </dd>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
+              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <dt className="text-muted-foreground">Jurisdiction</dt>
-                <dd className="text-foreground">
-                  New South Wales, Australia
+                <dt className="text-muted-foreground">Legal enquiries</dt>
+                <dd>
+                  <a
+                    href="mailto:legal@salebiz.com.au"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    legal@salebiz.com.au
+                  </a>
                 </dd>
               </div>
             </div>
@@ -373,7 +561,7 @@ const highlights = [
   {
     icon: ShieldCheck,
     title: "Clear obligations",
-    body: "Brokers must be licensed and list accurately. Buyers must respect NDAs and act in good faith.",
+    body: "Brokers must be verified and list accurately. Buyers must respect NDAs and act in good faith.",
   },
   {
     icon: Gavel,
@@ -409,7 +597,7 @@ export default async function TermsPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Terms of Service</BreadcrumbPage>
+                <BreadcrumbPage>Terms &amp; Conditions</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -426,11 +614,11 @@ export default async function TermsPage() {
                 Legal
               </Badge>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
-                Terms of Service
+                Terms &amp; Conditions
               </h1>
               <p className="mt-3 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-                The rules that govern your use of Salebiz, the Australian
-                marketplace for buying and selling businesses.
+                The rules that govern your access to and use of the Salebiz
+                platform, operated by THE COMPANY MARKETING PTY LTD.
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
@@ -516,18 +704,17 @@ export default async function TermsPage() {
             <Card className="overflow-hidden border-border shadow-sm">
               <CardContent className="p-6 sm:p-10">
                 <p className="text-[15px] leading-relaxed text-muted-foreground">
-                  These Terms of Service (&ldquo;Terms&rdquo;) govern your use of
-                  the Salebiz website at{" "}
-                  <a
-                    href="https://salebiz.com.au"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    salebiz.com.au
-                  </a>{" "}
-                  and the Salebiz mobile application (together, the
-                  &ldquo;Service&rdquo;), operated by Salebiz Pty Ltd. By
-                  creating an account or using the Service you agree to these
-                  Terms. If you do not agree, please do not use the Service.
+                  These Terms and Conditions (&ldquo;Terms&rdquo;) govern your
+                  access to and use of the Salebiz platform
+                  (&ldquo;Platform&rdquo;) operated by{" "}
+                  <strong className="text-foreground">
+                    THE COMPANY MARKETING PTY LTD
+                  </strong>{" "}
+                  (&ldquo;Salebiz&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
+                  or &ldquo;our&rdquo;), 7/24 Hickson Rd, Millers Point NSW
+                  2000, Australia. By accessing or using the Platform, you
+                  agree to be legally bound by these Terms. If you do not
+                  agree, you must not use the Platform.
                 </p>
 
                 <Separator className="my-8" />
@@ -583,7 +770,8 @@ export default async function TermsPage() {
                       Read the Privacy Policy
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      How we collect, use, and protect your personal information.
+                      How we collect, use, and protect your personal
+                      information.
                     </p>
                   </div>
                 </div>
@@ -600,10 +788,10 @@ export default async function TermsPage() {
               <p>
                 Questions? Email{" "}
                 <a
-                  href="mailto:support@salebiz.com.au"
+                  href="mailto:legal@salebiz.com.au"
                   className="font-medium text-primary hover:underline"
                 >
-                  support@salebiz.com.au
+                  legal@salebiz.com.au
                 </a>
                 .
               </p>

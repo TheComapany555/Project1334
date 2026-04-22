@@ -24,7 +24,6 @@ import {
   Lock,
   UserCheck,
   Baby,
-  Smartphone,
   RefreshCw,
   Mail,
   FileText,
@@ -32,6 +31,17 @@ import {
   CheckCircle2,
   KeyRound,
   Ban,
+  Building2,
+  MapPin,
+  ClipboardList,
+  Target,
+  Monitor,
+  ExternalLink,
+  FolderOpen,
+  PenLine,
+  Bell,
+  AlertCircle,
+  ShieldAlert,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -41,8 +51,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const LAST_UPDATED = "14 April 2026";
-const EFFECTIVE_DATE = "14 April 2026";
+const LAST_UPDATED = "21 April 2026";
+const EFFECTIVE_DATE = "21 April 2026";
 
 type Section = {
   id: string;
@@ -54,178 +64,453 @@ type Section = {
 
 const sections: Section[] = [
   {
-    id: "information-we-collect",
+    id: "company-details",
     number: "01",
-    title: "Information we collect",
+    title: "Company details",
+    icon: Building2,
+    content: (
+      <div className="not-prose rounded-xl border border-border bg-muted/40 p-5">
+        <p className="text-sm font-semibold text-foreground">THE COMPANY MARKETING PTY LTD</p>
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div className="flex items-start gap-2">
+            <Building2 className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+            <div>
+              <dt className="text-muted-foreground">Trading Name</dt>
+              <dd className="text-foreground font-medium">Salebiz</dd>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+            <div>
+              <dt className="text-muted-foreground">Address</dt>
+              <dd className="text-foreground">7/24 Hickson Rd<br />Millers Point NSW 2000<br />Australia</dd>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Mail className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+            <div>
+              <dt className="text-muted-foreground">Privacy Contact Email</dt>
+              <dd>
+                <a
+                  href="mailto:privacy@salebiz.com.au"
+                  className="font-medium text-primary hover:underline"
+                >
+                  privacy@salebiz.com.au
+                </a>
+              </dd>
+            </div>
+          </div>
+        </dl>
+      </div>
+    ),
+  },
+  {
+    id: "information-we-collect",
+    number: "02",
+    title: "Types of personal information collected",
     icon: Database,
     content: (
       <>
-        <p>We collect the following categories of information when you use Salebiz.</p>
+        <p>
+          Salebiz collects personal information necessary to operate the
+          Platform and provide services to users. Personal information collected
+          may include:
+        </p>
+        <p>
+          <strong>Identity Information</strong>
+        </p>
         <ul>
-          <li>
-            <strong>Account information.</strong> Name, email address, hashed
-            password, phone number, business or agency name, profile photo, and
-            logo.
-          </li>
-          <li>
-            <strong>Listing information.</strong> Business details, location,
-            financials, photos, documents, and other content you choose to publish
-            as a broker or agency.
-          </li>
-          <li>
-            <strong>Enquiry and communication data.</strong> Messages, NDA
-            signatures, enquiries, and call-click events submitted through the
-            Service.
-          </li>
-          <li>
-            <strong>Payment information.</strong> Billing details for
-            subscriptions and featured listings. Card numbers are processed
-            directly by Stripe and are never stored on our servers.
-          </li>
-          <li>
-            <strong>Device and usage data.</strong> IP address, device type,
-            operating system, app version, pages viewed, and analytics events.
-          </li>
-          <li>
-            <strong>Cookies and similar technologies</strong> on the website for
-            authentication, security, and anti-spam protection (Google reCAPTCHA).
-          </li>
+          <li>Full name</li>
+          <li>Email address</li>
+          <li>Phone number</li>
+          <li>Residential or business address</li>
+          <li>Business or agency name</li>
+          <li>Professional licence details</li>
+          <li>Identification documents provided for verification</li>
+        </ul>
+        <p>
+          <strong>Account Information</strong>
+        </p>
+        <ul>
+          <li>Username</li>
+          <li>Password (stored in encrypted form)</li>
+          <li>Profile information</li>
+          <li>Account settings</li>
+          <li>Login activity</li>
+        </ul>
+        <p>
+          <strong>Broker Information</strong>
+        </p>
+        <ul>
+          <li>Business listing details</li>
+          <li>Agency details</li>
+          <li>Professional credentials</li>
+          <li>Listing content, uploaded documents, images, and business descriptions</li>
+          <li>Financial summary information</li>
+        </ul>
+        <p>
+          <strong>Buyer Information</strong>
+        </p>
+        <ul>
+          <li>Contact details and communication history</li>
+          <li>Buyer preferences</li>
+          <li>Signed Non-Disclosure Agreements</li>
+          <li>Access permissions</li>
+        </ul>
+        <p>
+          <strong>Communication Data</strong>
+        </p>
+        <ul>
+          <li>Messages sent through the Platform</li>
+          <li>Attachments, uploaded files, and communication history</li>
+        </ul>
+        <p>
+          <strong>Payment Information</strong>
+        </p>
+        <ul>
+          <li>Billing information, payment history, subscription details, and transaction records</li>
+          <li>Full payment card details are not stored by Salebiz — payment processing is handled through secure third-party payment systems.</li>
+        </ul>
+        <p>
+          <strong>Technical and Usage Information</strong>
+        </p>
+        <ul>
+          <li>IP address, device information, browser type, and operating system</li>
+          <li>Access times, platform usage activity, and session data</li>
+        </ul>
+        <p>
+          <strong>Analytics Information</strong>
+        </p>
+        <ul>
+          <li>Listing views, buyer interactions, user engagement, and platform performance data</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "methods-of-collection",
+    number: "03",
+    title: "Methods of collection",
+    icon: ClipboardList,
+    content: (
+      <>
+        <p>
+          Personal information is collected directly and indirectly through
+          user interaction with the Platform. Information may be collected:
+        </p>
+        <ul>
+          <li>When users create accounts</li>
+          <li>When brokers upload listings</li>
+          <li>When buyers contact brokers</li>
+          <li>When NDAs are signed</li>
+          <li>When files are uploaded</li>
+          <li>When messages are sent</li>
+          <li>When subscriptions are purchased</li>
+          <li>When users browse the Platform</li>
+          <li>Through cookies and tracking technologies</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "purpose-of-collection",
+    number: "04",
+    title: "Purpose of collection",
+    icon: Target,
+    content: (
+      <>
+        <p>Salebiz collects personal information to operate and maintain the Platform. Personal information is used to:</p>
+        <ul>
+          <li>Create and manage user accounts</li>
+          <li>Verify broker identity</li>
+          <li>Publish and manage listings</li>
+          <li>Facilitate communication between users</li>
+          <li>Manage client interactions</li>
+          <li>Enable NDA signing workflows</li>
+          <li>Process payments</li>
+          <li>Provide analytics services</li>
+          <li>Improve platform performance</li>
+          <li>Maintain platform security</li>
+          <li>Detect and prevent fraud</li>
+          <li>Enforce legal rights</li>
+          <li>Comply with legal obligations</li>
         </ul>
       </>
     ),
   },
   {
     id: "how-we-use",
-    number: "02",
-    title: "How we use your information",
+    number: "05",
+    title: "Use of personal information",
     icon: UserCheck,
     content: (
       <>
-        <p>We use personal information to:</p>
+        <p>Personal information may be used for:</p>
         <ul>
-          <li>Provide, operate, and maintain the Service.</li>
-          <li>Authenticate users and keep accounts secure.</li>
-          <li>Display listings and broker profiles, and facilitate enquiries.</li>
-          <li>Process payments, subscriptions, and invoices.</li>
-          <li>
-            Send transactional emails such as verification, password reset,
-            receipts, and notifications.
-          </li>
-          <li>
-            Detect, prevent, and respond to fraud, abuse, and security incidents.
-          </li>
-          <li>Comply with legal obligations and enforce our Terms of Service.</li>
+          <li>Providing Platform services</li>
+          <li>Managing user accounts</li>
+          <li>Facilitating communication</li>
+          <li>Monitoring usage activity</li>
+          <li>Responding to enquiries</li>
+          <li>Improving platform features</li>
+          <li>Maintaining operational records</li>
+          <li>Providing service notifications</li>
+          <li>Enforcing contractual rights</li>
         </ul>
+        <p>Salebiz does not sell personal information to third parties.</p>
       </>
     ),
   },
   {
-    id: "when-we-share",
-    number: "03",
-    title: "When we share information",
+    id: "disclosure",
+    number: "06",
+    title: "Disclosure of personal information",
     icon: Share2,
     content: (
       <>
         <p>
-          Information you publish as a broker, including your name, agency,
-          listings, and contact details, is publicly visible. Otherwise, we only
-          share personal information with:
+          Salebiz may disclose personal information to third parties where
+          necessary to operate the Platform. This may include disclosure to:
         </p>
-        <ul>
-          <li>
-            <strong>Service providers</strong> that help us operate the Service,
-            including Supabase (database and storage), Stripe (payments), Resend
-            (email delivery), Google reCAPTCHA (spam protection), and our hosting
-            provider. These providers are bound by confidentiality obligations and
-            may only use data to provide services to us.
-          </li>
-          <li>
-            <strong>Brokers you contact.</strong> When you submit an enquiry, your
-            name, email, phone, and message are shared with the relevant broker
-            and agency.
-          </li>
-          <li>
-            <strong>Law enforcement or regulators</strong> where required by law,
-            court order, or to protect the rights, safety, or property of Salebiz,
-            our users, or the public.
-          </li>
-          <li>
-            <strong>Acquirers</strong> in the event of a merger, acquisition, or
-            sale of assets, subject to equivalent privacy protections.
-          </li>
-        </ul>
-        <p>We do not sell personal information to third parties.</p>
+        <p>
+          <strong>Service Providers</strong> — including cloud storage
+          providers, hosting providers, payment processors, analytics providers,
+          email delivery services, and security providers. Platform
+          infrastructure may utilise services including Supabase and associated
+          cloud technologies.
+        </p>
+        <p>
+          <strong>Legal Requirements</strong> — personal information may be
+          disclosed where required by law, court order, to regulatory
+          authorities, to prevent fraud, or to protect legal rights.
+        </p>
+        <p>
+          <strong>Business Transfers</strong> — if Salebiz undergoes a business
+          sale, merger, restructure, or asset transfer, personal information may
+          be transferred to the acquiring entity.
+        </p>
       </>
     ),
   },
   {
-    id: "international",
-    number: "04",
-    title: "International data storage",
-    icon: Globe2,
+    id: "security",
+    number: "07",
+    title: "Storage and security",
+    icon: Lock,
     content: (
-      <p>
-        Salebiz is based in Australia. Some of our service providers, such as
-        Stripe and Resend, may process data outside Australia. We take reasonable
-        steps to ensure overseas recipients handle your information consistently
-        with the Australian Privacy Principles.
-      </p>
+      <>
+        <p>
+          Salebiz takes reasonable steps to protect personal information from
+          misuse, interference, loss, unauthorised access, modification, or
+          disclosure. Security measures include:
+        </p>
+        <ul>
+          <li>Encrypted data storage</li>
+          <li>Secure server infrastructure</li>
+          <li>Access controls</li>
+          <li>Authentication processes</li>
+          <li>Monitoring of system activity</li>
+        </ul>
+        <p>
+          Personal information may be stored on secure cloud infrastructure
+          located within Australia or internationally. While reasonable
+          safeguards are implemented, no data transmission or storage system
+          can be guaranteed to be completely secure.
+        </p>
+      </>
     ),
   },
   {
     id: "retention",
-    number: "05",
+    number: "08",
     title: "Data retention",
     icon: Clock,
     content: (
-      <p>
-        We retain personal information for as long as your account is active and
-        as needed to provide the Service, meet legal and tax obligations, resolve
-        disputes, and enforce agreements. You can request account deletion at any
-        time (see Your choices and rights).
-      </p>
+      <>
+        <p>
+          Personal information is retained only for as long as necessary to
+          fulfil operational, legal, and regulatory requirements. Salebiz may
+          retain account records, listing records, messages, NDAs, and payment
+          records even after account closure where required by law or legitimate
+          business purposes.
+        </p>
+      </>
     ),
   },
   {
-    id: "security",
-    number: "06",
-    title: "Security",
-    icon: Lock,
-    content: (
-      <p>
-        We use industry-standard measures to protect personal information,
-        including TLS encryption in transit, encrypted storage at rest, hashed
-        passwords, role-based access controls, and database row-level security.
-        No online service can be guaranteed 100 percent secure, and you are
-        responsible for keeping your password confidential.
-      </p>
-    ),
-  },
-  {
-    id: "your-rights",
-    number: "07",
-    title: "Your choices and rights",
-    icon: KeyRound,
+    id: "cookies",
+    number: "09",
+    title: "Cookies and tracking technologies",
+    icon: Monitor,
     content: (
       <>
-        <p>Under the Privacy Act 1988 (Cth) you may:</p>
+        <p>
+          Salebiz uses cookies and similar technologies to support Platform
+          functionality. Cookies may be used to:
+        </p>
         <ul>
-          <li>Access the personal information we hold about you.</li>
-          <li>Ask us to correct inaccurate or out-of-date information.</li>
-          <li>
-            Request deletion of your account and associated personal information.
-          </li>
-          <li>
-            Opt out of non-essential marketing emails using the unsubscribe link.
-          </li>
-          <li>Lodge a complaint about how we handle your information.</li>
+          <li>Maintain login sessions</li>
+          <li>Enable platform functionality</li>
+          <li>Monitor system performance</li>
+          <li>Analyse user behaviour</li>
+          <li>Improve user experience</li>
         </ul>
         <p>
-          To exercise any of these rights, email{" "}
-          <a href="mailto:privacy@salebiz.com.au">privacy@salebiz.com.au</a>. If
-          you are not satisfied with our response, you may contact the Office of
-          the Australian Information Commissioner at{" "}
-          <a href="https://www.oaic.gov.au" target="_blank" rel="noreferrer">
+          Users may adjust browser settings to restrict cookie usage; however,
+          certain features of the Platform may not function correctly if
+          cookies are disabled.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "third-party-links",
+    number: "10",
+    title: "Third-party links",
+    icon: ExternalLink,
+    content: (
+      <p>
+        The Platform may contain links to third-party websites or services.
+        Salebiz does not control third-party websites and is not responsible
+        for their privacy practices or content. Users accessing third-party
+        websites do so at their own risk.
+      </p>
+    ),
+  },
+  {
+    id: "access",
+    number: "11",
+    title: "Access to personal information",
+    icon: FolderOpen,
+    content: (
+      <p>
+        Users may request access to personal information held by Salebiz.
+        Requests must be submitted in writing to{" "}
+        <a href="mailto:privacy@salebiz.com.au" className="font-medium text-primary hover:underline">
+          privacy@salebiz.com.au
+        </a>
+        . Salebiz may require verification of identity before releasing
+        information.
+      </p>
+    ),
+  },
+  {
+    id: "correction",
+    number: "12",
+    title: "Correction of personal information",
+    icon: PenLine,
+    content: (
+      <p>
+        Users may request correction of inaccurate or incomplete personal
+        information. Salebiz will take reasonable steps to update records where
+        appropriate.
+      </p>
+    ),
+  },
+  {
+    id: "overseas",
+    number: "13",
+    title: "Overseas disclosure",
+    icon: Globe2,
+    content: (
+      <p>
+        Personal information may be stored or processed outside Australia where
+        necessary to operate the Platform. This may include international cloud
+        infrastructure and service providers. Where overseas disclosure occurs,
+        reasonable steps are taken to ensure personal information is handled
+        securely.
+      </p>
+    ),
+  },
+  {
+    id: "marketing",
+    number: "14",
+    title: "Marketing communications",
+    icon: Bell,
+    content: (
+      <>
+        <p>Salebiz may send communications relating to:</p>
+        <ul>
+          <li>Platform updates</li>
+          <li>System notifications</li>
+          <li>Service announcements</li>
+        </ul>
+        <p>
+          Users may opt out of marketing communications where permitted.
+          Service-related communications may still be delivered.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "children",
+    number: "15",
+    title: "Children&apos;s privacy",
+    icon: Baby,
+    content: (
+      <p>
+        The Platform is not intended for individuals under the age of 18.
+        Salebiz does not knowingly collect personal information from minors.
+        Accounts identified as belonging to minors may be removed.
+      </p>
+    ),
+  },
+  {
+    id: "data-breach",
+    number: "16",
+    title: "Data breach management",
+    icon: ShieldAlert,
+    content: (
+      <>
+        <p>If a data breach occurs, Salebiz will take reasonable steps to:</p>
+        <ul>
+          <li>Investigate the breach</li>
+          <li>Contain the breach</li>
+          <li>Assess the risk</li>
+          <li>Notify affected individuals where required</li>
+          <li>Comply with applicable legal obligations</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "changes",
+    number: "17",
+    title: "Changes to this privacy policy",
+    icon: RefreshCw,
+    content: (
+      <p>
+        Salebiz may update this Privacy Policy from time to time. Updated
+        versions become effective once published on the Platform. Continued use
+        of the Platform indicates acceptance of the updated policy.
+      </p>
+    ),
+  },
+  {
+    id: "complaints",
+    number: "18",
+    title: "Complaints",
+    icon: AlertCircle,
+    content: (
+      <>
+        <p>
+          If a user believes their privacy rights have been breached, a
+          complaint may be submitted to{" "}
+          <a href="mailto:privacy@salebiz.com.au" className="font-medium text-primary hover:underline">
+            privacy@salebiz.com.au
+          </a>
+          . Complaints will be reviewed and addressed in accordance with
+          applicable privacy laws.
+        </p>
+        <p>
+          If a complaint is not resolved, it may be referred to the Office of
+          the Australian Information Commissioner (OAIC) at{" "}
+          <a
+            href="https://www.oaic.gov.au"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
             oaic.gov.au
           </a>
           .
@@ -234,72 +519,27 @@ const sections: Section[] = [
     ),
   },
   {
-    id: "children",
-    number: "08",
-    title: "Children",
-    icon: Baby,
-    content: (
-      <p>
-        The Service is intended for users aged 18 and over. We do not knowingly
-        collect personal information from children.
-      </p>
-    ),
-  },
-  {
-    id: "mobile-permissions",
-    number: "09",
-    title: "Mobile app permissions",
-    icon: Smartphone,
-    content: (
-      <>
-        <p>The Salebiz mobile app may request the following permissions:</p>
-        <ul>
-          <li>
-            <strong>Photo library.</strong> To upload listing or profile images.
-          </li>
-          <li>
-            <strong>Camera.</strong> To take new images for your listing or
-            profile.
-          </li>
-          <li>
-            <strong>Secure storage.</strong> To keep you signed in between
-            sessions.
-          </li>
-          <li>
-            <strong>Notifications.</strong> For transactional alerts only.
-          </li>
-        </ul>
-        <p>You can disable any permission in your device settings at any time.</p>
-      </>
-    ),
-  },
-  {
-    id: "changes",
-    number: "10",
-    title: "Changes to this policy",
-    icon: RefreshCw,
-    content: (
-      <p>
-        We may update this Privacy Policy from time to time. When we do, we will
-        revise the Last updated date shown at the top of this page. Material
-        changes will be communicated by email or an in-app notice before they
-        take effect.
-      </p>
-    ),
-  },
-  {
     id: "contact",
-    number: "11",
-    title: "Contact us",
+    number: "19",
+    title: "Contact details",
     icon: Mail,
     content: (
       <>
-        <p>Questions about this Privacy Policy? We would like to hear from you.</p>
+        <p>Privacy enquiries:</p>
         <div className="not-prose mt-4 rounded-xl border border-border bg-muted/40 p-5">
-          <p className="text-sm font-semibold text-foreground">Salebiz Pty Ltd</p>
+          <p className="text-sm font-semibold text-foreground">THE COMPANY MARKETING PTY LTD</p>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex items-start gap-2">
-              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
+              <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <dt className="text-muted-foreground">Address</dt>
+                <dd className="text-foreground">
+                  7/24 Hickson Rd<br />Millers Point NSW 2000<br />Australia
+                </dd>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
               <div>
                 <dt className="text-muted-foreground">Privacy enquiries</dt>
                 <dd>
@@ -308,20 +548,6 @@ const sections: Section[] = [
                     className="font-medium text-primary hover:underline"
                   >
                     privacy@salebiz.com.au
-                  </a>
-                </dd>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Globe2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div>
-                <dt className="text-muted-foreground">Website</dt>
-                <dd>
-                  <a
-                    href="https://salebiz.com.au"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    salebiz.com.au
                   </a>
                 </dd>
               </div>
@@ -398,7 +624,7 @@ export default async function PrivacyPolicyPage() {
                 Privacy Policy
               </h1>
               <p className="mt-3 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-                How Salebiz collects, uses, and protects your personal
+                How Salebiz collects, uses, stores, and protects your personal
                 information. Written in plain English and aligned with the
                 Australian Privacy Principles.
               </p>
@@ -475,7 +701,7 @@ export default async function PrivacyPolicyPage() {
                   className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <FileText className="h-3.5 w-3.5" />
-                  Terms of Service
+                  Terms &amp; Conditions
                 </Link>
               </div>
             </div>
@@ -486,18 +712,22 @@ export default async function PrivacyPolicyPage() {
             <Card className="overflow-hidden border-border shadow-sm">
               <CardContent className="p-6 sm:p-10">
                 <p className="text-[15px] leading-relaxed text-muted-foreground">
-                  Salebiz Pty Ltd (&ldquo;Salebiz&rdquo;, &ldquo;we&rdquo;, or
-                  &ldquo;us&rdquo;) operates the website at{" "}
+                  This Privacy Policy explains how{" "}
+                  <strong className="text-foreground">
+                    THE COMPANY MARKETING PTY LTD
+                  </strong>{" "}
+                  (&ldquo;Salebiz&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
+                  or &ldquo;our&rdquo;) collects, uses, stores, and protects
+                  personal information through the Salebiz platform
+                  (&ldquo;Platform&rdquo;). This Privacy Policy applies to all
+                  users of{" "}
                   <a
-                    href="https://salebiz.com.au"
+                    href="https://www.salebiz.com.au"
                     className="font-medium text-primary hover:underline"
                   >
                     salebiz.com.au
                   </a>{" "}
-                  and the Salebiz mobile application (together, the
-                  &ldquo;Service&rdquo;). This policy explains what information we
-                  collect, why we collect it, and the choices you have about how
-                  we use it.
+                  including brokers, buyers, and visitors.
                 </p>
 
                 <Separator className="my-8" />
@@ -550,7 +780,7 @@ export default async function PrivacyPolicyPage() {
                   </span>
                   <div>
                     <p className="text-base font-semibold text-foreground">
-                      Read the Terms of Service
+                      Read the Terms &amp; Conditions
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       The rules that govern how you use Salebiz.
