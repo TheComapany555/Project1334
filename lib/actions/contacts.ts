@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
-import { shareListingEmail } from "@/lib/email-templates";
+import { shareListingEmail, shareMultipleListingsEmail } from "@/lib/email-templates";
 import { setContactTags } from "@/lib/actions/contact-tags";
 import type { BrokerContact, ContactTag } from "@/lib/types/contacts";
 
@@ -464,6 +464,197 @@ export async function sendListingToContacts(
   return {
     ok: failed.length === 0,
     sent,
+    skipped,
+    failed,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Multi-listing bulk send
+// ---------------------------------------------------------------------------
+
+export type MultiBulkSendResult = {
+  ok: boolean;
+  sent: number;
+  listingsFound: number;
+  skipped: { contactId: string; email: string; reason: string }[];
+  failed: { contactId: string; email: string; error: string }[];
+  error?: string;
+};
+
+/**
+ * Send multiple listings in a single combined email to multiple contacts.
+ *
+ * Each recipient gets ONE email containing all selected listings — no inbox
+ * flooding. Contacts without marketing consent are skipped.
+ *
+ * Rate-limiting strategy:
+ *  - Resend batch API accepts up to 100 emails per call.
+ *  - We wait DELAY_BETWEEN_BATCHES ms between each batch call so we stay
+ *    comfortably below Resend's per-second throughput limit.
+ */
+export async function sendMultipleListingsToContacts(
+  listingIds: string[],
+  contactIds: string[],
+  customMessage?: string
+): Promise<MultiBulkSendResult> {
+  const { userId } = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  if (listingIds.length === 0) {
+    return { ok: false, sent: 0, listingsFound: 0, skipped: [], failed: [], error: "Select at least one listing." };
+  }
+  if (contactIds.length === 0) {
+    return { ok: false, sent: 0, listingsFound: 0, skipped: [], failed: [], error: "Select at least one contact." };
+  }
+  if (contactIds.length > 500) {
+    return { ok: false, sent: 0, listingsFound: 0, skipped: [], failed: [], error: "Too many recipients. Send in batches of 500 or fewer." };
+  }
+
+  // Fetch all requested listings (verifies ownership for each)
+  const listingResults = await Promise.all(
+    listingIds.map((id) => fetchListingForShare(id, userId))
+  );
+  const validListings = listingResults.filter((l): l is ShareListingData => l !== null);
+
+  if (validListings.length === 0) {
+    return { ok: false, sent: 0, listingsFound: 0, skipped: [], failed: [], error: "None of the selected listings were found or accessible." };
+  }
+
+  const { data: broker } = await supabase
+    .from("profiles")
+    .select("name, company")
+    .eq("id", userId)
+    .single();
+
+  const brokerData: ShareBrokerData = {
+    name: broker?.name ?? null,
+    company: broker?.company ?? null,
+  };
+  const brokerName = brokerData.name || brokerData.company || "A broker";
+
+  // Resolve contacts, enforce consent
+  const { data: contacts } = await supabase
+    .from("broker_contacts")
+    .select("id, email, name, consent_marketing")
+    .in("id", contactIds)
+    .eq("broker_id", userId);
+
+  const contactMap = new Map<
+    string,
+    { id: string; email: string; name: string | null; consent_marketing: boolean }
+  >();
+  (contacts ?? []).forEach((c) => contactMap.set(c.id, c));
+
+  const skipped: MultiBulkSendResult["skipped"] = [];
+  const sendable: { id: string; email: string; name: string | null }[] = [];
+
+  for (const id of contactIds) {
+    const c = contactMap.get(id);
+    if (!c) {
+      skipped.push({ contactId: id, email: "", reason: "Contact not found" });
+      continue;
+    }
+    if (!c.consent_marketing) {
+      skipped.push({ contactId: id, email: c.email, reason: "No marketing consent on file" });
+      continue;
+    }
+    sendable.push({ id: c.id, email: c.email, name: c.name });
+  }
+
+  const subject =
+    validListings.length === 1
+      ? `${brokerName} shared a listing: ${validListings[0].title}`
+      : `${brokerName} shared ${validListings.length} listings with you`;
+
+  const listingPayloads = validListings.map((listing) => ({
+    title: listing.title,
+    url: `${APP_URL}/listing/${listing.slug}`,
+    price: formatListingPrice(listing),
+    location: listing.location_text,
+  }));
+
+  const failed: MultiBulkSendResult["failed"] = [];
+
+  // Resend batch API: up to 100 per call.
+  // A 1.2-second pause between batches keeps us well under rate limits.
+  const BATCH_SIZE = 100;
+  const DELAY_BETWEEN_BATCHES = 1200;
+
+  for (let i = 0; i < sendable.length; i += BATCH_SIZE) {
+    if (i > 0) {
+      await new Promise<void>((r) => setTimeout(r, DELAY_BETWEEN_BATCHES));
+    }
+
+    const slice = sendable.slice(i, i + BATCH_SIZE);
+    const payloads = slice.map((contact) => ({
+      from: EMAIL_FROM,
+      to: contact.email,
+      subject,
+      html: shareMultipleListingsEmail({
+        contactName: contact.name,
+        brokerName,
+        brokerCompany: brokerData.company,
+        listings: listingPayloads,
+        customMessage: customMessage ?? null,
+      }),
+    }));
+
+    try {
+      await resend.batch.send(payloads);
+    } catch {
+      // Batch failed — retry individually so we capture per-address failures
+      for (const contact of slice) {
+        try {
+          await resend.emails.send({
+            from: EMAIL_FROM,
+            to: contact.email,
+            subject,
+            html: shareMultipleListingsEmail({
+              contactName: contact.name,
+              brokerName,
+              brokerCompany: brokerData.company,
+              listings: listingPayloads,
+              customMessage: customMessage ?? null,
+            }),
+          });
+        } catch (err) {
+          failed.push({
+            contactId: contact.id,
+            email: contact.email,
+            error: err instanceof Error ? err.message : "Send failed",
+          });
+        }
+      }
+    }
+  }
+
+  // Audit log: one share_invite row per contact × listing
+  const sentContacts = sendable.filter(
+    (c) => !failed.some((f) => f.contactId === c.id)
+  );
+  if (sentContacts.length > 0) {
+    const inviteRows = sentContacts.flatMap((c) =>
+      validListings.map((listing) => ({
+        listing_id: listing.id,
+        broker_id: userId,
+        recipient_name: c.name,
+        recipient_email: c.email,
+        token: crypto.randomUUID(),
+        broker_name_snapshot: brokerData.name,
+        broker_email_snapshot: null,
+        custom_message: customMessage?.trim() || null,
+        send_type: "contact_bulk",
+      }))
+    );
+    await supabase.from("listing_share_invites").insert(inviteRows);
+  }
+
+  const sent = sendable.length - failed.length;
+  return {
+    ok: failed.length === 0,
+    sent,
+    listingsFound: validListings.length,
     skipped,
     failed,
   };

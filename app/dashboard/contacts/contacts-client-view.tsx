@@ -55,6 +55,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Plus,
@@ -86,11 +87,12 @@ import {
 import { cn } from "@/lib/utils";
 import { ContactTagMultiSelect } from "@/components/dashboard/contact-tag-multi-select";
 import { ContactTagManager } from "@/components/dashboard/contact-tag-manager";
+import { BulkSendTab, type BulkListingItem } from "./bulk-send-tab";
 
 type Props = {
   contacts: BrokerContact[];
   tags: ContactTag[];
-  listings: { id: string; title: string }[];
+  listings: BulkListingItem[];
 };
 
 type ContactFormState = {
@@ -192,6 +194,23 @@ export function ContactsClientView({ contacts, tags: initialTags, listings }: Pr
 
   return (
     <>
+      <Tabs defaultValue="contacts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="contacts" className="gap-1.5">
+            <Users className="h-4 w-4" />
+            Contacts
+          </TabsTrigger>
+          <TabsTrigger value="bulk-send" className="gap-1.5">
+            <Send className="h-4 w-4" />
+            Bulk Send
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bulk-send">
+          <BulkSendTab contacts={contacts} tags={tags} listings={listings} />
+        </TabsContent>
+
+        <TabsContent value="contacts">
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-col gap-3 border-b bg-muted/30 px-4 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-0.5">
@@ -589,6 +608,8 @@ export function ContactsClientView({ contacts, tags: initialTags, listings }: Pr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

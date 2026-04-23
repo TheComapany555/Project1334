@@ -584,6 +584,78 @@ export function externalShareInviteEmail({
   `);
 }
 
+export function shareMultipleListingsEmail({
+  contactName,
+  brokerName,
+  brokerCompany,
+  listings,
+  customMessage,
+  unsubscribeUrl,
+}: {
+  contactName: string | null;
+  brokerName: string;
+  brokerCompany?: string | null;
+  listings: { title: string; url: string; price: string | null; location: string | null }[];
+  customMessage?: string | null;
+  unsubscribeUrl?: string | null;
+}): string {
+  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
+  const senderLabel = brokerCompany
+    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
+    : `<strong>${brokerName}</strong>`;
+
+  const messageBlock = customMessage?.trim()
+    ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
+        <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
+          Message from ${brokerName}
+        </p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
+
+  const listingCards = listings
+    .map((l) => {
+      const details = [l.price, l.location].filter(Boolean).join(" &middot; ");
+      return `
+    <div style="margin:0 0 16px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">${l.title}</p>
+      ${details ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${details}</p>` : ""}
+      <a href="${l.url}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
+        View Listing
+      </a>
+    </div>`;
+    })
+    .join("");
+
+  const listingCountLabel =
+    listings.length === 1
+      ? "a business listing"
+      : `${listings.length} business listings`;
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">${greeting}</p>
+
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.5;">
+      ${senderLabel} thought you might be interested in ${listingCountLabel}:
+    </p>
+
+    ${messageBlock}
+
+    ${listingCards}
+
+    <p style="margin:0 0 8px;font-size:13px;color:#888888;">
+      This email was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
+    </p>
+    ${
+      unsubscribeUrl
+        ? `<p style="margin:0;font-size:12px;color:#aaaaaa;">
+        <a href="${unsubscribeUrl}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
+      </p>`
+        : ""
+    }
+  `);
+}
+
 export function shareListingEmail({
   contactName,
   brokerName,

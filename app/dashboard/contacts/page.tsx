@@ -13,7 +13,14 @@ export default async function ContactsPage() {
 
   const publishedListings = listings
     .filter((l) => l.status === "published")
-    .map((l) => ({ id: l.id, title: l.title }));
+    .map((l) => ({
+      id: l.id,
+      title: l.title,
+      slug: l.slug,
+      asking_price: l.asking_price,
+      price_type: l.price_type,
+      location_text: l.location_text,
+    }));
 
   return (
     <div className="space-y-6">
