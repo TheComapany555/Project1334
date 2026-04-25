@@ -1,7 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
-import { searchListings, getListingHighlights } from "@/lib/actions/listings";
+import {
+  searchListings,
+  getListingHighlights,
+  getHomepageFeaturedListings,
+} from "@/lib/actions/listings";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,12 +215,14 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
 
 // ─── Page (Server Component) ───────────────────────────────────────────────────
 export default async function HomePage() {
-  const [session, searchResult, highlights] = await Promise.all([
+  const [session, featuredListings, searchResult, highlights] = await Promise.all([
     getSession(),
-    searchListings({ sort: "newest", page: 1, page_size: 8 }),
+    getHomepageFeaturedListings(12),
+    searchListings({ sort: "newest", page: 1, page_size: 12 }),
     getListingHighlights(),
   ]);
-  const recentListings = searchResult.listings;
+  const featuredIds = new Set(featuredListings.map((l) => l.id));
+  const recentListings = searchResult.listings.filter((l) => !featuredIds.has(l.id));
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -369,6 +375,61 @@ export default async function HomePage() {
           </MotionDiv>
         </section>
 
+        {/* ── Featured listings ───────────────────────────────────────────── */}
+        {featuredListings.length > 0 && (
+          <section className="container px-4 sm:px-6 max-w-7xl mx-auto pt-12 sm:pt-16 md:pt-20">
+            <MotionDiv
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.5 }}
+              className="flex items-end justify-between gap-4 mb-7 sm:mb-10"
+            >
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  Featured listings
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+                  Browse our featured listings.
+                </p>
+              </div>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-primary hover:text-primary/80 text-xs sm:text-sm px-2 sm:px-3"
+              >
+                <Link href="/search" className="flex items-center gap-0.5">
+                  View all <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </MotionDiv>
+
+            <MotionUl
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.1 }}
+              variants={staggerContainer}
+              className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {featuredListings.slice(0, 12).map((listing) => (
+                <MotionLi
+                  key={listing.id}
+                  variants={fadeUp}
+                  transition={{ duration: 0.4 }}
+                  className="h-full"
+                >
+                  <ListingCard
+                    listing={listing}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  />
+                </MotionLi>
+              ))}
+            </MotionUl>
+          </section>
+        )}
+
         {/* ── Recent listings ─────────────────────────────────────────────── */}
         <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
           {/* Section header */}
@@ -382,11 +443,8 @@ export default async function HomePage() {
           >
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-primary mb-1 sm:mb-1.5">
-                  Latest opportunities
-                </p>
                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Recently listed
+                  Recently added listings
                 </h2>
               </div>
               <Button

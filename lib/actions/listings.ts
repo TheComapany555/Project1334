@@ -184,6 +184,47 @@ export type SearchListingsResult = {
   total_pages: number;
 };
 
+/** Public: active featured listings for the homepage. */
+export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]> {
+  const supabase = createServiceRoleClient();
+  const pageSize = Math.min(50, Math.max(1, limit));
+  const nowIso = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("listings")
+    .select(
+      `
+      *,
+      broker:profiles!broker_id(name, photo_url),
+      category:categories(id, name, slug),
+      listing_images(id, url, sort_order),
+      agency:agencies!agency_id(name, slug, logo_url),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
+    `
+    )
+    .eq("status", "published")
+    .is("admin_removed_at", null)
+    .in("listing_tier", ["standard", "featured"])
+    .gt("featured_homepage_until", nowIso)
+    .order("featured_homepage_until", { ascending: false, nullsFirst: false })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(pageSize);
+
+  if (error) return [];
+  const list = (data ?? []) as any[];
+
+  return list.map((l) => {
+    const broker = Array.isArray(l.broker) ? l.broker[0] : l.broker;
+    return {
+      ...l,
+      broker: broker ?? undefined,
+      listing_images: l.listing_images ?? [],
+      category: l.category ?? null,
+      listing_highlights: flattenHighlights(l),
+    };
+  });
+}
+
 /** Public: search published listings with filters, sort, and pagination. */
 export async function searchListings(params: SearchListingsParams): Promise<SearchListingsResult> {
   const supabase = createServiceRoleClient();

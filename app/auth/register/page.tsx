@@ -232,10 +232,7 @@ function BuyerRegisterForm({ onSuccess }: { onSuccess: () => void }) {
         )}
 
         {RECAPTCHA_SITE_KEY && (
-          <div
-            className="w-full"
-            style={{ transform: "scaleX(1.22)", transformOrigin: "0 0" }}
-          >
+          <div className="flex w-full justify-center py-1">
             <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
           </div>
         )}
@@ -390,10 +387,7 @@ function BrokerRegisterForm({ onSuccess }: { onSuccess: () => void }) {
         )}
 
         {RECAPTCHA_SITE_KEY && (
-          <div
-            className="w-full"
-            style={{ transform: "scaleX(1.22)", transformOrigin: "0 0" }}
-          >
+          <div className="flex w-full justify-center py-1">
             <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
           </div>
         )}

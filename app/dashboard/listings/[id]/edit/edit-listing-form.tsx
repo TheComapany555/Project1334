@@ -43,13 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-} from "@/components/ui/combobox";
 import { FieldError } from "@/components/ui/field-error";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -107,7 +100,6 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
   const [imageUploading, setImageUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusChanging, setStatusChanging] = useState(false);
-  const [categoryQuery, setCategoryQuery] = useState("");
   const [tierProducts, setTierProducts] = useState<Product[]>([]);
   const [selectedTier, setSelectedTier] = useState<ListingTier>(
     (listing.listing_tier as ListingTier) ?? "basic"
@@ -339,33 +331,21 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Combobox
+              <Select
                 value={watch("category_id") ?? ""}
                 onValueChange={(v) => setValue("category_id", v || null)}
-                onInputValueChange={(v, details) => {
-                  setCategoryQuery(details.reason === "input-change" ? v : "");
-                }}
-                itemToStringLabel={(v: string) => {
-                  if (!v) return "";
-                  return categories.find((c) => c.id === v)?.name ?? v;
-                }}
               >
-                <ComboboxInput placeholder="Select category" className="w-full" />
-                <ComboboxContent>
-                  <ComboboxList>
-                    {categories
-                      .filter((c) => !categoryQuery || c.name.toLowerCase().includes(categoryQuery.toLowerCase()))
-                      .map((c) => (
-                        <ComboboxItem key={c.id} value={c.id}>
-                          {c.name}
-                        </ComboboxItem>
-                      ))}
-                  </ComboboxList>
-                  {categoryQuery && categories.filter((c) => c.name.toLowerCase().includes(categoryQuery.toLowerCase())).length === 0 && (
-                    <p className="text-muted-foreground py-2 text-center text-sm">No categories found</p>
-                  )}
-                </ComboboxContent>
-              </Combobox>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
