@@ -1,8 +1,8 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Advertisement } from "@/lib/types/advertising";
@@ -22,6 +22,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/utils";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import { UrlFacetedFilter } from "@/components/ui/url-faceted-filter";
+import type { Paginated } from "@/lib/types/pagination";
 
 const PLACEMENT_LABELS: Record<string, string> = {
   homepage: "Homepage",
@@ -38,20 +41,22 @@ const PLACEMENT_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
-  { value: "expired", label: "Expired" },
 ];
 
 function isExpired(ad: Advertisement): boolean {
   return !!ad.end_date && new Date(ad.end_date) < new Date();
 }
 
-function effectiveStatus(ad: Advertisement): string {
-  return isExpired(ad) ? "expired" : ad.status;
-}
-
-export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
+export function AdvertisingTable({ result }: { result: Paginated<Advertisement> }) {
   const router = useRouter();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const { state, setPage, setPageSize, setSearch, setFilter } = useTableUrlState({
+    filterKeys: ["status", "placement"],
+  });
+  const [searchInput, setSearchInput] = React.useState(state.q);
+  const [isPending, startTransition] = React.useTransition();
+
+  React.useEffect(() => setSearchInput(state.q), [state.q]);
 
   async function handleToggle(id: string) {
     const res = await toggleAdStatus(id);
@@ -75,15 +80,13 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
     }
   }
 
-  const columns = useMemo<ColumnDef<Advertisement>[]>(
+  const columns = React.useMemo<ColumnDef<Advertisement>[]>(
     () => [
       {
         accessorKey: "title",
         meta: { label: "Title" },
         enableHiding: false,
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Title" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
         cell: ({ row }) => (
           <span
             className={
@@ -99,24 +102,17 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
       {
         accessorKey: "placement",
         meta: { label: "Placement" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Placement" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Placement" />,
         cell: ({ row }) => (
           <Badge variant="outline" className="text-xs capitalize">
             {PLACEMENT_LABELS[row.original.placement] ?? row.original.placement}
           </Badge>
         ),
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
       },
       {
-        id: "status",
-        accessorFn: (row) => effectiveStatus(row),
+        accessorKey: "status",
         meta: { label: "Status" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Status" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         cell: ({ row }) => {
           const expired = isExpired(row.original);
           if (expired) {
@@ -128,24 +124,18 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
           }
           return (
             <Badge
-              variant={
-                row.original.status === "active" ? "success" : "secondary"
-              }
+              variant={row.original.status === "active" ? "success" : "secondary"}
               className="border-0 capitalize"
             >
               {row.original.status}
             </Badge>
           );
         },
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
       },
       {
         id: "schedule",
         meta: { label: "Schedule" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Schedule" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Schedule" />,
         accessorFn: (row) => row.start_date,
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
@@ -160,9 +150,6 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
             )}
           </span>
         ),
-        sortingFn: (a, b) =>
-          new Date(a.original.start_date).getTime() -
-          new Date(b.original.start_date).getTime(),
       },
       {
         accessorKey: "impression_count",
@@ -199,15 +186,9 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/admin/advertising/${row.original.id}/edit`}>
-                Edit
-              </Link>
+              <Link href={`/admin/advertising/${row.original.id}/edit`}>Edit</Link>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleToggle(row.original.id)}
-            >
+            <Button variant="outline" size="sm" onClick={() => handleToggle(row.original.id)}>
               {row.original.status === "active" ? "Deactivate" : "Activate"}
             </Button>
             <Button
@@ -222,7 +203,7 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
         ),
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -230,25 +211,46 @@ export function AdvertisingTable({ ads }: { ads: Advertisement[] }) {
       <div className="px-4 pb-4">
         <DataTable
           columns={columns}
-          data={ads}
+          data={result.rows}
           searchColumnId="title"
           searchPlaceholder="Search ads by title…"
-          facetedFilters={[
-            {
-              columnId: "placement",
-              title: "Placement",
-              options: PLACEMENT_OPTIONS,
+          searchValue={searchInput}
+          onSearchChange={(v) => {
+            setSearchInput(v);
+            startTransition(() => setSearch(v));
+          }}
+          toolbarRight={
+            <div className="flex flex-wrap items-center gap-2">
+              <UrlFacetedFilter
+                title="Placement"
+                value={state.filters.placement}
+                onChange={(v) => startTransition(() => setFilter("placement", v))}
+                options={PLACEMENT_OPTIONS}
+              />
+              <UrlFacetedFilter
+                title="Status"
+                value={state.filters.status}
+                onChange={(v) => startTransition(() => setFilter("status", v))}
+                options={STATUS_OPTIONS}
+              />
+            </div>
+          }
+          serverPagination={{
+            pageIndex: result.page - 1,
+            pageSize: result.pageSize,
+            total: result.total,
+            isFetching: isPending,
+            onPaginationChange: ({ pageIndex, pageSize }) => {
+              startTransition(() => {
+                if (pageSize !== result.pageSize) setPageSize(pageSize);
+                else setPage(pageIndex + 1);
+              });
             },
-            { columnId: "status", title: "Status", options: STATUS_OPTIONS },
-          ]}
-          initialSorting={[{ id: "schedule", desc: true }]}
+          }}
         />
       </div>
 
-      <AlertDialog
-        open={!!deletingId}
-        onOpenChange={(open) => !open && setDeletingId(null)}
-      >
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete advertisement?</AlertDialogTitle>

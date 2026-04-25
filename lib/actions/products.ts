@@ -4,6 +4,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { FeaturedScope, Product } from "@/lib/types/products";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -13,23 +18,54 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
-/** Get all products (admin). */
-export async function getAllProducts(): Promise<
-  (Product & { category?: { id: string; name: string } | null })[]
-> {
+export type AdminProductRow = Product & {
+  category?: { id: string; name: string } | null;
+};
+
+export type ListAdminProductsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+  productType?: string | null;
+};
+
+export async function listAdminProducts(
+  params: ListAdminProductsParams = {},
+): Promise<Paginated<AdminProductRow>> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+  const { page, pageSize, offset } = normalizePagination(params);
+
+  let q = supabase
     .from("products")
-    .select("*, category:categories(id, name)")
-    .order("created_at", { ascending: false });
-  if (error) return [];
-  return (data ?? []).map((p) => {
+    .select("*, category:categories(id, name)", { count: "exact" });
+
+  if (params.status?.trim()) q = q.eq("status", params.status.trim());
+  if (params.productType?.trim())
+    q = q.eq("product_type", params.productType.trim());
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    q = q.ilike("name", `%${k}%`);
+  }
+  q = q.order("created_at", { ascending: false });
+
+  const { data, error, count } = await q.range(offset, offset + pageSize - 1);
+  if (error) return buildPaginated<AdminProductRow>([], 0, page, pageSize);
+
+  const rows = (data ?? []).map((p) => {
     const cat = Array.isArray((p as { category?: unknown }).category)
-      ? (p as { category: { id: string; name: string }[] }).category[0] ?? null
+      ? ((p as { category: { id: string; name: string }[] }).category[0] ?? null)
       : ((p as { category: { id: string; name: string } | null }).category ?? null);
     return { ...(p as Product), category: cat };
   });
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAdminProducts`. */
+export async function getAllProducts(): Promise<AdminProductRow[]> {
+  const { rows } = await listAdminProducts({ page: 1, pageSize: 200 });
+  return rows;
 }
 
 /** Get active products. Optionally filter by product_type.

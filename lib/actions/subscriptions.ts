@@ -9,6 +9,11 @@ import type {
   SubscriptionForAdmin,
 } from "@/lib/types/subscriptions";
 import { notifyAgencyBrokers } from "@/lib/actions/notifications";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireBroker() {
   const session = await getServerSession(authOptions);
@@ -138,48 +143,90 @@ export async function getAgencySubscriptionStatus(
 
 // ── Admin-facing ──
 
-/** Admin: list all subscriptions with agency details. */
-export async function getAllSubscriptions(
-  statusFilter?: string
-): Promise<SubscriptionForAdmin[]> {
+export type ListAdminSubscriptionsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+};
+
+/** Paginated agency subscriptions with agency + plan + broker count. */
+export async function listAdminSubscriptions(
+  params: ListAdminSubscriptionsParams = {},
+): Promise<Paginated<SubscriptionForAdmin>> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
   let query = supabase
     .from("agency_subscriptions")
     .select(
-      `*, agency:agencies!agency_id(id, name, slug, email), plan_product:products!plan_product_id(id, name, price, currency)`
-    )
-    .order("created_at", { ascending: false });
+      `*, agency:agencies!agency_id(id, name, slug, email), plan_product:products!plan_product_id(id, name, price, currency)`,
+      { count: "exact" },
+    );
 
-  if (statusFilter && statusFilter !== "all") {
-    query = query.eq("status", statusFilter);
+  if (params.status?.trim() && params.status !== "all") {
+    query = query.eq("status", params.status.trim());
   }
+  query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
-  if (error) return [];
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error)
+    return buildPaginated<SubscriptionForAdmin>([], 0, page, pageSize);
 
-  // Enrich with broker count
-  const subscriptions = (data ?? []) as (AgencySubscription & {
-    agency?: { id: string; name: string; slug: string | null; email: string | null };
+  const subs = (data ?? []) as (AgencySubscription & {
+    agency?: {
+      id: string;
+      name: string;
+      slug: string | null;
+      email: string | null;
+    };
   })[];
 
-  const result: SubscriptionForAdmin[] = [];
-  for (const sub of subscriptions) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("agency_id", sub.agency_id);
-
-    result.push({
-      ...sub,
-      agency_name: sub.agency?.name ?? "Unknown",
-      agency_email: sub.agency?.email ?? null,
-      broker_count: count ?? 0,
-    });
+  // Filter by agency name search post-fetch (Supabase doesn't ilike across joins easily)
+  let filtered = subs;
+  if (params.q?.trim()) {
+    const needle = params.q.trim().toLowerCase();
+    filtered = subs.filter(
+      (s) =>
+        (s.agency?.name?.toLowerCase().includes(needle) ?? false) ||
+        (s.agency?.email?.toLowerCase().includes(needle) ?? false),
+    );
   }
 
-  return result;
+  // Enrich with broker counts (one parallel batch)
+  const agencyIds = [...new Set(filtered.map((s) => s.agency_id))];
+  const counts = await Promise.all(
+    agencyIds.map(async (id) => {
+      const { count: c } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("agency_id", id);
+      return [id, c ?? 0] as const;
+    }),
+  );
+  const countMap = new Map(counts);
+
+  const rows: SubscriptionForAdmin[] = filtered.map((sub) => ({
+    ...sub,
+    agency_name: sub.agency?.name ?? "Unknown",
+    agency_email: sub.agency?.email ?? null,
+    broker_count: countMap.get(sub.agency_id) ?? 0,
+  }));
+
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAdminSubscriptions`. */
+export async function getAllSubscriptions(
+  statusFilter?: string,
+): Promise<SubscriptionForAdmin[]> {
+  const { rows } = await listAdminSubscriptions({
+    page: 1,
+    pageSize: 100,
+    status: statusFilter ?? null,
+  });
+  return rows;
 }
 
 /** Admin: manually create a subscription for an agency (bypass Stripe). */

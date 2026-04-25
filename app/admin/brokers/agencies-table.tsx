@@ -1,23 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AgencyActions } from "./agency-actions";
-
-type Agency = {
-  id: string;
-  name: string;
-  email: string | null;
-  status: string;
-  broker_count: number;
-  listing_count: number;
-  owner_name: string | null;
-  owner_email: string;
-  created_at: string;
-};
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import { UrlFacetedFilter } from "@/components/ui/url-faceted-filter";
+import type { Paginated } from "@/lib/types/pagination";
+import type { AgencyForAdmin } from "@/lib/actions/admin-brokers";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -33,23 +25,32 @@ function formatDate(iso: string) {
   });
 }
 
-export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
-  const columns = useMemo<ColumnDef<Agency>[]>(
+export function AgenciesTable({ result }: { result: Paginated<AgencyForAdmin> }) {
+  const { state, setPage, setPageSize, setSearch, setFilter } = useTableUrlState({
+    filterKeys: ["status"],
+  });
+  const [searchInput, setSearchInput] = React.useState(state.q);
+  const [isPending, startTransition] = React.useTransition();
+
+  React.useEffect(() => setSearchInput(state.q), [state.q]);
+
+  const onSearchChange = (value: string) => {
+    setSearchInput(value);
+    startTransition(() => setSearch(value));
+  };
+
+  const columns = React.useMemo<ColumnDef<AgencyForAdmin>[]>(
     () => [
       {
         accessorKey: "name",
         meta: { label: "Agency" },
         enableHiding: false,
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Agency" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Agency" />,
         cell: ({ row }) => (
           <div>
             <p className="font-medium leading-tight">{row.original.name}</p>
             {row.original.email && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {row.original.email}
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{row.original.email}</p>
             )}
           </div>
         ),
@@ -58,17 +59,11 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
         id: "owner",
         accessorFn: (row) => row.owner_name ?? row.owner_email,
         meta: { label: "Owner" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Owner" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Owner" />,
         cell: ({ row }) => (
           <div>
-            <p className="text-sm leading-tight">
-              {row.original.owner_name ?? "Not specified"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {row.original.owner_email}
-            </p>
+            <p className="text-sm leading-tight">{row.original.owner_name ?? "Not specified"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{row.original.owner_email}</p>
           </div>
         ),
       },
@@ -81,9 +76,7 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
           </div>
         ),
         cell: ({ row }) => (
-          <div className="text-center text-sm tabular-nums">
-            {row.original.broker_count}
-          </div>
+          <div className="text-center text-sm tabular-nums">{row.original.broker_count}</div>
         ),
       },
       {
@@ -95,33 +88,21 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
           </div>
         ),
         cell: ({ row }) => (
-          <div className="text-center text-sm tabular-nums">
-            {row.original.listing_count}
-          </div>
+          <div className="text-center text-sm tabular-nums">{row.original.listing_count}</div>
         ),
       },
       {
         accessorKey: "status",
         meta: { label: "Status" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Status" />
-        ),
-        cell: ({ row }) => (
-          <StatusBadge status={row.original.status} className="border-0" />
-        ),
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => <StatusBadge status={row.original.status} className="border-0" />,
       },
       {
         accessorKey: "created_at",
         meta: { label: "Created" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Created" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {formatDate(row.original.created_at)}
-          </span>
+          <span className="text-sm text-muted-foreground">{formatDate(row.original.created_at)}</span>
         ),
       },
       {
@@ -129,27 +110,42 @@ export function AgenciesTable({ agencies }: { agencies: Agency[] }) {
         header: () => <span className="sr-only">Actions</span>,
         enableHiding: false,
         cell: ({ row }) => (
-          <AgencyActions
-            agencyId={row.original.id}
-            status={row.original.status}
-          />
+          <AgencyActions agencyId={row.original.id} status={row.original.status} />
         ),
       },
     ],
-    []
+    [],
   );
 
   return (
     <div className="px-4 pb-4">
       <DataTable
         columns={columns}
-        data={agencies}
+        data={result.rows}
         searchColumnId={["name", "owner"]}
         searchPlaceholder="Search agencies, owners or emails…"
-        facetedFilters={[
-          { columnId: "status", title: "Status", options: STATUS_OPTIONS },
-        ]}
-        initialSorting={[{ id: "created_at", desc: true }]}
+        searchValue={searchInput}
+        onSearchChange={onSearchChange}
+        toolbarRight={
+          <UrlFacetedFilter
+            title="Status"
+            value={state.filters.status}
+            onChange={(v) => startTransition(() => setFilter("status", v))}
+            options={STATUS_OPTIONS}
+          />
+        }
+        serverPagination={{
+          pageIndex: result.page - 1,
+          pageSize: result.pageSize,
+          total: result.total,
+          isFetching: isPending,
+          onPaginationChange: ({ pageIndex, pageSize }) => {
+            startTransition(() => {
+              if (pageSize !== result.pageSize) setPageSize(pageSize);
+              else setPage(pageIndex + 1);
+            });
+          },
+        }}
       />
     </div>
   );

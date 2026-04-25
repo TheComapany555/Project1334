@@ -7,6 +7,11 @@ import { Resend } from "resend";
 import { invoiceStatusEmail } from "@/lib/email-templates";
 import type { Payment } from "@/lib/types/payments";
 import { notifyAgencyBrokers } from "@/lib/actions/notifications";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
@@ -31,63 +36,102 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
-/** Get payments for the current broker. */
-export async function getBrokerPayments(): Promise<Payment[]> {
+export type ListPaymentsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+};
+
+/** Paginated payments for the current broker. */
+export async function listBrokerPayments(
+  params: ListPaymentsParams = {},
+): Promise<Paginated<Payment>> {
   const { userId } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  const { data, error } = await supabase
+  let q = supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       listing:listings(id, title, slug),
       product:products(id, name)
-    `)
-    .eq("broker_id", userId)
-    .order("created_at", { ascending: false });
+    `,
+      { count: "exact" },
+    )
+    .eq("broker_id", userId);
 
-  if (error) {
-    console.error("[getBrokerPayments]", error.message);
-    return [];
+  if (params.status?.trim() && params.status !== "all") {
+    q = q.eq("status", params.status.trim());
   }
-  return (data ?? []) as Payment[];
+  q = q.order("created_at", { ascending: false });
+
+  const { data, error, count } = await q.range(offset, offset + pageSize - 1);
+  if (error) {
+    console.error("[listBrokerPayments]", error.message);
+    return buildPaginated<Payment>([], 0, page, pageSize);
+  }
+  return buildPaginated((data ?? []) as Payment[], count ?? 0, page, pageSize);
 }
 
-/** Get payments for all brokers under the current agency. */
-export async function getAgencyPayments(): Promise<Payment[]> {
+/** @deprecated Use `listBrokerPayments`. */
+export async function getBrokerPayments(): Promise<Payment[]> {
+  const { rows } = await listBrokerPayments({ page: 1, pageSize: 100 });
+  return rows;
+}
+
+/** Paginated payments for all brokers under the current agency. */
+export async function listAgencyPayments(
+  params: ListPaymentsParams = {},
+): Promise<Paginated<Payment>> {
   const { agencyId, agencyRole } = await requireBroker();
   if (!agencyId || agencyRole !== "owner") {
     throw new Error("Unauthorized — agency owner only");
   }
 
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  // Get all broker IDs in this agency
   const { data: brokers } = await supabase
     .from("profiles")
     .select("id")
     .eq("agency_id", agencyId);
   const brokerIds = (brokers ?? []).map((b) => b.id);
 
-  // Get payments by agency OR by agency's brokers
-  const { data, error } = await supabase
+  let q = supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       listing:listings(id, title, slug),
       broker:profiles!broker_id(name, company),
       product:products(id, name)
-    `)
-    .or(
-      `agency_id.eq.${agencyId}${brokerIds.length ? `,broker_id.in.(${brokerIds.join(",")})` : ""}`
+    `,
+      { count: "exact" },
     )
-    .order("created_at", { ascending: false });
+    .or(
+      `agency_id.eq.${agencyId}${brokerIds.length ? `,broker_id.in.(${brokerIds.join(",")})` : ""}`,
+    );
 
-  if (error) {
-    console.error("[getAgencyPayments]", error.message);
-    return [];
+  if (params.status?.trim() && params.status !== "all") {
+    q = q.eq("status", params.status.trim());
   }
-  return (data ?? []) as Payment[];
+  q = q.order("created_at", { ascending: false });
+
+  const { data, error, count } = await q.range(offset, offset + pageSize - 1);
+  if (error) {
+    console.error("[listAgencyPayments]", error.message);
+    return buildPaginated<Payment>([], 0, page, pageSize);
+  }
+  return buildPaginated((data ?? []) as Payment[], count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAgencyPayments`. */
+export async function getAgencyPayments(): Promise<Payment[]> {
+  const { rows } = await listAgencyPayments({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 /** Admin: get all payments with optional status filter. */
@@ -102,32 +146,48 @@ export async function getPendingInvoiceCount(): Promise<number> {
   return count ?? 0;
 }
 
-export async function getAllPayments(
-  statusFilter?: string
-): Promise<Payment[]> {
+export async function listAdminPayments(
+  params: ListPaymentsParams = {},
+): Promise<Paginated<Payment>> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
   let query = supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       listing:listings(id, title, slug),
       broker:profiles!broker_id(name, company),
       product:products(id, name)
-    `)
-    .order("created_at", { ascending: false });
+    `,
+      { count: "exact" },
+    );
 
-  if (statusFilter && statusFilter !== "all") {
-    query = query.eq("status", statusFilter);
+  if (params.status?.trim() && params.status !== "all") {
+    query = query.eq("status", params.status.trim());
   }
+  query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   if (error) {
-    console.error("[getAllPayments]", error.message);
-    return [];
+    console.error("[listAdminPayments]", error.message);
+    return buildPaginated<Payment>([], 0, page, pageSize);
   }
-  return (data ?? []) as Payment[];
+  return buildPaginated((data ?? []) as Payment[], count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAdminPayments`. */
+export async function getAllPayments(
+  statusFilter?: string,
+): Promise<Payment[]> {
+  const { rows } = await listAdminPayments({
+    page: 1,
+    pageSize: 200,
+    status: statusFilter ?? null,
+  });
+  return rows;
 }
 
 /** Admin: update a payment status. */

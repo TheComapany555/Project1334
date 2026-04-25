@@ -7,6 +7,11 @@ import { Resend } from "resend";
 import { shareListingEmail, shareMultipleListingsEmail } from "@/lib/email-templates";
 import { setContactTags } from "@/lib/actions/contact-tags";
 import type { BrokerContact, ContactTag } from "@/lib/types/contacts";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 export type { BrokerContact } from "@/lib/types/contacts";
 
@@ -26,10 +31,24 @@ async function requireBroker() {
   };
 }
 
-/** List all contacts for the broker (or agency if owner), with tags joined. */
-export async function getContacts(): Promise<BrokerContact[]> {
+export type ListContactsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  tagId?: string | null;
+  consent?: "yes" | "no" | null;
+};
+
+/**
+ * Paginated contacts. Tag filtering is post-fetch for the page slice;
+ * if tag filtering becomes a hot path, push it into a join-aware view.
+ */
+export async function listBrokerContacts(
+  params: ListContactsParams = {},
+): Promise<Paginated<BrokerContact>> {
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
   let query = supabase
     .from("broker_contacts")
@@ -38,7 +57,8 @@ export async function getContacts(): Promise<BrokerContact[]> {
        broker_contact_tag_map(
          tag_id,
          contact_tags(*)
-       )`
+       )`,
+      { count: "exact" },
     );
 
   if (agencyId && agencyRole === "owner") {
@@ -47,20 +67,28 @@ export async function getContacts(): Promise<BrokerContact[]> {
       .select("id")
       .eq("agency_id", agencyId);
     const brokerIds = (profiles ?? []).map((p) => p.id);
-    if (brokerIds.length > 0) {
-      query = query.in("broker_id", brokerIds);
-    } else {
-      query = query.eq("broker_id", userId);
-    }
+    if (brokerIds.length > 0) query = query.in("broker_id", brokerIds);
+    else query = query.eq("broker_id", userId);
   } else {
     query = query.eq("broker_id", userId);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error) return [];
+  if (params.consent === "yes") query = query.eq("consent_marketing", true);
+  else if (params.consent === "no") query = query.eq("consent_marketing", false);
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const tagRows = (row.broker_contact_tag_map as { contact_tags: ContactTag | null }[] | null) ?? [];
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.or(`name.ilike.%${k}%,email.ilike.%${k}%,phone.ilike.%${k}%`);
+  }
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error) return buildPaginated<BrokerContact>([], 0, page, pageSize);
+
+  let rows: BrokerContact[] = (data ?? []).map((row: Record<string, unknown>) => {
+    const tagRows =
+      (row.broker_contact_tag_map as { contact_tags: ContactTag | null }[] | null) ??
+      [];
     const tags = tagRows
       .map((m) => m.contact_tags)
       .filter((t): t is ContactTag => !!t);
@@ -68,6 +96,18 @@ export async function getContacts(): Promise<BrokerContact[]> {
     void _drop;
     return { ...(rest as Omit<BrokerContact, "tags">), tags };
   }) as BrokerContact[];
+
+  if (params.tagId) {
+    rows = rows.filter((c) => (c.tags ?? []).some((t) => t.id === params.tagId));
+  }
+
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listBrokerContacts`. */
+export async function getContacts(): Promise<BrokerContact[]> {
+  const { rows } = await listBrokerContacts({ page: 1, pageSize: 200 });
+  return rows;
 }
 
 /** Save an enquiry as a contact, carrying through the consent the buyer gave on the form. */

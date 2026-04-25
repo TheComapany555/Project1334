@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 import {
   flexRender,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type PaginationState,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
@@ -42,6 +43,25 @@ export type FacetedFilter = {
   options: FacetedFilterOption[];
 };
 
+/**
+ * Server-side pagination control. When provided, the table switches to
+ * "manual" mode: TanStack Table no longer slices/filters/sorts client-side
+ * for pagination; the parent owns page state and refetches data per page.
+ *
+ * Search and faceted filters still work locally on the page-of-data the
+ * parent passes in. For full server-driven search/filter, hoist `searchValue`
+ * and `facetedFilters` state into the parent and pass them as initialState
+ * (or use a controlled handler — see `onSearchChange`).
+ */
+export type ServerPaginationProps = {
+  pageIndex: number;
+  pageSize: number;
+  total: number;
+  onPaginationChange: (next: { pageIndex: number; pageSize: number }) => void;
+  /** Whether a refetch is in-flight. Renders a subtle overlay. */
+  isFetching?: boolean;
+};
+
 type DataTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -49,12 +69,15 @@ type DataTableProps<TData, TValue> = {
    *  Pass a string for single-column search or an array to search across multiple columns. */
   searchColumnId?: string | string[];
   searchPlaceholder?: string;
+  /** Controlled search value — needed when search should drive a server refetch. */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   facetedFilters?: FacetedFilter[];
   /** Optional toolbar slot rendered to the right of the filters. */
   toolbarRight?: React.ReactNode;
   /** Optional empty state shown when no data exists at all. */
   emptyState?: React.ReactNode;
-  /** Default page size. */
+  /** Default page size (client mode only — ignored in serverPagination mode). */
   defaultPageSize?: number;
   pageSizeOptions?: number[];
   /** Initial sort state. */
@@ -66,6 +89,8 @@ type DataTableProps<TData, TValue> = {
   /** Stable id for the row, defaults to row index. */
   getRowId?: (row: TData, index: number) => string;
   className?: string;
+  /** Opt-in to server-driven pagination. When set, page nav fires onPaginationChange. */
+  serverPagination?: ServerPaginationProps;
 };
 
 export function DataTable<TData, TValue>({
@@ -73,6 +98,8 @@ export function DataTable<TData, TValue>({
   data,
   searchColumnId,
   searchPlaceholder = "Search…",
+  searchValue,
+  onSearchChange,
   facetedFilters = [],
   toolbarRight,
   emptyState,
@@ -84,7 +111,9 @@ export function DataTable<TData, TValue>({
   showSelectedCount = false,
   getRowId,
   className,
+  serverPagination,
 }: DataTableProps<TData, TValue>) {
+  const isServerMode = !!serverPagination;
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -93,7 +122,42 @@ export function DataTable<TData, TValue>({
     initialColumnVisibility
   );
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [globalFilter, setGlobalFilter] = React.useState("");
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
+  const globalFilter = searchValue !== undefined ? searchValue : internalGlobalFilter;
+  const setGlobalFilter = React.useCallback(
+    (value: string) => {
+      if (onSearchChange) onSearchChange(value);
+      else setInternalGlobalFilter(value);
+    },
+    [onSearchChange],
+  );
+
+  // In server mode, the parent owns pagination — translate to TanStack state.
+  const paginationState: PaginationState | undefined = React.useMemo(
+    () =>
+      isServerMode
+        ? {
+            pageIndex: serverPagination!.pageIndex,
+            pageSize: serverPagination!.pageSize,
+          }
+        : undefined,
+    [isServerMode, serverPagination],
+  );
+
+  const handlePaginationChange = React.useCallback(
+    (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      if (!isServerMode || !paginationState) return;
+      const current = paginationState;
+      const next = typeof updater === "function" ? updater(current) : updater;
+      if (
+        next.pageIndex !== current.pageIndex ||
+        next.pageSize !== current.pageSize
+      ) {
+        serverPagination!.onPaginationChange(next);
+      }
+    },
+    [isServerMode, paginationState, serverPagination],
+  );
 
   const table = useReactTable({
     data,
@@ -104,23 +168,33 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       globalFilter,
+      ...(paginationState ? { pagination: paginationState } : {}),
     },
-    initialState: {
-      pagination: { pageSize: defaultPageSize, pageIndex: 0 },
-    },
+    initialState: isServerMode
+      ? undefined
+      : { pagination: { pageSize: defaultPageSize, pageIndex: 0 } },
     enableRowSelection,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
-    getRowId: getRowId
-      ? (row, idx) => getRowId(row, idx)
-      : undefined,
+    ...(isServerMode
+      ? {
+          manualPagination: true,
+          pageCount:
+            serverPagination!.total === 0
+              ? 0
+              : Math.ceil(serverPagination!.total / serverPagination!.pageSize),
+          onPaginationChange: handlePaginationChange,
+        }
+      : {}),
+    getRowId: getRowId ? (row, idx) => getRowId(row, idx) : undefined,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Skip client-side pagination row model entirely in server mode
+    ...(isServerMode ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     globalFilterFn: (row, _columnId, value) => {
@@ -135,7 +209,6 @@ export function DataTable<TData, TValue>({
           return cell != null && String(cell).toLowerCase().includes(search);
         });
       }
-      // Fallback: search across all visible string-y values
       return row.getAllCells().some((cell) => {
         const v = cell.getValue();
         return v != null && String(v).toLowerCase().includes(search);
@@ -200,7 +273,12 @@ export function DataTable<TData, TValue>({
           </div>
         </div>
       )}
-      <div className="rounded-md border bg-card overflow-hidden">
+      <div className="rounded-md border bg-card overflow-hidden relative">
+        {isServerMode && serverPagination?.isFetching && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center pt-4 bg-background/40 backdrop-blur-[1px]">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -256,6 +334,7 @@ export function DataTable<TData, TValue>({
         table={table}
         pageSizeOptions={pageSizeOptions}
         showSelectedCount={enableRowSelection && showSelectedCount}
+        serverTotal={serverPagination?.total}
       />
     </div>
   );

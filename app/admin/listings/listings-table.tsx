@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -9,20 +9,10 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { FeaturedBadge } from "@/components/listings/featured-badge";
 import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
 import { ListingActions } from "./listing-actions";
-
-type AdminListing = {
-  id: string;
-  title: string;
-  slug: string;
-  status: string;
-  is_featured: boolean;
-  featured_until: string | null;
-  featured_homepage_until: string | null;
-  featured_category_until: string | null;
-  admin_removed_at: string | null;
-  created_at: string;
-  broker?: { name: string | null; company: string | null } | null;
-};
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import { UrlFacetedFilter } from "@/components/ui/url-faceted-filter";
+import type { Paginated } from "@/lib/types/pagination";
+import type { ListingForAdmin } from "@/lib/actions/admin-listings";
 
 const STATUS_OPTIONS = [
   { value: "published", label: "Published" },
@@ -50,54 +40,53 @@ function formatDate(iso: string) {
   });
 }
 
-export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
-  const columns = useMemo<ColumnDef<AdminListing>[]>(
+export function AdminListingsTable({ result }: { result: Paginated<ListingForAdmin> }) {
+  const { state, setPage, setPageSize, setSearch, setFilter } = useTableUrlState({
+    filterKeys: ["status", "visibility", "featured"],
+  });
+  const [searchInput, setSearchInput] = React.useState(state.q);
+  const [isPending, startTransition] = React.useTransition();
+
+  React.useEffect(() => {
+    setSearchInput(state.q);
+  }, [state.q]);
+
+  const onSearchChange = (value: string) => {
+    setSearchInput(value);
+    startTransition(() => setSearch(value));
+  };
+
+  const columns = React.useMemo<ColumnDef<ListingForAdmin>[]>(
     () => [
       {
         accessorKey: "title",
         meta: { label: "Title" },
         enableHiding: false,
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Title" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-medium">{row.original.title}</span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
       },
       {
         id: "broker",
         accessorFn: (row) => row.broker?.name ?? row.broker?.company ?? "",
         meta: { label: "Broker" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Broker" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Broker" />,
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
-            {row.original.broker?.name ??
-              row.original.broker?.company ??
-              "Not specified"}
+            {row.original.broker?.name ?? row.original.broker?.company ?? "Not specified"}
           </span>
         ),
       },
       {
         accessorKey: "status",
         meta: { label: "Status" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Status" />
-        ),
-        cell: ({ row }) => (
-          <StatusBadge status={row.original.status} className="border-0" />
-        ),
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => <StatusBadge status={row.original.status} className="border-0" />,
       },
       {
         id: "visibility",
         accessorFn: (row) => (row.admin_removed_at ? "removed" : "visible"),
         meta: { label: "Visibility" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Visibility" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Visibility" />,
         cell: ({ row }) => {
           const isRemoved = !!row.original.admin_removed_at;
           return (
@@ -108,16 +97,12 @@ export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
             />
           );
         },
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
       },
       {
         id: "featured",
         accessorFn: (row) => (isListingFeaturedAnywhere(row) ? "yes" : "no"),
         meta: { label: "Featured" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Featured" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Featured" />,
         cell: ({ row }) =>
           isListingFeaturedAnywhere(row.original) ? (
             <FeaturedBadge size="sm" />
@@ -126,19 +111,13 @@ export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
               No
             </Badge>
           ),
-        filterFn: (row, id, value: string[]) =>
-          value.includes(row.getValue<string>(id)),
       },
       {
         accessorKey: "created_at",
         meta: { label: "Created" },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Created" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {formatDate(row.original.created_at)}
-          </span>
+          <span className="text-sm text-muted-foreground">{formatDate(row.original.created_at)}</span>
         ),
       },
       {
@@ -157,30 +136,61 @@ export function AdminListingsTable({ listings }: { listings: AdminListing[] }) {
         ),
       },
     ],
-    []
+    [],
   );
 
   return (
     <div className="px-4 pb-4">
       <DataTable
         columns={columns}
-        data={listings}
+        data={result.rows}
         searchColumnId={["title", "broker"]}
         searchPlaceholder="Search by title or broker…"
-        facetedFilters={[
-          { columnId: "status", title: "Status", options: STATUS_OPTIONS },
-          {
-            columnId: "visibility",
-            title: "Visibility",
-            options: VISIBILITY_OPTIONS,
+        searchValue={searchInput}
+        onSearchChange={onSearchChange}
+        toolbarRight={
+          <div className="flex flex-wrap items-center gap-2">
+            <UrlFacetedFilter
+              title="Status"
+              value={state.filters.status}
+              onChange={(v) =>
+                startTransition(() => setFilter("status", v))
+              }
+              options={STATUS_OPTIONS}
+            />
+            <UrlFacetedFilter
+              title="Visibility"
+              value={state.filters.visibility}
+              onChange={(v) =>
+                startTransition(() => setFilter("visibility", v))
+              }
+              options={VISIBILITY_OPTIONS}
+            />
+            <UrlFacetedFilter
+              title="Featured"
+              value={state.filters.featured}
+              onChange={(v) =>
+                startTransition(() => setFilter("featured", v))
+              }
+              options={FEATURED_OPTIONS}
+            />
+          </div>
+        }
+        serverPagination={{
+          pageIndex: result.page - 1,
+          pageSize: result.pageSize,
+          total: result.total,
+          isFetching: isPending,
+          onPaginationChange: ({ pageIndex, pageSize }) => {
+            startTransition(() => {
+              if (pageSize !== result.pageSize) {
+                setPageSize(pageSize);
+              } else {
+                setPage(pageIndex + 1);
+              }
+            });
           },
-          {
-            columnId: "featured",
-            title: "Featured",
-            options: FEATURED_OPTIONS,
-          },
-        ]}
-        initialSorting={[{ id: "created_at", desc: true }]}
+        }}
       />
     </div>
   );

@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import * as React from "react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Listing, ListingStatus, ListingTier } from "@/lib/types/listings";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import type { Paginated } from "@/lib/types/pagination";
 import { TierBadge } from "@/components/shared/tier-badge";
 import {
   updateListingStatus,
@@ -88,20 +91,25 @@ function formatPrice(listing: Listing): string {
 }
 
 type Props = {
-  listings: Listing[];
+  result: Paginated<Listing>;
   brokerSlug?: string;
   isAgencyOwner?: boolean;
   canFeature?: boolean;
 };
 
 export function ListingsTable({
-  listings,
+  result,
   brokerSlug,
   isAgencyOwner,
   canFeature,
 }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { state, setPage, setPageSize, setSearch } = useTableUrlState();
+  const [searchInput, setSearchInput] = React.useState(state.q);
+  const [isPending, startTransition] = React.useTransition();
+  React.useEffect(() => setSearchInput(state.q), [state.q]);
+  const listings = result.rows;
 
   async function onStatusChange(listingId: string, newStatus: ListingStatus) {
     const res = await updateListingStatus(listingId, newStatus);
@@ -397,7 +405,7 @@ export function ListingsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAgencyOwner, brokerSlug, canFeature]);
 
-  if (listings.length === 0) {
+  if (result.total === 0 && !state.q && !state.filters.status) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 px-4 py-12 sm:py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
@@ -425,19 +433,23 @@ export function ListingsTable({
             ? "Search by title, category or broker…"
             : "Search by title or category…"
         }
-        facetedFilters={[
-          {
-            columnId: "status",
-            title: "Status",
-            options: STATUS_OPTIONS,
+        searchValue={searchInput}
+        onSearchChange={(v) => {
+          setSearchInput(v);
+          startTransition(() => setSearch(v));
+        }}
+        serverPagination={{
+          pageIndex: result.page - 1,
+          pageSize: result.pageSize,
+          total: result.total,
+          isFetching: isPending,
+          onPaginationChange: ({ pageIndex, pageSize }) => {
+            startTransition(() => {
+              if (pageSize !== result.pageSize) setPageSize(pageSize);
+              else setPage(pageIndex + 1);
+            });
           },
-          {
-            columnId: "listing_tier",
-            title: "Tier",
-            options: TIER_OPTIONS,
-          },
-        ]}
-        initialSorting={[{ id: "created_at", desc: true }]}
+        }}
       />
 
       {deletingId && (

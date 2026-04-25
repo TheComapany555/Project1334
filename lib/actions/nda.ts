@@ -2,6 +2,11 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { ListingNda, NdaSignature, NdaSignatureWithListing } from "@/lib/types/nda";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireBroker() {
   const { getServerSession } = await import("next-auth");
@@ -185,12 +190,21 @@ export async function getNdaSignaturesForListing(
   return data ?? [];
 }
 
-/** Broker: get all NDA signatures across all their listings. Agency owners see all agency signatures. */
-export async function getBrokerNdaSignatures(): Promise<NdaSignatureWithListing[]> {
+export type ListBrokerNdaSignaturesParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  listingId?: string | null;
+};
+
+/** Paginated NDA signatures across the broker's (or agency's) listings. */
+export async function listBrokerNdaSignatures(
+  params: ListBrokerNdaSignaturesParams = {},
+): Promise<Paginated<NdaSignatureWithListing>> {
   const { userId, agencyId } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  // Get broker's listing IDs (or all agency listing IDs if owner)
   let listingIds: string[] = [];
   if (agencyId) {
     const { data: profile } = await supabase
@@ -198,7 +212,6 @@ export async function getBrokerNdaSignatures(): Promise<NdaSignatureWithListing[
       .select("agency_role")
       .eq("id", userId)
       .single();
-
     if (profile?.agency_role === "owner") {
       const { data: listings } = await supabase
         .from("listings")
@@ -220,22 +233,45 @@ export async function getBrokerNdaSignatures(): Promise<NdaSignatureWithListing[
     listingIds = (listings ?? []).map((l) => l.id);
   }
 
-  if (listingIds.length === 0) return [];
+  if (listingIds.length === 0)
+    return buildPaginated<NdaSignatureWithListing>([], 0, page, pageSize);
 
-  const { data } = await supabase
+  let query = supabase
     .from("nda_signatures")
-    .select(`*, listing:listings(id, title, slug)`)
-    .in("listing_id", listingIds)
-    .order("signed_at", { ascending: false });
+    .select(`*, listing:listings(id, title, slug)`, { count: "exact" })
+    .in("listing_id", listingIds);
+
+  if (params.listingId?.trim()) {
+    query = query.eq("listing_id", params.listingId.trim());
+  }
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.or(`signer_name.ilike.%${k}%,signer_email.ilike.%${k}%`);
+  }
+  query = query.order("signed_at", { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error)
+    return buildPaginated<NdaSignatureWithListing>([], 0, page, pageSize);
 
   const rows = (data ?? []) as (NdaSignature & {
-    listing?: { id: string; title: string; slug: string }[] | { id: string; title: string; slug: string };
+    listing?:
+      | { id: string; title: string; slug: string }[]
+      | { id: string; title: string; slug: string };
   })[];
 
-  return rows.map((r) => ({
+  const flat: NdaSignatureWithListing[] = rows.map((r) => ({
     ...r,
     listing: Array.isArray(r.listing) ? r.listing[0] ?? null : r.listing ?? null,
   }));
+
+  return buildPaginated(flat, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listBrokerNdaSignatures`. */
+export async function getBrokerNdaSignatures(): Promise<NdaSignatureWithListing[]> {
+  const { rows } = await listBrokerNdaSignatures({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 export async function getListingNdaStatus(listingId: string): Promise<{

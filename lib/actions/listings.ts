@@ -13,6 +13,11 @@ import type {
 } from "@/lib/types/listings";
 import { notifyAdmins } from "@/lib/actions/notifications";
 import { optimizeImage } from "@/lib/image-optimizer";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 const LISTING_IMAGES_BUCKET = "listing-images";
 const MAX_IMAGES_PER_LISTING = 10;
@@ -88,33 +93,63 @@ export async function getListingHighlights(): Promise<ListingHighlight[]> {
   return (data ?? []) as ListingHighlight[];
 }
 
-export async function getListingsByBroker(): Promise<(Listing & { listing_highlights?: ListingHighlight[] })[]> {
+export type BrokerListing = Listing & {
+  listing_highlights?: ListingHighlight[];
+};
+
+export type ListBrokerListingsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+};
+
+/**
+ * Paginated broker listings.
+ * Agency owners see all agency listings; members see only their own.
+ */
+export async function listBrokerListings(
+  params: ListBrokerListingsParams = {},
+): Promise<Paginated<BrokerListing>> {
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  // Agency owners see all agency listings; members see only their own
   const isOwner = !!(agencyId && agencyRole === "owner");
   let query = supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
       broker:profiles!broker_id(name, photo_url),
       agency:agencies!agency_id(name, slug, logo_url),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
-    `);
+    `,
+      { count: "exact" },
+    );
 
-  if (isOwner) {
-    query = query.eq("agency_id", agencyId);
-  } else {
-    query = query.eq("broker_id", userId);
+  if (isOwner) query = query.eq("agency_id", agencyId);
+  else query = query.eq("broker_id", userId);
+
+  if (params.status?.trim() && params.status !== "all") {
+    query = query.eq("status", params.status.trim());
   }
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.ilike("title", `%${k}%`);
+  }
+  query = query.order("updated_at", { ascending: false });
 
-  const { data: listings, error } = await query.order("updated_at", { ascending: false });
-  if (error) return [];
+  const { data: listings, error, count } = await query.range(
+    offset,
+    offset + pageSize - 1,
+  );
+  if (error) return buildPaginated<BrokerListing>([], 0, page, pageSize);
+
   const list = (listings ?? []) as any[];
-  return list.map((l) => {
+  const rows: BrokerListing[] = list.map((l) => {
     const rawBroker = l.broker;
     const broker = Array.isArray(rawBroker) ? rawBroker[0] ?? null : rawBroker ?? null;
     return {
@@ -125,6 +160,14 @@ export async function getListingsByBroker(): Promise<(Listing & { listing_highli
       broker: broker ?? undefined,
     };
   });
+
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listBrokerListings`. */
+export async function getListingsByBroker(): Promise<BrokerListing[]> {
+  const { rows } = await listBrokerListings({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 export async function getListingById(id: string): Promise<Listing | null> {

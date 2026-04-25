@@ -4,6 +4,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { Advertisement } from "@/lib/types/advertising";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -51,17 +56,42 @@ export async function uploadAdImage(
   return { ok: true, url: urlData.publicUrl };
 }
 
-/** Get all ads for admin (no filters). */
-export async function getAllAdsForAdmin(): Promise<Advertisement[]> {
+export type ListAdminAdsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+  placement?: string | null;
+};
+
+export async function listAdminAds(
+  params: ListAdminAdsParams = {},
+): Promise<Paginated<Advertisement>> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+  const { page, pageSize, offset } = normalizePagination(params);
+
+  let q = supabase
     .from("advertisements")
-    .select("*")
-    .order("sort_order")
-    .order("created_at", { ascending: false });
-  if (error) return [];
-  return (data ?? []) as Advertisement[];
+    .select("*", { count: "exact" });
+
+  if (params.status?.trim()) q = q.eq("status", params.status.trim());
+  if (params.placement?.trim()) q = q.eq("placement", params.placement.trim());
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    q = q.ilike("title", `%${k}%`);
+  }
+  q = q.order("sort_order").order("created_at", { ascending: false });
+
+  const { data, error, count } = await q.range(offset, offset + pageSize - 1);
+  if (error) return buildPaginated<Advertisement>([], 0, page, pageSize);
+  return buildPaginated((data ?? []) as Advertisement[], count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAdminAds`. */
+export async function getAllAdsForAdmin(): Promise<Advertisement[]> {
+  const { rows } = await listAdminAds({ page: 1, pageSize: 200 });
+  return rows;
 }
 
 /** Get a single ad by ID (admin). */

@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { Listing } from "@/lib/types/listings";
 import { isListingFeaturedAnywhere } from "@/lib/featured-dates";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireBroker() {
   const session = await getServerSession(authOptions);
@@ -35,53 +40,87 @@ function featuredOrFilter() {
   return `featured_homepage_until.gt."${iso}",featured_category_until.gt."${iso}"`;
 }
 
-/** Get active featured listings for broker. */
-export async function getBrokerFeaturedListings(): Promise<Listing[]> {
+export type ListFeaturedParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+/** Paginated active featured listings for broker. */
+export async function listBrokerFeaturedListings(
+  params: ListFeaturedParams = {},
+): Promise<Paginated<Listing>> {
   const { userId } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
-    `)
+    `,
+      { count: "exact" },
+    )
     .eq("broker_id", userId)
     .or(featuredOrFilter())
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
-    .order("featured_category_until", { ascending: false, nullsFirst: false });
+    .order("featured_category_until", { ascending: false, nullsFirst: false })
+    .range(offset, offset + pageSize - 1);
 
-  if (error) return [];
-  const rows = (data ?? []) as Listing[];
-  return rows.filter((l) => isListingFeaturedAnywhere(l));
+  if (error) return buildPaginated<Listing>([], 0, page, pageSize);
+  const rows = ((data ?? []) as Listing[]).filter((l) =>
+    isListingFeaturedAnywhere(l),
+  );
+  return buildPaginated(rows, count ?? 0, page, pageSize);
 }
 
-/** Get active featured listings for agency brokers. */
-export async function getAgencyFeaturedListings(): Promise<Listing[]> {
+/** @deprecated Use `listBrokerFeaturedListings`. */
+export async function getBrokerFeaturedListings(): Promise<Listing[]> {
+  const { rows } = await listBrokerFeaturedListings({ page: 1, pageSize: 100 });
+  return rows;
+}
+
+/** Paginated active featured listings for agency brokers. */
+export async function listAgencyFeaturedListings(
+  params: ListFeaturedParams = {},
+): Promise<Paginated<Listing>> {
   const { agencyId, agencyRole } = await requireBroker();
   if (!agencyId || agencyRole !== "owner") {
     throw new Error("Unauthorized");
   }
-
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order),
       broker:profiles!broker_id(name, company)
-    `)
+    `,
+      { count: "exact" },
+    )
     .eq("agency_id", agencyId)
     .or(featuredOrFilter())
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
-    .order("featured_category_until", { ascending: false, nullsFirst: false });
+    .order("featured_category_until", { ascending: false, nullsFirst: false })
+    .range(offset, offset + pageSize - 1);
 
-  if (error) return [];
-  const rows = (data ?? []) as Listing[];
-  return rows.filter((l) => isListingFeaturedAnywhere(l));
+  if (error) return buildPaginated<Listing>([], 0, page, pageSize);
+  const rows = ((data ?? []) as Listing[]).filter((l) =>
+    isListingFeaturedAnywhere(l),
+  );
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAgencyFeaturedListings`. */
+export async function getAgencyFeaturedListings(): Promise<Listing[]> {
+  const { rows } = await listAgencyFeaturedListings({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 function syncLegacyFeaturedFields(payload: Record<string, unknown>, row: {

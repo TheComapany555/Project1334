@@ -1,4 +1,4 @@
-import { getAllAdsForAdmin } from "@/lib/actions/admin-advertising";
+import { listAdminAds } from "@/lib/actions/admin-advertising";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
@@ -12,17 +12,41 @@ import { Button } from "@/components/ui/button";
 import { PlusIcon, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { AdvertisingTable } from "./advertising-table";
+import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
 
-export default async function AdminAdvertisingPage() {
-  const ads = await getAllAdsForAdmin();
+type SP = { [key: string]: string | string[] | undefined };
+
+function pickStr(v: string | string[] | undefined): string | null {
+  if (!v) return null;
+  const s = Array.isArray(v) ? v[0] : v;
+  return s?.trim() || null;
+}
+
+export default async function AdminAdvertisingPage({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}) {
+  const sp = await searchParams;
+  const page = Math.max(1, Number(pickStr(sp.page) ?? 1));
+  const pageSize = Math.max(1, Number(pickStr(sp.pageSize) ?? DEFAULT_PAGE_SIZE));
+  const q = pickStr(sp.q);
+  const status = pickStr(sp.status);
+  const placement = pickStr(sp.placement);
+
+  // Stats query: lightweight — first page is enough to know the table is non-empty.
+  // For accurate totals + impression sums, an SQL aggregate would be a follow-up.
+  // Until then, fetch a capped recent window for the stat cards.
+  const statsResult = await listAdminAds({ page: 1, pageSize: 200 });
+  const result = await listAdminAds({ page, pageSize, q, status, placement });
+
   const now = new Date();
+  const active = statsResult.rows.filter((a) => a.status === "active").length;
+  const totalImpressions = statsResult.rows.reduce((s, a) => s + a.impression_count, 0);
+  const totalClicks = statsResult.rows.reduce((s, a) => s + a.click_count, 0);
+  void now;
 
-  const active = ads.filter((a) => a.status === "active").length;
-  const expired = ads.filter(
-    (a) => a.end_date && new Date(a.end_date) < now
-  ).length;
-  const totalImpressions = ads.reduce((s, a) => s + a.impression_count, 0);
-  const totalClicks = ads.reduce((s, a) => s + a.click_count, 0);
+  const hasFilters = !!(q || status || placement);
 
   return (
     <div className="space-y-8">
@@ -39,11 +63,10 @@ export default async function AdminAdvertisingPage() {
         }
       />
 
-      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-            <span className="text-2xl font-semibold">{ads.length}</span>
+            <span className="text-2xl font-semibold">{statsResult.total}</span>
             <span className="text-xs text-muted-foreground">Total ads</span>
           </CardContent>
         </Card>
@@ -71,13 +94,12 @@ export default async function AdminAdvertisingPage() {
         <CardHeader>
           <CardTitle className="text-base">All advertisements</CardTitle>
           <CardDescription>
-            Ads are shown on public pages based on placement. Expired ads are
-            auto-hidden.
+            Ads are shown on public pages based on placement. Expired ads are auto-hidden.
           </CardDescription>
         </CardHeader>
         <Separator />
         <CardContent className="p-0">
-          {ads.length === 0 ? (
+          {result.total === 0 && !hasFilters ? (
             <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
               <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
                 <Megaphone className="h-6 w-6 text-muted-foreground" />
@@ -85,8 +107,7 @@ export default async function AdminAdvertisingPage() {
               <div className="space-y-1">
                 <p className="font-medium">No ads yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Create your first ad to start monetising ad slots on the
-                  marketplace.
+                  Create your first ad to start monetising ad slots on the marketplace.
                 </p>
               </div>
               <Button asChild size="sm" className="gap-1.5">
@@ -97,7 +118,7 @@ export default async function AdminAdvertisingPage() {
               </Button>
             </div>
           ) : (
-            <AdvertisingTable ads={ads} />
+            <AdvertisingTable result={result} />
           )}
         </CardContent>
       </Card>

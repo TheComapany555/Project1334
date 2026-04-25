@@ -6,6 +6,11 @@ import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -146,47 +151,82 @@ async function requireAdmin() {
   return { userId: session.user.id };
 }
 
-/** Broker: list enquiries. Agency owners see all agency enquiries. */
-export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
+export type ListBrokerEnquiriesParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  reason?: string | null;
+};
+
+/** Paginated broker enquiries. Agency owners see all agency enquiries. */
+export async function listBrokerEnquiries(
+  params: ListBrokerEnquiriesParams = {},
+): Promise<Paginated<EnquiryWithListing>> {
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
   let query = supabase
     .from("enquiries")
-    .select(`
+    .select(
+      `
       *,
       listing:listings(id, title, slug, category:categories(id, name))
-    `);
+    `,
+      { count: "exact" },
+    );
 
   if (agencyId && agencyRole === "owner") {
-    // Agency owners see enquiries for all brokers in the agency
     const { data: agencyProfiles } = await supabase
       .from("profiles")
       .select("id")
       .eq("agency_id", agencyId);
     const brokerIds = (agencyProfiles ?? []).map((p) => p.id);
-    if (brokerIds.length > 0) {
-      query = query.in("broker_id", brokerIds);
-    } else {
-      query = query.eq("broker_id", userId);
-    }
+    if (brokerIds.length > 0) query = query.in("broker_id", brokerIds);
+    else query = query.eq("broker_id", userId);
   } else {
     query = query.eq("broker_id", userId);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
-  if (error) return [];
-  const rows = (data ?? []) as (Enquiry & { listing?: any[] | any })[];
-  return rows.map((r) => {
-    const listing = Array.isArray(r.listing) ? r.listing[0] ?? null : r.listing ?? null;
+  if (params.reason?.trim() && params.reason !== "all") {
+    query = query.eq("reason", params.reason.trim());
+  }
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.or(
+      `contact_name.ilike.%${k}%,contact_email.ilike.%${k}%,message.ilike.%${k}%`,
+    );
+  }
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error) return buildPaginated<EnquiryWithListing>([], 0, page, pageSize);
+
+  const rowsRaw = (data ?? []) as (Enquiry & { listing?: any[] | any })[];
+  const rows: EnquiryWithListing[] = rowsRaw.map((r) => {
+    const listing = Array.isArray(r.listing)
+      ? r.listing[0] ?? null
+      : r.listing ?? null;
     return {
       ...r,
-      listing: listing ? {
-        ...listing,
-        category: Array.isArray(listing.category) ? listing.category[0] ?? null : listing.category ?? null,
-      } : null,
+      listing: listing
+        ? {
+            ...listing,
+            category: Array.isArray(listing.category)
+              ? listing.category[0] ?? null
+              : listing.category ?? null,
+          }
+        : null,
     };
   });
+
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listBrokerEnquiries`. */
+export async function getEnquiriesByBroker(): Promise<EnquiryWithListing[]> {
+  const { rows } = await listBrokerEnquiries({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 /** Admin: list all enquiries with listing and broker info. */

@@ -8,6 +8,11 @@ import { nanoid } from "nanoid";
 import { Resend } from "resend";
 import { brokerInvitationEmail } from "@/lib/email-templates";
 import type { Agency, AgencyBroker, AgencyInvitation } from "@/lib/types/agencies";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -138,19 +143,38 @@ export async function uploadAgencyLogo(formData: FormData): Promise<{ ok: boolea
   return { ok: true, url };
 }
 
-/** Agency owner: list brokers in the agency. */
-export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
+export type ListAgencyBrokersParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+};
+
+/** Paginated brokers in the current agency (excludes the owner). */
+export async function listAgencyBrokers(
+  params: ListAgencyBrokersParams = {},
+): Promise<Paginated<AgencyBroker>> {
   const { agencyId } = await requireAgencyOwner();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  const { data: profiles, error } = await supabase
+  let q = supabase
     .from("profiles")
-    .select("id, name, phone, photo_url, agency_role, created_at")
+    .select("id, name, phone, photo_url, agency_role, created_at", {
+      count: "exact",
+    })
     .eq("agency_id", agencyId)
     .eq("role", "broker")
-    .neq("agency_role", "owner")
-    .order("created_at", { ascending: true });
-  if (error || !profiles?.length) return [];
+    .neq("agency_role", "owner");
+
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
+    q = q.or(`name.ilike.%${k}%,phone.ilike.%${k}%`);
+  }
+  q = q.order("created_at", { ascending: true });
+
+  const { data: profiles, error, count } = await q.range(offset, offset + pageSize - 1);
+  if (error || !profiles?.length)
+    return buildPaginated<AgencyBroker>([], count ?? 0, page, pageSize);
 
   const ids = profiles.map((p) => p.id);
   const { data: users } = await supabase
@@ -159,7 +183,7 @@ export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
     .in("id", ids);
   const emailMap = new Map((users ?? []).map((u) => [u.id, u.email]));
 
-  return profiles.map((p) => ({
+  const rows: AgencyBroker[] = profiles.map((p) => ({
     id: p.id,
     email: emailMap.get(p.id) ?? "",
     name: p.name ?? null,
@@ -168,6 +192,14 @@ export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
     agency_role: (p.agency_role as "owner" | "member") ?? "member",
     created_at: p.created_at,
   }));
+
+  return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAgencyBrokers`. */
+export async function getAgencyBrokers(): Promise<AgencyBroker[]> {
+  const { rows } = await listAgencyBrokers({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 /** Agency owner: get a broker's full profile for editing. */
@@ -396,20 +428,36 @@ export async function inviteBroker(email: string): Promise<{ ok: boolean; error?
   return { ok: true };
 }
 
-/** Agency owner: get pending invitations for the agency. */
-export async function getPendingInvitations(): Promise<AgencyInvitation[]> {
+export type ListPendingInvitationsParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+/** Paginated pending invitations for the agency. */
+export async function listPendingInvitations(
+  params: ListPendingInvitationsParams = {},
+): Promise<Paginated<AgencyInvitation>> {
   const { agencyId } = await requireAgencyOwner();
   const supabase = createServiceRoleClient();
+  const { page, pageSize, offset } = normalizePagination(params);
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("agency_invitations")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("agency_id", agencyId)
     .eq("status", "pending")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
-  if (error || !data) return [];
-  return data as AgencyInvitation[];
+  if (error || !data)
+    return buildPaginated<AgencyInvitation>([], 0, page, pageSize);
+  return buildPaginated(data as AgencyInvitation[], count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listPendingInvitations`. */
+export async function getPendingInvitations(): Promise<AgencyInvitation[]> {
+  const { rows } = await listPendingInvitations({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 /** Agency owner: resend an invitation email. */

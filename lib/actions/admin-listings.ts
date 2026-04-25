@@ -1,6 +1,11 @@
 "use server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  buildPaginated,
+  normalizePagination,
+  type Paginated,
+} from "@/lib/types/pagination";
 
 async function requireAdmin() {
   const { getServerSession } = await import("next-auth");
@@ -25,12 +30,28 @@ export type ListingForAdmin = {
   broker?: { name: string | null; company: string | null };
 };
 
-export async function getAllListingsForAdmin(): Promise<ListingForAdmin[]> {
+export type ListAdminListingsParams = {
+  page?: number;
+  pageSize?: number;
+  q?: string | null;
+  status?: string | null;
+  /** "visible" | "removed" */
+  visibility?: string | null;
+  /** "yes" | "no" — featured anywhere */
+  featured?: string | null;
+};
+
+export async function listAdminListings(
+  params: ListAdminListingsParams = {},
+): Promise<Paginated<ListingForAdmin>> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
+  const { page, pageSize, offset } = normalizePagination(params);
+
+  let query = supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       id,
       slug,
       title,
@@ -42,16 +63,57 @@ export async function getAllListingsForAdmin(): Promise<ListingForAdmin[]> {
       featured_category_until,
       created_at,
       broker:profiles!broker_id(name, company)
-    `)
-    .order("created_at", { ascending: false });
-  if (error) return [];
+    `,
+      { count: "exact" },
+    );
+
+  if (params.status?.trim()) {
+    query = query.eq("status", params.status.trim());
+  }
+  if (params.visibility === "visible") {
+    query = query.is("admin_removed_at", null);
+  } else if (params.visibility === "removed") {
+    query = query.not("admin_removed_at", "is", null);
+  }
+  if (params.featured === "yes") {
+    const nowIso = new Date().toISOString();
+    query = query.or(
+      `featured_until.gte.${nowIso},featured_homepage_until.gte.${nowIso},featured_category_until.gte.${nowIso}`,
+    );
+  } else if (params.featured === "no") {
+    const nowIso = new Date().toISOString();
+    // Listings with all featured columns null OR all in the past
+    query = query
+      .or(`featured_until.is.null,featured_until.lt.${nowIso}`)
+      .or(`featured_homepage_until.is.null,featured_homepage_until.lt.${nowIso}`)
+      .or(`featured_category_until.is.null,featured_category_until.lt.${nowIso}`);
+  }
+  if (params.q?.trim()) {
+    const k = params.q.trim().replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.ilike("title", `%${k}%`);
+  }
+
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error) return buildPaginated<ListingForAdmin>([], 0, page, pageSize);
+
   const rows = (data ?? []) as (Omit<ListingForAdmin, "broker"> & {
-    broker?: { name: string | null; company: string | null }[] | { name: string | null; company: string | null };
+    broker?:
+      | { name: string | null; company: string | null }[]
+      | { name: string | null; company: string | null };
   })[];
-  return rows.map((r) => ({
+  const flat = rows.map((r) => ({
     ...r,
     broker: Array.isArray(r.broker) ? r.broker[0] : r.broker,
   }));
+  return buildPaginated(flat, count ?? 0, page, pageSize);
+}
+
+/** @deprecated Use `listAdminListings` instead. Kept as a capped fallback. */
+export async function getAllListingsForAdmin(): Promise<ListingForAdmin[]> {
+  const { rows } = await listAdminListings({ page: 1, pageSize: 100 });
+  return rows;
 }
 
 /**
