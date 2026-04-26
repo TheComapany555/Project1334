@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Payment } from "@/lib/types/payments";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { PaymentStatusBadge } from "@/components/payments/payment-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -88,7 +88,7 @@ export function PaymentHistory({ payments, showBroker = false }: PaymentHistoryP
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1.5">
-                  <StatusBadge status={payment.status} />
+                  <PaymentStatusBadge status={payment.status} />
                   {payment.invoice_requested && (
                     <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:text-amber-400">
                       Invoice

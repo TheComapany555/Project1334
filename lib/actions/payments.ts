@@ -6,7 +6,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import { invoiceStatusEmail } from "@/lib/email-templates";
 import type { Payment } from "@/lib/types/payments";
-import { notifyAgencyBrokers } from "@/lib/actions/notifications";
+import {
+  createNotification,
+  notifyAgencyBrokers,
+} from "@/lib/actions/notifications";
 import {
   buildPaginated,
   normalizePagination,
@@ -198,8 +201,39 @@ export async function updatePaymentStatus(
   await requireAdmin();
   const supabase = createServiceRoleClient();
 
+  const { data: existing, error: fetchErr } = await supabase
+    .from("payments")
+    .select(
+      "status, listing_id, package_days, payment_type, subscription_id, invoice_requested, broker_id, agency_id",
+    )
+    .eq("id", paymentId)
+    .single();
+
+  if (fetchErr || !existing) {
+    return { ok: false, error: "Payment not found" };
+  }
+  if (existing.status === status) {
+    return { ok: true };
+  }
+
+  if (status === "approved" && existing.status !== "invoiced") {
+    return {
+      ok: false,
+      error: "Invoice can only be approved from Invoiced status.",
+    };
+  }
+  if (
+    status === "paid" &&
+    !["pending", "invoiced", "approved"].includes(existing.status)
+  ) {
+    return {
+      ok: false,
+      error: "Payment cannot be marked as paid from its current status.",
+    };
+  }
+
   const payload: Record<string, unknown> = { status };
-  if (status === "paid" || status === "approved") {
+  if (status === "paid") {
     payload.paid_at = new Date().toISOString();
   }
 
@@ -210,15 +244,15 @@ export async function updatePaymentStatus(
 
   if (error) return { ok: false, error: error.message };
 
-  // Activate listing or subscription when approved or paid
-  if (status === "paid" || status === "approved") {
+  // Listing publish, featured boosts, and subscription activation only when
+  // payment is confirmed (matches checkout copy: live after payment received).
+  if (status === "paid") {
     const { data: payment } = await supabase
       .from("payments")
       .select("listing_id, package_days, payment_type, subscription_id")
       .eq("id", paymentId)
       .single();
 
-    // Activate subscription if this is a subscription payment
     if (payment?.payment_type === "subscription" && payment.subscription_id) {
       const now = new Date();
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -237,22 +271,20 @@ export async function updatePaymentStatus(
       const now = new Date();
 
       if (payment.payment_type === "listing_tier") {
-        // Activate listing tier: publish the listing + set tier_paid_at
         const { data: listing } = await supabase
           .from("listings")
-          .select("listing_tier")
+          .select("listing_tier, published_at")
           .eq("id", payment.listing_id)
           .single();
 
         const tier = listing?.listing_tier ?? "standard";
         const updatePayload: Record<string, unknown> = {
           status: "published",
-          published_at: now.toISOString(),
+          published_at: listing?.published_at ?? now.toISOString(),
           tier_paid_at: now.toISOString(),
           updated_at: now.toISOString(),
         };
 
-        // Featured tier: homepage boost (same as legacy featured tier behaviour)
         if (tier === "featured" && payment.package_days > 0) {
           const featuredUntil = new Date(
             now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
@@ -271,7 +303,6 @@ export async function updatePaymentStatus(
           .update(updatePayload)
           .eq("id", payment.listing_id);
       } else {
-        // Legacy featured payment → homepage scope
         const featuredUntil = new Date(
           now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
         );
@@ -292,7 +323,7 @@ export async function updatePaymentStatus(
   }
 
   // Send email notification for invoice status changes
-  if ((status === "approved" || status === "paid")) {
+  if (status === "approved" || status === "paid") {
     try {
       const { data: fullPayment } = await supabase
         .from("payments")
@@ -359,23 +390,57 @@ export async function updatePaymentStatus(
     }
   }
 
-  // In-app notification to agency brokers
-  if (status === "paid" || status === "approved") {
+  // In-app notification to agency or solo broker
+  if (status === "approved" || status === "paid") {
     try {
       const { data: pmnt } = await supabase
         .from("payments")
-        .select("agency_id")
+        .select("agency_id, broker_id, listing_id")
         .eq("id", paymentId)
         .single();
-      if (pmnt?.agency_id) {
-        notifyAgencyBrokers({
-          agencyId: pmnt.agency_id,
-          type: status === "paid" ? "payment_approved" : "payment_approved",
-          title: status === "paid"
-            ? "Your payment has been confirmed"
-            : "Your invoice has been approved",
-          link: "/dashboard/payments",
-        }).catch(() => {});
+      if (!pmnt) return { ok: true };
+
+      if (status === "approved") {
+        if (pmnt.agency_id) {
+          notifyAgencyBrokers({
+            agencyId: pmnt.agency_id,
+            type: "payment_approved",
+            title: "Your invoice request was approved",
+            message:
+              "We've approved your invoice request. Complete payment using the details on the invoice you received.",
+            link: "/dashboard/payments",
+          }).catch(() => {});
+        } else if (pmnt.broker_id) {
+          createNotification({
+            userId: pmnt.broker_id,
+            type: "payment_approved",
+            title: "Your invoice request was approved",
+            message:
+              "Complete payment using the details on the invoice we sent you. Your listing goes live once payment is confirmed.",
+            link: "/dashboard/payments",
+          }).catch(() => {});
+        }
+      } else if (status === "paid") {
+        const listingMsg = pmnt.listing_id
+          ? "Your listing is now live on Salebiz."
+          : "Your payment has been recorded.";
+        if (pmnt.agency_id) {
+          notifyAgencyBrokers({
+            agencyId: pmnt.agency_id,
+            type: "payment_received",
+            title: "Payment confirmed",
+            message: listingMsg,
+            link: "/dashboard/payments",
+          }).catch(() => {});
+        } else if (pmnt.broker_id) {
+          createNotification({
+            userId: pmnt.broker_id,
+            type: "payment_received",
+            title: "Payment confirmed",
+            message: listingMsg,
+            link: "/dashboard/payments",
+          }).catch(() => {});
+        }
       }
     } catch {}
   }

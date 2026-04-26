@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { PaymentLogsTable } from "@/components/payments/payment-logs-table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { FileText } from "lucide-react";
 
 export default async function PaymentsPage() {
   const session = await getSession();
@@ -19,8 +21,10 @@ export default async function PaymentsPage() {
   const payments = isOwner ? await getAgencyPayments() : await getBrokerPayments();
 
   const total = payments.length;
-  const paid = payments.filter((p) => p.status === "paid" || p.status === "approved").length;
-  const pending = payments.filter((p) => p.status === "pending" || p.status === "invoiced").length;
+  const paid = payments.filter((p) => p.status === "paid").length;
+  const inProgress = payments.filter((p) =>
+    ["pending", "invoiced", "approved"].includes(p.status),
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -32,6 +36,17 @@ export default async function PaymentsPage() {
         }
       />
 
+      {payments.some((p) => p.status === "invoiced" || p.status === "approved") && (
+        <Alert className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+          <FileText className="h-4 w-4" />
+          <AlertTitle>Invoice in progress</AlertTitle>
+          <AlertDescription>
+            After you request an invoice, our team sends billing details. Your listing is published
+            once payment is confirmed.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
@@ -42,13 +57,13 @@ export default async function PaymentsPage() {
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
             <span className="text-2xl font-semibold text-success">{paid}</span>
-            <span className="text-xs text-muted-foreground">Completed</span>
+            <span className="text-xs text-muted-foreground">Confirmed paid</span>
           </CardContent>
         </Card>
         <Card className="py-4">
           <CardContent className="flex flex-col items-center gap-0.5 p-0 text-center">
-            <span className="text-2xl font-semibold text-warning">{pending}</span>
-            <span className="text-xs text-muted-foreground">Pending</span>
+            <span className="text-2xl font-semibold text-warning">{inProgress}</span>
+            <span className="text-xs text-muted-foreground">In progress</span>
           </CardContent>
         </Card>
       </div>

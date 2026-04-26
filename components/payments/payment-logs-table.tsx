@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { Payment } from "@/lib/types/payments";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { PaymentStatusBadge } from "@/components/payments/payment-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,9 +62,15 @@ function formatAmount(amount: number, currency: string): string {
 type Props = {
   payments: Payment[];
   showBroker?: boolean;
+  /** Enables admin invoice actions and internal notes (admin payments page). */
+  enableAdminPaymentActions?: boolean;
 };
 
-export function PaymentLogsTable({ payments, showBroker = false }: Props) {
+export function PaymentLogsTable({
+  payments,
+  showBroker = false,
+  enableAdminPaymentActions = false,
+}: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -277,7 +283,7 @@ export function PaymentLogsTable({ payments, showBroker = false }: Props) {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <StatusBadge status={payment.status} />
+                        <PaymentStatusBadge status={payment.status} />
                         {payment.invoice_requested && (
                           <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:text-amber-400">
                             Invoice
@@ -342,7 +348,10 @@ export function PaymentLogsTable({ payments, showBroker = false }: Props) {
       <PaymentDetailModal
         payment={selectedPayment}
         open={!!selectedPayment}
-        onOpenChange={(open) => { if (!open) setSelectedPayment(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPayment(null);
+        }}
+        enableAdminActions={enableAdminPaymentActions}
       />
     </>
   );

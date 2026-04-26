@@ -1,7 +1,6 @@
 import { getAllPayments, getPendingInvoiceCount } from "@/lib/actions/payments";
 import { getAllSubscriptions } from "@/lib/actions/subscriptions";
 import { Badge } from "@/components/ui/badge";
-import { CardDescription } from "@/components/ui/card";
 import { format } from "date-fns";
 import { SubscriptionActions } from "@/app/admin/subscriptions/subscription-actions";
 import {
@@ -14,6 +13,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -94,11 +94,15 @@ export default async function AdminPaymentsPage() {
       {/* Payment Logs Table */}
       <Card>
         <CardHeader className="pb-0">
-          <CardTitle className="text-base">Payment Logs</CardTitle>
+          <CardTitle className="text-base">Payment logs</CardTitle>
+          <CardDescription className="text-xs pt-1">
+            Open a row to approve invoice requests, mark bank transfers as received, and add internal
+            notes. Marking paid publishes paid listing tiers and counts toward revenue.
+          </CardDescription>
         </CardHeader>
         <Separator className="mt-4" />
         <CardContent className="p-0">
-          <PaymentLogsTable payments={payments} showBroker />
+          <PaymentLogsTable payments={payments} showBroker enableAdminPaymentActions />
         </CardContent>
       </Card>
 
