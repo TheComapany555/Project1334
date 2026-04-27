@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 import {
   Search,
   Send,
@@ -527,15 +528,33 @@ export function BulkSendTab({ contacts, tags, listings }: Props) {
       <Card>
         <CardContent className="space-y-4 pt-5">
           <div className="space-y-1.5">
-            <Label htmlFor="bulk-message">
-              3. Personal message{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor="bulk-message">
+                3. Personal message{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <AITextActions
+                kind="outreach_bulk_send"
+                getCurrentText={() => customMessage}
+                getContext={() => {
+                  const titles = listings
+                    .filter((l) => selectedListingIds.has(l.id))
+                    .map((l) => l.title)
+                    .slice(0, 5);
+                  return {
+                    listingCount: selectedListingCount,
+                    contactCount: selectedContacts.length,
+                    sampleListingTitles: titles,
+                  };
+                }}
+                onAccept={(text) => setCustomMessage(text)}
+              />
+            </div>
             <Textarea
               id="bulk-message"
               value={customMessage}
               onChange={(e) => setCustomMessage(e.target.value)}
-              placeholder="Add a short personal note shown at the top of the email — e.g. 'Hi, I thought these might suit your criteria. Let me know if you'd like more info!'"
+              placeholder="Add a short personal note shown at the top of the email, e.g. 'Hi, I thought these might suit your criteria. Let me know if you'd like more info!'"
               rows={3}
               className="resize-none text-sm"
             />

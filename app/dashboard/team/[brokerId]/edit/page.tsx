@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FieldError } from "@/components/ui/field-error";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 import {
   User,
   Phone,
@@ -76,6 +77,7 @@ export default function EditBrokerPage() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -275,7 +277,21 @@ export default function EditBrokerPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
+                <AITextActions
+                  kind="broker_bio"
+                  getCurrentText={() => getValues("bio") ?? ""}
+                  getContext={() => ({
+                    name: getValues("name") || undefined,
+                    publicEmail: getValues("email_public") || undefined,
+                    website: getValues("website") || undefined,
+                  })}
+                  onAccept={(text) =>
+                    setValue("bio", text, { shouldDirty: true })
+                  }
+                />
+              </div>
               <div className="relative">
                 <FileText className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Textarea id="bio" placeholder="A short bio…" rows={4} className="pl-9 resize-none" {...register("bio")} />

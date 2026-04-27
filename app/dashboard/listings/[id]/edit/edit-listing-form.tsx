@@ -25,6 +25,15 @@ import { TierSelector } from "@/components/listings/tier-selector";
 import { TierBadge } from "@/components/shared/tier-badge";
 import type { SerializedEditorState } from "lexical";
 import { Editor } from "@/components/blocks/editor-00/editor";
+import {
+  AIContentActions,
+  type AIContext,
+  type AIResult,
+} from "@/components/listings/ai-content-actions";
+import {
+  plainTextToSerializedEditorState,
+  serializedEditorStateToPlainText,
+} from "@/lib/ai/lexical";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -411,7 +420,42 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               <Textarea id="summary" {...register("summary")} rows={3} />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Description</Label>
+                <AIContentActions
+                  getCurrentDescription={() => {
+                    if (descriptionEditorState) {
+                      return serializedEditorStateToPlainText(
+                        descriptionEditorState,
+                      );
+                    }
+                    return form.getValues("description") ?? "";
+                  }}
+                  getCurrentSummary={() => form.getValues("summary") ?? ""}
+                  getContext={(): AIContext => {
+                    const v = form.getValues();
+                    return {
+                      title: v.title,
+                      categoryId: v.category_id ?? null,
+                      askingPrice: v.asking_price,
+                      priceType: v.price_type,
+                      suburb: v.suburb,
+                      state: v.state,
+                      postcode: v.postcode,
+                      highlightIds: v.highlight_ids,
+                    };
+                  }}
+                  onAccept={(result: AIResult) => {
+                    setValue("summary", result.summary, { shouldDirty: true });
+                    setDescriptionEditorState(
+                      plainTextToSerializedEditorState(result.description),
+                    );
+                    setValue("description", result.description, {
+                      shouldDirty: true,
+                    });
+                  }}
+                />
+              </div>
               {isPlainTextDescription ? (
                 <Textarea id="description" {...register("description")} rows={8} />
               ) : (

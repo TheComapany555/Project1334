@@ -43,6 +43,7 @@ import {
   type ContactTag,
 } from "@/lib/types/contacts";
 import { cn } from "@/lib/utils";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 
 type ListingSummary = {
   id: string;
@@ -481,10 +482,24 @@ export function ShareListingView({ listing, contacts, tags }: Props) {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Personal note (optional)</CardTitle>
-              <CardDescription>
-                Shown at the top of the email inside a highlighted block.
-              </CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1.5">
+                  <CardTitle className="text-sm">Personal note (optional)</CardTitle>
+                  <CardDescription>
+                    Shown at the top of the email inside a highlighted block.
+                  </CardDescription>
+                </div>
+                <AITextActions
+                  kind="outreach_listing_share"
+                  getCurrentText={() => customMessage}
+                  getContext={() => ({
+                    listingTitle: listing.title,
+                    location: listing.location_text || undefined,
+                    price: formatPrice(listing),
+                  })}
+                  onAccept={(text) => setCustomMessage(text.slice(0, 600))}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Label htmlFor="share-message" className="sr-only">

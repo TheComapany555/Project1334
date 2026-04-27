@@ -47,6 +47,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { FieldError } from "@/components/ui/field-error";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 
 const schema = z.object({
   name: z.string().min(1, "Agency name is required").max(200),
@@ -117,6 +118,7 @@ export function AgencySettings({ embedded = false }: { embedded?: boolean }) {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -415,9 +417,23 @@ export function AgencySettings({ embedded = false }: { embedded?: boolean }) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="bio" className="text-sm font-medium">
-                Bio
-              </Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="bio" className="text-sm font-medium">
+                  Bio
+                </Label>
+                <AITextActions
+                  kind="agency_bio"
+                  getCurrentText={() => getValues("bio") ?? ""}
+                  getContext={() => ({
+                    agencyName: getValues("name") || undefined,
+                    publicEmail: getValues("email") || undefined,
+                    website: getValues("website") || undefined,
+                  })}
+                  onAccept={(text) =>
+                    setValue("bio", text, { shouldDirty: true })
+                  }
+                />
+              </div>
               <div className="relative">
                 <FileText className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Textarea

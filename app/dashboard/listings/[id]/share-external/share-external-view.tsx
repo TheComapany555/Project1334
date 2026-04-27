@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createExternalShareInvite } from "@/lib/actions/share-invites";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 
 type ListingSummary = {
   id: string;
@@ -153,7 +154,20 @@ export function ShareExternalView({ listing, ndaRequired }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="custom-message">Personal note (optional)</Label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="custom-message">Personal note (optional)</Label>
+                <AITextActions
+                  kind="outreach_listing_share"
+                  getCurrentText={() => customMessage}
+                  getContext={() => ({
+                    listingTitle: listing.title,
+                    location: listing.location_text || undefined,
+                    price: formatPrice(listing),
+                    recipientName: recipientName || undefined,
+                  })}
+                  onAccept={(text) => setCustomMessage(text.slice(0, 600))}
+                />
+              </div>
               <Textarea
                 id="custom-message"
                 value={customMessage}

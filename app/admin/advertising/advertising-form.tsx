@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { AITextActions } from "@/components/ai/ai-text-actions";
 
 const adSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
@@ -95,6 +96,7 @@ export function AdvertisingForm({ ad }: { ad?: Advertisement }) {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(adSchema),
@@ -219,7 +221,20 @@ export function AdvertisingForm({ ad }: { ad?: Advertisement }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor="description">Description</Label>
+          <AITextActions
+            kind="ad_copy"
+            getCurrentText={() => getValues("description") ?? ""}
+            getContext={() => ({
+              adTitle: getValues("title") || undefined,
+              placement: getValues("placement"),
+            })}
+            onAccept={(text) =>
+              setValue("description", text.slice(0, 500), { shouldDirty: true })
+            }
+          />
+        </div>
         <Textarea
           id="description"
           {...register("description")}

@@ -20,6 +20,15 @@ import type { Category, ListingHighlight, ListingTier } from "@/lib/types/listin
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import { Editor } from "@/components/blocks/editor-00/editor";
+import {
+  AIContentActions,
+  type AIContext,
+  type AIResult,
+} from "@/components/listings/ai-content-actions";
+import {
+  plainTextToSerializedEditorState,
+  serializedEditorStateToPlainText,
+} from "@/lib/ai/lexical";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -503,7 +512,37 @@ export default function NewListingPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Description</Label>
+                  <AIContentActions
+                    getCurrentDescription={() =>
+                      serializedEditorStateToPlainText(descriptionEditorState)
+                    }
+                    getCurrentSummary={() => form.getValues("summary") ?? ""}
+                    getContext={(): AIContext => {
+                      const v = form.getValues();
+                      return {
+                        title: v.title,
+                        categoryId: v.category_id,
+                        askingPrice: v.asking_price,
+                        priceType: v.price_type,
+                        suburb: v.suburb,
+                        state: v.state,
+                        postcode: v.postcode,
+                        highlightIds: v.highlight_ids,
+                      };
+                    }}
+                    onAccept={(result: AIResult) => {
+                      setValue("summary", result.summary, { shouldDirty: true });
+                      setDescriptionEditorState(
+                        plainTextToSerializedEditorState(result.description),
+                      );
+                      setValue("description", result.description, {
+                        shouldDirty: true,
+                      });
+                    }}
+                  />
+                </div>
                 <div className="[&_.ContentEditable__root]:min-h-48">
                   <Editor
                     editorSerializedState={descriptionEditorState}
