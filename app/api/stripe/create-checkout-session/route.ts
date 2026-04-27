@@ -12,7 +12,7 @@ import {
 
 /**
  * Create a Stripe Checkout Session at the original product price with an
- * optional Stripe Coupon attached. Stripe processes the discount on its end —
+ * optional Stripe Coupon attached. Stripe processes the discount on its end:
  * 100% off is allowed natively (no $0 PaymentIntent needed) and the redemption
  * shows up on the Stripe dashboard with the coupon line item.
  *

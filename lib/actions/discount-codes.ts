@@ -115,8 +115,8 @@ export async function updateDiscountCode(
   const supabase = createServiceRoleClient();
 
   // Read current row so we can detect percent_off changes (Stripe coupons are
-  // immutable — if the percent changes we must clear the cached Stripe ID so
-  // the next redemption mints a fresh coupon).
+  // immutable, so if the percent changes we must clear the cached Stripe ID
+  // so the next redemption mints a fresh coupon).
   const { data: existing } = await supabase
     .from("discount_codes")
     .select("percent_off")
@@ -271,7 +271,7 @@ export async function validateDiscountCode(params: {
  * Atomically increment used_count. Called from the API after a payment is
  * successfully recorded (free flow) or PaymentIntent created (paid flow).
  *
- * Note: this is best-effort — a race could let used_count exceed max_uses by
+ * Note: this is best-effort. A race could let used_count exceed max_uses by
  * a small margin. For onboarding promos that's acceptable; tighten later via
  * a Postgres function if needed.
  */

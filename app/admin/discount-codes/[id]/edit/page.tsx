@@ -20,6 +20,11 @@ export default async function EditDiscountCodePage({ params }: Props) {
   const code = await getDiscountCodeById(id);
   if (!code) notFound();
 
+  const usageLabel =
+    code.max_uses != null
+      ? `${code.used_count} of ${code.max_uses} redemptions used`
+      : `${code.used_count} redemptions (unlimited)`;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -30,12 +35,9 @@ export default async function EditDiscountCodePage({ params }: Props) {
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-1.5">
           <CardTitle className="text-base">Code details</CardTitle>
-          <CardDescription>
-            Redemptions: {code.used_count}
-            {code.max_uses != null ? ` / ${code.max_uses}` : " (unlimited)"}
-          </CardDescription>
+          <CardDescription>{usageLabel}</CardDescription>
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">

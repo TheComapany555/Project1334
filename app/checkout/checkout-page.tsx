@@ -178,26 +178,28 @@ function DiscountCodeInput({
 
   if (applied) {
     return (
-      <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 flex items-center gap-2">
-        <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 flex items-center gap-2.5">
+        <div className="h-7 w-7 rounded-md bg-emerald-500/15 flex items-center justify-center shrink-0">
+          <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-            Code <span className="font-mono">{applied.code.code}</span> applied
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 leading-tight">
+            <span className="font-mono">{applied.code.code}</span> applied
           </p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-            {applied.code.percent_off}% off ·{" "}
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+            {applied.code.percent_off}% off,{" "}
             {applied.is_free
-              ? "Total reduced to $0.00"
-              : `You save ${formatPrice(applied.discount_amount, applied.currency)}`}
+              ? "total reduced to $0.00"
+              : `you save ${formatPrice(applied.discount_amount, applied.currency)}`}
           </p>
         </div>
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={onRemove}
           disabled={disabled}
-          className="h-7 w-7 p-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+          className="h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 cursor-pointer"
           aria-label="Remove code"
         >
           <X className="h-3.5 w-3.5" />
@@ -215,18 +217,22 @@ function DiscountCodeInput({
       <div className="flex gap-2">
         <Input
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onChange={(e) => {
+            setCode(e.target.value.toUpperCase());
+            if (error) setError(null);
+          }}
           placeholder="Enter code"
           disabled={disabled || submitting}
-          className="h-10 text-sm font-mono"
+          className="h-10 text-sm font-mono tracking-wide"
           autoComplete="off"
           maxLength={32}
+          aria-invalid={!!error}
         />
         <Button
           type="submit"
           variant="outline"
           disabled={!code.trim() || submitting || disabled}
-          className="h-10 px-4 text-sm shrink-0"
+          className="h-10 px-4 text-sm shrink-0 cursor-pointer"
         >
           {submitting ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -293,21 +299,36 @@ function DiscountRedirect({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3 flex items-start gap-2.5">
-        <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
-        <div className="space-y-0.5">
-          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+      <div className="rounded-lg border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3.5 flex items-start gap-3">
+        <div className="h-8 w-8 rounded-md bg-emerald-500/15 flex items-center justify-center shrink-0">
+          <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div className="space-y-0.5 flex-1 min-w-0">
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
             {applied.is_free
-              ? "Promo code applied — no payment required"
-              : `Promo code applied — ${applied.code.percent_off}% off`}
+              ? "Promo applied. No payment required."
+              : `Promo applied. ${applied.code.percent_off}% off.`}
           </p>
-          <p className="text-xs text-emerald-700 dark:text-emerald-300">
+          <p className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
             {applied.is_free
-              ? "Click continue to confirm and activate your listing on Stripe."
+              ? "Click continue to confirm on Stripe and activate your listing."
               : "Click continue to enter your card details on Stripe's secure checkout."}
           </p>
         </div>
       </div>
+
+      <ol className="space-y-2 text-xs text-muted-foreground">
+        <Step n={1} label="Review your order summary" done />
+        <Step n={2} label="Continue to Stripe" current />
+        <Step
+          n={3}
+          label={
+            applied.is_free
+              ? "Confirm on Stripe (no charge)"
+              : "Pay on Stripe and return"
+          }
+        />
+      </ol>
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
@@ -319,12 +340,12 @@ function DiscountRedirect({
       <Button
         onClick={handleContinue}
         disabled={submitting}
-        className="h-12 w-full gap-2 text-sm font-semibold"
+        className="h-12 w-full gap-2 text-sm font-semibold cursor-pointer"
       >
         {submitting ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Redirecting to Stripe…
+            Redirecting to Stripe...
           </>
         ) : (
           <>
@@ -336,13 +357,48 @@ function DiscountRedirect({
         )}
       </Button>
 
-      <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/60">
+      <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/70">
         <Shield className="h-3.5 w-3.5" />
         <span>
-          You will be redirected to Stripe to complete checkout. Secured by Stripe · 256-bit SSL.
+          You will be redirected to Stripe to complete checkout. Secured by 256-bit SSL.
         </span>
       </div>
     </div>
+  );
+}
+
+function Step({
+  n,
+  label,
+  done,
+  current,
+}: {
+  n: number;
+  label: string;
+  done?: boolean;
+  current?: boolean;
+}) {
+  return (
+    <li className="flex items-center gap-2.5">
+      <span
+        className={cn(
+          "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold tabular-nums shrink-0",
+          done && "bg-emerald-500 text-white",
+          current && !done && "bg-primary text-primary-foreground ring-2 ring-primary/20",
+          !done && !current && "bg-muted text-muted-foreground"
+        )}
+      >
+        {done ? <CheckCircle2 className="h-3 w-3" /> : n}
+      </span>
+      <span
+        className={cn(
+          "text-xs",
+          current ? "text-foreground font-medium" : "text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+    </li>
   );
 }
 
@@ -512,7 +568,7 @@ function PaymentForm({
         {isProcessing ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Processing payment…
+            Processing payment...
           </>
         ) : (
           <>
@@ -578,7 +634,7 @@ function SuccessView({ listing }: { listing: { title: string } }) {
           </Link>
         </Button>
         <p className="text-xs text-muted-foreground">
-          Redirecting automatically in a few seconds…
+          Redirecting automatically in a few seconds...
         </p>
       </div>
     </div>
@@ -671,7 +727,7 @@ function InvoiceRequestForm({
           id="invoice-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any special requirements, PO number, billing details…"
+          placeholder="Any special requirements, PO number, billing details..."
           className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
           maxLength={1000}
         />
@@ -695,7 +751,7 @@ function InvoiceRequestForm({
         ) : (
           <Lock className="h-4 w-4" />
         )}
-        {submitting ? "Submitting…" : `Request invoice (${formatPrice(product.price, product.currency)})`}
+        {submitting ? "Submitting..." : `Request invoice (${formatPrice(product.price, product.currency)})`}
       </Button>
 
       <p className="text-center text-[11px] text-muted-foreground">
@@ -827,7 +883,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                 </div>
                 <Separator />
 
-                {/* Discount code input — only on card flow */}
+                {/* Discount code input. Only on card flow. */}
                 {paymentMode === "card" && (
                   <>
                     <DiscountCodeInput
@@ -932,13 +988,13 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
               <h1 className="text-lg font-semibold mb-1">Secure Checkout</h1>
               <p className="text-sm text-muted-foreground mb-4">
                 {isFree
-                  ? "Promo applied — confirm on Stripe to activate your listing"
+                  ? "Promo applied. Confirm on Stripe to activate your listing."
                   : hasDiscount
-                    ? "Discount applied — continue on Stripe to complete checkout"
-                    : "Complete your payment to feature your listing"}
+                    ? "Discount applied. Continue on Stripe to complete checkout."
+                    : "Complete your payment to feature your listing."}
               </p>
 
-              {/* Payment mode toggle — only show if product has a price and no discount applied */}
+              {/* Payment mode toggle. Only show if product has a price and no discount applied. */}
               {product.price > 0 && !hasDiscount && (
                 <div className="flex gap-2 mb-6">
                   <button
@@ -987,7 +1043,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   <p className="text-sm text-muted-foreground">
-                    Preparing secure checkout…
+                    Preparing secure checkout...
                   </p>
                 </div>
               ) : initError ? (

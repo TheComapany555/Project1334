@@ -10,7 +10,7 @@ import type { DiscountCode } from "@/lib/types/discount-codes";
  *
  * The Stripe coupon is created with `duration: 'once'` (single-checkout
  * application). Multi-use limits are enforced on our side via discount_codes
- * .max_uses / .used_count, so we don't set max_redemptions on Stripe — that
+ * .max_uses / .used_count, so we don't set max_redemptions on Stripe, which
  * lets us keep one Stripe coupon for unlimited reuse across sessions.
  */
 export async function ensureStripeCoupon(
@@ -53,7 +53,7 @@ export async function ensureStripeCoupon(
 }
 
 /**
- * Clear the cached Stripe coupon ID — called when an admin edits percent_off
+ * Clear the cached Stripe coupon ID. Called when an admin edits percent_off
  * (Stripe coupons are immutable) or after we discover a stale reference.
  * The Stripe coupon itself is left in place; new sessions will mint a fresh
  * coupon on demand.

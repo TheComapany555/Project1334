@@ -20,12 +20,12 @@ export default function NewDiscountCodePage() {
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-1.5">
           <CardTitle className="text-base">Code details</CardTitle>
           <CardDescription>
-            Tip: for an onboarding offer, use a memorable code like{" "}
-            <span className="font-mono">WELCOME100</span> with 100% off and an
-            expiry date.
+            For an onboarding offer, try a memorable code like{" "}
+            <span className="font-mono font-medium text-foreground">WELCOME100</span>{" "}
+            with 100% off and a 60 day expiry.
           </CardDescription>
         </CardHeader>
         <Separator />
