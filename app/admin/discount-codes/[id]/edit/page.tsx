@@ -30,8 +30,8 @@ export default async function EditDiscountCodePage({ params }: Props) {
       <PageHeader
         title={`Edit ${code.code}`}
         description="Update this code's discount, validity or status."
-        backHref="/admin/discount-codes"
-        backLabel="Back to codes"
+        backHref="/admin/products?tab=discounts"
+        backLabel="Back to discount codes"
       />
 
       <Card>

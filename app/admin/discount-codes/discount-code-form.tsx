@@ -110,7 +110,7 @@ export function DiscountCodeForm({ code }: Props) {
       if (res.ok) {
         toast.success(isEdit ? "Code updated" : "Code created");
         router.refresh();
-        router.push("/admin/discount-codes");
+        router.push("/admin/products?tab=discounts");
       } else {
         toast.error(res.error ?? `Failed to ${isEdit ? "update" : "create"} code`);
       }
@@ -261,7 +261,7 @@ export function DiscountCodeForm({ code }: Props) {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push("/admin/discount-codes")}
+          onClick={() => router.push("/admin/products?tab=discounts")}
         >
           Cancel
         </Button>

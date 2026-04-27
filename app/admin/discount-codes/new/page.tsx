@@ -15,8 +15,8 @@ export default function NewDiscountCodePage() {
       <PageHeader
         title="New discount code"
         description="Create a promotional code brokers can apply at checkout."
-        backHref="/admin/discount-codes"
-        backLabel="Back to codes"
+        backHref="/admin/products?tab=discounts"
+        backLabel="Back to discount codes"
       />
 
       <Card>

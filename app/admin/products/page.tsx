@@ -1,11 +1,9 @@
 import { getAllProducts } from "@/lib/actions/products";
+import { listDiscountCodes } from "@/lib/actions/discount-codes";
 import { PageHeader } from "@/components/admin/page-header";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
@@ -13,7 +11,10 @@ import Link from "next/link";
 import { ProductsAdminTabs } from "./products-admin-tabs";
 
 export default async function AdminProductsPage() {
-  const products = await getAllProducts();
+  const [products, discountCodes] = await Promise.all([
+    getAllProducts(),
+    listDiscountCodes(),
+  ]);
 
   const active = products.filter((p) => p.status === "active").length;
   const inactive = products.filter((p) => p.status === "inactive").length;
@@ -22,7 +23,7 @@ export default async function AdminProductsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Pricing & Plans"
-        description="Manage subscription plans, listing upgrades, and pricing."
+        description="Manage subscription plans, listing upgrades, pricing, and promotional discount codes."
         action={
           <Button asChild className="w-full sm:w-auto gap-1.5">
             <Link href="/admin/products/new">
@@ -58,11 +59,11 @@ export default async function AdminProductsPage() {
       <div className="space-y-2">
         <h2 className="text-sm font-medium text-foreground">Plans</h2>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Switch tabs to manage everything together or focus on category-based featured pricing.
+          Switch tabs to manage plans, category-based featured pricing, or promotional discount codes.
         </p>
       </div>
 
-      <ProductsAdminTabs products={products} />
+      <ProductsAdminTabs products={products} discountCodes={discountCodes} />
     </div>
   );
 }
