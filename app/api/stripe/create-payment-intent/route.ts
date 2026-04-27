@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       product_id: productId,
       package_days: product.duration_days ?? 0,
       amount: finalPrice,
+      original_amount: finalPrice,
       currency: finalCurrency,
       status: "pending",
       payment_type: paymentType,

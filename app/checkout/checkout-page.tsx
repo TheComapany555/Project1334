@@ -28,9 +28,12 @@ import {
   Sparkles,
   Search,
   BadgeCheck,
+  Tag,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/types/products";
+import type { DiscountValidationResult } from "@/lib/types/discount-codes";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,6 +42,8 @@ type CheckoutPageProps = {
   product: Product;
   paymentType?: "featured" | "listing_tier";
 };
+
+type AppliedDiscount = Extract<DiscountValidationResult, { ok: true }>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -127,16 +132,232 @@ function FloatingInput({
   );
 }
 
+// ─── Discount Code Input ─────────────────────────────────────────────────────
+
+function DiscountCodeInput({
+  productId,
+  applied,
+  onApply,
+  onRemove,
+  disabled,
+}: {
+  productId: string;
+  applied: AppliedDiscount | null;
+  onApply: (discount: AppliedDiscount) => void;
+  onRemove: () => void;
+  disabled?: boolean;
+}) {
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleApply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!code.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/discount-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim(), productId }),
+      });
+      const data = (await res.json()) as DiscountValidationResult;
+      if (!data.ok) {
+        setError(data.error);
+        return;
+      }
+      onApply(data);
+      setCode("");
+    } catch {
+      setError("Couldn't check that code. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (applied) {
+    return (
+      <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 flex items-center gap-2">
+        <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            Code <span className="font-mono">{applied.code.code}</span> applied
+          </p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+            {applied.code.percent_off}% off ·{" "}
+            {applied.is_free
+              ? "Total reduced to $0.00"
+              : `You save ${formatPrice(applied.discount_amount, applied.currency)}`}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          disabled={disabled}
+          className="h-7 w-7 p-0 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+          aria-label="Remove code"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleApply} className="space-y-1.5">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+        <Tag className="h-3 w-3" />
+        Discount code
+      </label>
+      <div className="flex gap-2">
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="Enter code"
+          disabled={disabled || submitting}
+          className="h-10 text-sm font-mono"
+          autoComplete="off"
+          maxLength={32}
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={!code.trim() || submitting || disabled}
+          className="h-10 px-4 text-sm shrink-0"
+        >
+          {submitting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            "Apply"
+          )}
+        </Button>
+      </div>
+      {error && (
+        <p className="text-[11px] text-destructive flex items-center gap-1 ml-0.5">
+          <AlertCircle className="h-3 w-3" />
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+// ─── Discount Redirect (Stripe Checkout Session with coupon) ─────────────────
+// When a code is applied we hand off to Stripe-hosted Checkout so the coupon
+// is recorded on the Stripe dashboard as a proper discount line item. Stripe
+// natively supports $0 sessions when a 100% coupon is applied.
+
+function DiscountRedirect({
+  product,
+  listing,
+  applied,
+  paymentType,
+}: {
+  product: Product;
+  listing: { id: string };
+  applied: AppliedDiscount;
+  paymentType: "featured" | "listing_tier";
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleContinue() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          productId: product.id,
+          paymentType,
+          couponCode: applied.code.code,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Couldn't start checkout.");
+        setSubmitting(false);
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Network error. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3 flex items-start gap-2.5">
+        <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            {applied.is_free
+              ? "Promo code applied — no payment required"
+              : `Promo code applied — ${applied.code.percent_off}% off`}
+          </p>
+          <p className="text-xs text-emerald-700 dark:text-emerald-300">
+            {applied.is_free
+              ? "Click continue to confirm and activate your listing on Stripe."
+              : "Click continue to enter your card details on Stripe's secure checkout."}
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      <Button
+        onClick={handleContinue}
+        disabled={submitting}
+        className="h-12 w-full gap-2 text-sm font-semibold"
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Redirecting to Stripe…
+          </>
+        ) : (
+          <>
+            <Lock className="h-4 w-4" />
+            {applied.is_free
+              ? "Continue to confirm (no charge)"
+              : `Continue to pay ${formatPrice(applied.final_amount, applied.currency)}`}
+          </>
+        )}
+      </Button>
+
+      <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/60">
+        <Shield className="h-3.5 w-3.5" />
+        <span>
+          You will be redirected to Stripe to complete checkout. Secured by Stripe · 256-bit SSL.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Payment Form (inside Elements) ─────────────────────────────────────────
 
 function PaymentForm({
   product,
   paymentId,
+  applied,
   onSuccess,
   disabled: externalDisabled,
 }: {
   product: Product;
   paymentId: string;
+  applied: AppliedDiscount | null;
   onSuccess: () => void;
   disabled?: boolean;
 }) {
@@ -154,6 +375,8 @@ function PaymentForm({
   const [paymentReady, setPaymentReady] = useState(false);
 
   const disabled = isProcessing || !!externalDisabled;
+  const totalCents = applied ? applied.final_amount : product.price;
+  const totalCurrency = applied ? applied.currency : product.currency;
 
   useEffect(() => {
     if (!nameTouched) return;
@@ -294,7 +517,7 @@ function PaymentForm({
         ) : (
           <>
             <Lock className="h-4 w-4" />
-            Pay {formatPrice(product.price, product.currency)}
+            Pay {formatPrice(totalCents, totalCurrency)}
           </>
         )}
       </Button>
@@ -491,19 +714,27 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
   const [isInitializing, setIsInitializing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"card" | "invoice">("card");
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(
+    null
+  );
   const hasInitialized = useRef(false);
 
   const initializePayment = useCallback(async () => {
-    if (hasInitialized.current) return;
     hasInitialized.current = true;
     setIsInitializing(true);
     setInitError("");
+    setClientSecret(null);
+    setPaymentId(null);
 
     try {
       const res = await fetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: listing.id, productId: product.id, paymentType }),
+        body: JSON.stringify({
+          listingId: listing.id,
+          productId: product.id,
+          paymentType,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -517,15 +748,20 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
     } finally {
       setIsInitializing(false);
     }
-  }, [listing.id, product.id]);
+  }, [listing.id, product.id, paymentType]);
 
   useEffect(() => {
-    initializePayment();
+    if (!hasInitialized.current) initializePayment();
   }, [initializePayment]);
 
   if (showSuccess) {
     return <SuccessView listing={listing} />;
   }
+
+  const subtotal = product.price;
+  const discountedTotal = appliedDiscount?.final_amount ?? subtotal;
+  const isFree = !!appliedDiscount?.is_free;
+  const hasDiscount = !!appliedDiscount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -590,14 +826,65 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                   )}
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Total</span>
-                  <span className="text-xl font-bold">
-                    {formatPrice(product.price, product.currency)}
-                  </span>
+
+                {/* Discount code input — only on card flow */}
+                {paymentMode === "card" && (
+                  <>
+                    <DiscountCodeInput
+                      productId={product.id}
+                      applied={appliedDiscount}
+                      onApply={(d) => setAppliedDiscount(d)}
+                      onRemove={() => {
+                        setAppliedDiscount(null);
+                        // Reset Stripe init so the next attempt builds a fresh
+                        // PI at the original price.
+                        hasInitialized.current = false;
+                        initializePayment();
+                      }}
+                      disabled={isInitializing}
+                    />
+                    <Separator />
+                  </>
+                )}
+
+                {/* Totals */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span
+                      className={cn(
+                        "tabular-nums",
+                        appliedDiscount && "line-through text-muted-foreground"
+                      )}
+                    >
+                      {formatPrice(subtotal, product.currency)}
+                    </span>
+                  </div>
+                  {appliedDiscount && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        Discount ({appliedDiscount.code.percent_off}%)
+                      </span>
+                      <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        −{formatPrice(appliedDiscount.discount_amount, appliedDiscount.currency)}
+                      </span>
+                    </div>
+                  )}
+                  <Separator className="my-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Total</span>
+                    <span className="text-xl font-bold tabular-nums">
+                      {formatPrice(
+                        discountedTotal,
+                        appliedDiscount?.currency ?? product.currency
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground text-right">
-                  One-time payment in {product.currency.toUpperCase()} · No recurring charges
+                  {isFree
+                    ? "No payment required"
+                    : `One-time payment in ${product.currency.toUpperCase()} · No recurring charges`}
                 </p>
               </div>
 
@@ -644,11 +931,15 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
             <div className="rounded-xl border bg-card p-5 sm:p-7">
               <h1 className="text-lg font-semibold mb-1">Secure Checkout</h1>
               <p className="text-sm text-muted-foreground mb-4">
-                Complete your payment to feature your listing
+                {isFree
+                  ? "Promo applied — confirm on Stripe to activate your listing"
+                  : hasDiscount
+                    ? "Discount applied — continue on Stripe to complete checkout"
+                    : "Complete your payment to feature your listing"}
               </p>
 
-              {/* Payment mode toggle — only show if product has a price */}
-              {product.price > 0 && (
+              {/* Payment mode toggle — only show if product has a price and no discount applied */}
+              {product.price > 0 && !hasDiscount && (
                 <div className="flex gap-2 mb-6">
                   <button
                     type="button"
@@ -683,6 +974,13 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                 <InvoiceRequestForm
                   listing={listing}
                   product={product}
+                  paymentType={paymentType}
+                />
+              ) : appliedDiscount ? (
+                <DiscountRedirect
+                  product={product}
+                  listing={listing}
+                  applied={appliedDiscount}
                   paymentType={paymentType}
                 />
               ) : isInitializing ? (
@@ -774,6 +1072,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                   <PaymentForm
                     product={product}
                     paymentId={paymentId}
+                    applied={appliedDiscount}
                     onSuccess={() => setShowSuccess(true)}
                   />
                 </Elements>
