@@ -124,6 +124,9 @@ export default function NewListingPage() {
   >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(undefined);
+  // Bumped to force-remount the Lexical Editor whenever AI applies new content,
+  // since LexicalComposer only consumes initial state on first mount.
+  const [editorKey, setEditorKey] = useState(0);
   const [selectedTier, setSelectedTier] = useState<ListingTier>("standard");
   const [selectedTierProductId, setSelectedTierProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -540,11 +543,14 @@ export default function NewListingPage() {
                       setValue("description", result.description, {
                         shouldDirty: true,
                       });
+                      // Force the Lexical editor to remount so it picks up the new state.
+                      setEditorKey((k) => k + 1);
                     }}
                   />
                 </div>
                 <div className="[&_.ContentEditable__root]:min-h-48">
                   <Editor
+                    key={editorKey}
                     editorSerializedState={descriptionEditorState}
                     onSerializedChange={(value) => setDescriptionEditorState(value)}
                   />

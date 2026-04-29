@@ -127,6 +127,9 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     } catch { /* plain text — not JSON */ }
     return undefined;
   });
+  // Bumped to force-remount the Lexical Editor whenever AI applies new content,
+  // since LexicalComposer only consumes initial state on first mount.
+  const [editorKey, setEditorKey] = useState(0);
   // Track if description was originally plain text (for backwards compat)
   const isPlainTextDescription = !!listing.description && !descriptionEditorState;
 
@@ -453,6 +456,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
                     setValue("description", result.description, {
                       shouldDirty: true,
                     });
+                    // Force the Lexical editor to remount so it picks up the new state.
+                    setEditorKey((k) => k + 1);
                   }}
                 />
               </div>
@@ -461,6 +466,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               ) : (
                 <div className="[&_.ContentEditable__root]:min-h-48">
                   <Editor
+                    key={editorKey}
                     editorSerializedState={descriptionEditorState}
                     onSerializedChange={(value) => setDescriptionEditorState(value)}
                   />
