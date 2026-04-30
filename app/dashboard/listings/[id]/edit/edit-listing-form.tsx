@@ -623,6 +623,25 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           </CardContent>
         </Card>
 
+        {/* AI Insights */}
+        <Card>
+          <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">AI Insights</p>
+              <p className="text-xs text-muted-foreground">
+                See how this listing is performing, get suggested next steps, and a ready-to-send seller update.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/listings/${listing.id}/insights`}>
+                  View AI Insights
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save changes"}

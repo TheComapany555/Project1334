@@ -51,6 +51,7 @@ import {
   Delete02Icon,
   Edit02Icon,
   Mail01Icon,
+  MagicWand01Icon,
   MoreHorizontalIcon,
   SentIcon,
   StarIcon,
@@ -338,6 +339,12 @@ export function ListingsTable({
                     <Link href={`/dashboard/listings/${listing.id}/edit`}>
                       <HugeiconsIcon icon={Edit02Icon} className="size-4" />
                       Edit
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/listings/${listing.id}/insights`}>
+                      <HugeiconsIcon icon={MagicWand01Icon} className="size-4" />
+                      AI Insights
                     </Link>
                   </DropdownMenuItem>
                   {listing.status === "published" && brokerSlug && (
