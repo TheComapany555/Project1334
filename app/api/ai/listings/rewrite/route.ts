@@ -24,7 +24,10 @@ type Body = {
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "broker") {
+  if (
+    !session?.user?.id ||
+    (session.user.role !== "broker" && session.user.role !== "admin")
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
