@@ -1,0 +1,68 @@
+# Feature 3: Buyer Listing Alerts — hourly cron.
+#
+# Hits the /api/cron/buyer-alerts endpoint with a Bearer secret. The endpoint
+# matches recently-published listings against active buyer alert preferences
+# and dispatches in-app notifications + emails for any new matches.
+#
+# Required GitHub repository secrets:
+#   APP_URL       Public origin of the deployed app (no trailing slash), e.g. https://salebiz.com.au
+#   CRON_SECRET   The same value as the CRON_SECRET env var on the deployed app
+#
+# You can also trigger it manually from the Actions tab → Run workflow.
+name: Buyer alerts cron
+
+on:
+  schedule:
+    # Every hour, on the hour. GitHub may queue jobs by ~5–15 minutes during
+    # peak load; the matching engine uses a 25-hour lookback window so missed
+    # runs are safely caught up on the next firing.
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      lookbackHours:
+        description: "How many hours of listings to re-evaluate (default 25, max 168)"
+        required: false
+        default: "25"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: buyer-alerts-cron
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger matching endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          LOOKBACK_HOURS: ${{ github.event.inputs.lookbackHours || '25' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::APP_URL or CRON_SECRET secret is not set on this repository."
+            exit 1
+          fi
+          URL="${APP_URL%/}/api/cron/buyer-alerts?lookbackHours=${LOOKBACK_HOURS}"
+          echo "POST $URL"
+          response_file="$(mktemp)"
+          status_code=$(curl --silent --show-error --fail-with-body \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --max-time 290 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            "$URL")
+          echo "HTTP $status_code"
+          echo "── response ──"
+          cat "$response_file"
+          echo
+          if [ "$status_code" -lt 200 ] || [ "$status_code" -ge 300 ]; then
+            echo "::error::Cron endpoint returned HTTP $status_code"
+            exit 1
+          fi

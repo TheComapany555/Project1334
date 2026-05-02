@@ -723,3 +723,49 @@ export function shareListingEmail({
       : ""}
   `);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Email: Buyer alert match (Feature 3)                              */
+/* ------------------------------------------------------------------ */
+
+export function buyerAlertMatchEmail(opts: {
+  buyerName: string | null;
+  alertLabel: string | null;
+  listingTitle: string;
+  listingUrl: string;
+  price: string | null;
+  location: string | null;
+  /** Short, plain-English summary of why this matched (e.g. "café in Sydney under $500k"). */
+  matchedFor: string | null;
+  manageAlertsUrl: string;
+}): string {
+  const greeting = opts.buyerName ? `Hi ${opts.buyerName.split(/\s+/)[0]},` : "Hi,";
+  const details = [opts.price, opts.location].filter(Boolean).join(" &middot; ");
+  const matchedForBlock = opts.matchedFor
+    ? `<p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Matched your alert</p>
+       <p style="margin:0 0 16px;font-size:14px;color:#333333;line-height:1.5;">
+         ${opts.matchedFor}${opts.alertLabel ? ` &mdash; <em>${opts.alertLabel}</em>` : ""}
+       </p>`
+    : "";
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">${greeting}</p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      A new business matching one of your alerts has just been listed on Salebiz.
+    </p>
+
+    ${matchedForBlock}
+
+    <div style="margin:0 0 24px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">${opts.listingTitle}</p>
+      ${details ? `<p style="margin:0 0 14px;font-size:14px;color:#6b7280;">${details}</p>` : ""}
+      ${ctaButton(opts.listingUrl, "View listing")}
+    </div>
+
+    <p style="margin:0 0 8px;font-size:13px;color:#888888;">
+      You&apos;re receiving this because this listing matches one of the alerts saved in your Salebiz account.
+      ${secondaryLink(opts.manageAlertsUrl, "Manage alerts")}.
+    </p>
+  `);
+}

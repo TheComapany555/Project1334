@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type {
   BuyerAlertPreference,
   BuyerEnquiryRow,
+  BuyerMatchedListing,
   BuyerPanelSnapshot,
   BuyerSavedListing,
   BuyerSentToMeRow,
@@ -159,6 +160,55 @@ export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
     return { items, total: count ?? items.length };
   })();
 
+  // Listings the cron matched against the buyer's active alert preferences.
+  const matchedPromise = (async () => {
+    const { data: rows, count } = await supabase
+      .from("buyer_alert_matches")
+      .select(
+        "id, matched_at, preference:buyer_alert_preferences(label, business_type, state, suburb, min_price, max_price, category:categories(name)), listing:listings(id, slug, title, asking_price, price_type, location_text, published_at, listing_images(url, sort_order))",
+        { count: "exact" },
+      )
+      .eq("user_id", userId)
+      .order("matched_at", { ascending: false })
+      .limit(PANEL_PAGE_SIZE);
+
+    const items: BuyerMatchedListing[] = (rows ?? []).map((row) => {
+      const listing = (row as unknown as { listing: ListingRow & { published_at?: string | null } | null }).listing;
+      const preference = (row as unknown as {
+        preference?: {
+          label?: string | null;
+          business_type?: string | null;
+          state?: string | null;
+          suburb?: string | null;
+          min_price?: number | null;
+          max_price?: number | null;
+          category?: { name?: string | null } | null;
+        } | null;
+      }).preference;
+
+      return {
+        match_id: row.id as string,
+        matched_at: row.matched_at as string,
+        preference_label: preference?.label ?? null,
+        matched_for: describePrefSummary(preference),
+        listing: listing
+          ? {
+              id: listing.id,
+              slug: listing.slug,
+              title: listing.title,
+              cover_image_url: pickCover(listing.listing_images),
+              asking_price: listing.asking_price,
+              price_type: listing.price_type,
+              location_text: listing.location_text,
+              published_at: listing.published_at ?? null,
+            }
+          : null,
+      };
+    });
+
+    return { items, total: count ?? items.length };
+  })();
+
   const alertsPromise = (async () => {
     const { data: rows } = await supabase
       .from("buyer_alert_preferences")
@@ -188,12 +238,48 @@ export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
     });
   })();
 
-  const [saved, enquiries, sentToMe, alerts] = await Promise.all([
+  const [saved, enquiries, sentToMe, matched, alerts] = await Promise.all([
     savedPromise,
     enquiriesPromise,
     sentToMePromise,
+    matchedPromise,
     alertsPromise,
   ]);
 
-  return { saved, enquiries, sentToMe, alerts };
+  return { saved, enquiries, sentToMe, matched, alerts };
+}
+
+function describePrefSummary(
+  pref:
+    | {
+        business_type?: string | null;
+        state?: string | null;
+        suburb?: string | null;
+        min_price?: number | null;
+        max_price?: number | null;
+        category?: { name?: string | null } | null;
+      }
+    | null
+    | undefined,
+): string | null {
+  if (!pref) return null;
+  const parts: string[] = [];
+  if (pref.business_type) parts.push(pref.business_type);
+  if (pref.category?.name) parts.push(pref.category.name);
+  const loc = [pref.suburb, pref.state].filter(Boolean).join(", ");
+  if (loc) parts.push(`in ${loc}`);
+  if (pref.min_price != null && pref.max_price != null) {
+    parts.push(`${formatShort(pref.min_price)}–${formatShort(pref.max_price)}`);
+  } else if (pref.max_price != null) {
+    parts.push(`up to ${formatShort(pref.max_price)}`);
+  } else if (pref.min_price != null) {
+    parts.push(`from ${formatShort(pref.min_price)}`);
+  }
+  return parts.length ? parts.join(" ") : null;
+}
+
+function formatShort(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
+  return `$${n}`;
 }

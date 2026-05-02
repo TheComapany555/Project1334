@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Bell,
   BellOff,
+  BellRing,
   CheckCircle2,
   Compass,
   Heart,
@@ -56,6 +57,7 @@ import {
 import type {
   BuyerAlertPreference,
   BuyerEnquiryRow,
+  BuyerMatchedListing,
   BuyerPanelSnapshot,
   BuyerSavedListing,
   BuyerSentToMeRow,
@@ -90,6 +92,11 @@ const ACCENTS = {
     bg: "bg-emerald-500/10",
     ring: "ring-emerald-500/20",
   },
+  matched: {
+    text: "text-sky-600 dark:text-sky-400",
+    bg: "bg-sky-500/10",
+    ring: "ring-sky-500/20",
+  },
 } as const;
 
 export function BuyerSidePanel({ snapshot, categories }: Props) {
@@ -120,8 +127,16 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
         <PanelHeader
           savedCount={snapshot.saved.total}
           enquiryCount={snapshot.enquiries.total}
-          sentCount={snapshot.sentToMe.total}
+          matchedCount={snapshot.matched.total}
           activeAlertCount={activeAlertCount}
+        />
+      </motion.div>
+
+      <motion.div variants={variants}>
+        <MatchedForYouSection
+          items={snapshot.matched.items}
+          total={snapshot.matched.total}
+          hasActiveAlerts={activeAlertCount > 0}
         />
       </motion.div>
 
@@ -158,12 +173,12 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
 function PanelHeader({
   savedCount,
   enquiryCount,
-  sentCount,
+  matchedCount,
   activeAlertCount,
 }: {
   savedCount: number;
   enquiryCount: number;
-  sentCount: number;
+  matchedCount: number;
   activeAlertCount: number;
 }) {
   return (
@@ -182,6 +197,13 @@ function PanelHeader({
 
       <dl className="mt-3 grid grid-cols-4 gap-2">
         <StatChip
+          label="Matches"
+          value={matchedCount}
+          tone={ACCENTS.matched}
+          icon={<BellRing className="h-3 w-3" aria-hidden />}
+          pulse={matchedCount > 0}
+        />
+        <StatChip
           label="Saved"
           value={savedCount}
           tone={ACCENTS.saved}
@@ -194,17 +216,10 @@ function PanelHeader({
           icon={<MessageSquare className="h-3 w-3" aria-hidden />}
         />
         <StatChip
-          label="Sent"
-          value={sentCount}
-          tone={ACCENTS.sent}
-          icon={<Send className="h-3 w-3" aria-hidden />}
-        />
-        <StatChip
           label="Alerts"
           value={activeAlertCount}
           tone={ACCENTS.alerts}
           icon={<Bell className="h-3 w-3" aria-hidden />}
-          pulse={activeAlertCount > 0}
         />
       </dl>
     </div>
@@ -294,6 +309,108 @@ function SectionHeader({
       </div>
       {action}
     </CardHeader>
+  );
+}
+
+// ─── Matched for you section (Feature 3) ───────────────────────────────────
+
+function MatchedForYouSection({
+  items,
+  total,
+  hasActiveAlerts,
+}: {
+  items: BuyerMatchedListing[];
+  total: number;
+  hasActiveAlerts: boolean;
+}) {
+  const accent = ACCENTS.matched;
+  return (
+    <Card className="overflow-hidden">
+      <SectionHeader
+        accent={accent}
+        icon={<BellRing className="h-3 w-3" aria-hidden />}
+        title="Matched for you"
+        description="Listings the alert engine flagged based on your preferences."
+        badge={<CountBadge value={total} />}
+      />
+      <Separator />
+      <CardContent className="p-0">
+        {items.length === 0 ? (
+          <SectionEmpty
+            accent={accent}
+            icon={<BellRing className="h-5 w-5" />}
+            title={hasActiveAlerts ? "No matches yet" : "Set an alert to see matches"}
+            hint={
+              hasActiveAlerts
+                ? "We'll drop new listings here the moment they match an alert you've saved."
+                : "Create an alert below and we'll watch for matching listings on your behalf."
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {items.map((item) => (
+              <li
+                key={item.match_id}
+                className="px-4 py-3 transition-colors hover:bg-muted/30"
+              >
+                {item.listing ? (
+                  <div className="flex items-start gap-3">
+                    <ListingThumb
+                      url={item.listing.cover_image_url}
+                      alt={item.listing.title}
+                      seed={item.listing.title}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/listing/${item.listing.slug}`}
+                        className="text-sm font-medium leading-tight truncate hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm transition-colors"
+                      >
+                        {item.listing.title}
+                      </Link>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                        <PriceTag
+                          amount={item.listing.asking_price}
+                          type={item.listing.price_type}
+                        />
+                        {item.listing.location_text && (
+                          <span className="inline-flex items-center gap-0.5 truncate">
+                            <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                            {item.listing.location_text}
+                          </span>
+                        )}
+                      </div>
+                      {(item.matched_for || item.preference_label) && (
+                        <p className="mt-1.5 line-clamp-1 text-[11px] text-muted-foreground">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1",
+                              accent.bg,
+                              accent.ring,
+                              accent.text,
+                            )}
+                          >
+                            <BellRing className="h-2.5 w-2.5" aria-hidden />
+                            Matched
+                          </span>{" "}
+                          <span className="ml-1">
+                            {item.preference_label || item.matched_for}
+                          </span>
+                        </p>
+                      )}
+                      <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+                        {compactDate(item.matched_at)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">(Listing removed)</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -45,6 +45,24 @@ export type BuyerSentToMeRow = {
   } | null;
 };
 
+/** A listing the cron job matched against one of the buyer's alert preferences. */
+export type BuyerMatchedListing = {
+  match_id: string;
+  matched_at: string;
+  preference_label: string | null;
+  matched_for: string | null;
+  listing: {
+    id: string;
+    slug: string;
+    title: string;
+    cover_image_url: string | null;
+    asking_price: number | null;
+    price_type: "fixed" | "poa";
+    location_text: string | null;
+    published_at: string | null;
+  } | null;
+};
+
 export type BuyerAlertPreference = {
   id: string;
   user_id: string;
@@ -73,6 +91,10 @@ export type BuyerPanelSnapshot = {
   };
   sentToMe: {
     items: BuyerSentToMeRow[];
+    total: number;
+  };
+  matched: {
+    items: BuyerMatchedListing[];
     total: number;
   };
   alerts: BuyerAlertPreference[];
