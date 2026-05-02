@@ -67,11 +67,18 @@ export async function GET(request: Request) {
     const payload = await verifyMobileToken(token);
 
     const supabase = createServiceRoleClient();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("name, photo_url")
-      .eq("id", payload.sub)
-      .single();
+    const [{ data: profile }, { data: userRow }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("name, photo_url, phone, created_at")
+        .eq("id", payload.sub)
+        .single(),
+      supabase
+        .from("users")
+        .select("email_verified_at, created_at")
+        .eq("id", payload.sub)
+        .maybeSingle(),
+    ]);
 
     return NextResponse.json({
       user: {
@@ -83,6 +90,9 @@ export async function GET(request: Request) {
         agencyRole: payload.agencyRole,
         subscriptionStatus: payload.subscriptionStatus,
         photoUrl: profile?.photo_url ?? null,
+        phone: profile?.phone ?? null,
+        emailVerifiedAt: userRow?.email_verified_at ?? null,
+        createdAt: profile?.created_at ?? userRow?.created_at ?? null,
       },
     });
   } catch {
@@ -346,12 +356,35 @@ async function handleLogin({ email, password }: { email: string; password: strin
   }
 
   if (!userRow.email_verified_at) {
-    return NextResponse.json({ error: "Please verify your email before signing in" }, { status: 401 });
+    // Re-issue an OTP for buyer accounts so the app can resume the verify-email flow.
+    const { data: pendingProfile } = await supabase
+      .from("profiles")
+      .select("role, name")
+      .eq("id", userRow.id)
+      .maybeSingle();
+
+    if (pendingProfile?.role === "user") {
+      await issueMobileUserOtp(
+        supabase,
+        userRow.id,
+        userRow.email,
+        pendingProfile?.name ?? "there",
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Please verify your email before signing in",
+        code: "email_not_verified",
+        email: userRow.email,
+      },
+      { status: 401 },
+    );
   }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, status, agency_id, agency_role, name, photo_url")
+    .select("role, status, agency_id, agency_role, name, photo_url, phone, created_at")
     .eq("id", userRow.id)
     .single();
 
@@ -413,6 +446,9 @@ async function handleLogin({ email, password }: { email: string; password: strin
       agencyRole: profile?.agency_role ?? null,
       subscriptionStatus,
       photoUrl: profile?.photo_url ?? null,
+      phone: profile?.phone ?? null,
+      emailVerifiedAt: userRow.email_verified_at ?? null,
+      createdAt: profile?.created_at ?? null,
     },
     loginNotice,
   });

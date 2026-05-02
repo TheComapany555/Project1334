@@ -48,9 +48,18 @@ const enquirySchema = z.object({
 
 type FormData = z.infer<typeof enquirySchema>;
 
-type Props = { listingId: string; listingTitle?: string };
+type Props = {
+  listingId: string;
+  listingTitle?: string;
+  /** Pre-fill values for logged-in buyers (autofill from session + profile). */
+  defaults?: {
+    contact_name?: string | null;
+    contact_email?: string | null;
+    contact_phone?: string | null;
+  };
+};
 
-export function EnquiryForm({ listingId, listingTitle }: Props) {
+export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [callbackMode, setCallbackMode] = useState(false);
 
@@ -67,9 +76,9 @@ export function EnquiryForm({ listingId, listingTitle }: Props) {
     defaultValues: {
       reason: "",
       message: "",
-      contact_name: "",
-      contact_email: "",
-      contact_phone: "",
+      contact_name: defaults?.contact_name?.trim() || "",
+      contact_email: defaults?.contact_email?.trim() || "",
+      contact_phone: defaults?.contact_phone?.trim() || "",
       interest: "",
       consent_marketing: false,
     },

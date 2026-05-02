@@ -1,8 +1,11 @@
 export type NotificationType =
   | "enquiry_received"
   | "enquiry_reply"
+  | "enquiry_sent"
   | "listing_published"
   | "listing_unpublished"
+  | "listing_shared"
+  | "listing_alert_match"
   | "payment_received"
   | "payment_approved"
   | "invoice_requested"

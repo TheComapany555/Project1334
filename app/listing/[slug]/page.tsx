@@ -46,6 +46,7 @@ import { isFavorited } from "@/lib/actions/favorites";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
 import { ListingViewTracker } from "@/components/listings/listing-view-tracker";
 import { CallTrackingButton } from "@/components/listings/call-tracking-button";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
@@ -137,6 +138,22 @@ export default async function ListingPage({ params }: Props) {
     session?.user?.id ? getComparisonListingIds() : Promise.resolve([]),
   ]);
   const isInComparison = comparisonIds.includes(listing.id);
+
+  // Auto-fill enquiry form for logged-in buyers (Feature 2).
+  let enquiryDefaults: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | undefined;
+  if (session?.user?.role === "user" && session.user.id) {
+    const supabaseAdmin = createServiceRoleClient();
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("name, phone")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    enquiryDefaults = {
+      contact_name: profile?.name ?? session.user.name ?? null,
+      contact_email: session.user.email ?? null,
+      contact_phone: profile?.phone ?? null,
+    };
+  }
   const isLoggedIn = !!session?.user?.id;
 
   return (
@@ -599,7 +616,11 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Enquiry form */}
         <div id="enquiry">
-          <EnquiryForm listingId={listing.id} listingTitle={listing.title} />
+          <EnquiryForm
+            listingId={listing.id}
+            listingTitle={listing.title}
+            defaults={enquiryDefaults}
+          />
         </div>
 
         {/* Listing Ad Slot */}

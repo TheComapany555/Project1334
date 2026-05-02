@@ -1,5 +1,7 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@/lib/types/enquiries";
@@ -49,6 +51,12 @@ export async function submitEnquiry(
     return { ok: false, error: "Listing not found or not available." };
   }
 
+  // If a buyer is logged in, link this enquiry to their account so it shows up in
+  // their profile panel and we can drive auto-save / auto-fill behaviours.
+  const session = await getServerSession(authOptions);
+  const buyerId =
+    session?.user?.id && session.user.role === "user" ? session.user.id : null;
+
   const { data: enquiryRow, error: insertError } = await supabase
     .from("enquiries")
     .insert({
@@ -61,10 +69,56 @@ export async function submitEnquiry(
       contact_phone: contactPhone,
       interest,
       consent_marketing: consentMarketing,
+      user_id: buyerId,
     })
     .select("id, created_at")
     .single();
   if (insertError) return { ok: false, error: "Failed to send enquiry. Please try again." };
+
+  // Auto-save: every enquiry sent by a logged-in buyer auto-favourites the listing.
+  // Auto-fill: persist the buyer's name/phone on first submit so future forms pre-fill.
+  // In-app notification: buyer sees the enquiry confirmation in their bell.
+  if (buyerId) {
+    await supabase
+      .from("user_favorites")
+      .upsert(
+        { user_id: buyerId, listing_id: listing.id },
+        { onConflict: "user_id,listing_id", ignoreDuplicates: true },
+      )
+      .then(() => undefined, () => undefined);
+
+    if (contactName || contactPhone) {
+      const profilePatch: Record<string, string | null> = {};
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("name, phone")
+        .eq("id", buyerId)
+        .maybeSingle();
+      if (contactName && !existingProfile?.name?.trim()) {
+        profilePatch.name = contactName;
+      }
+      if (contactPhone && !existingProfile?.phone?.trim()) {
+        profilePatch.phone = contactPhone;
+      }
+      if (Object.keys(profilePatch).length > 0) {
+        profilePatch.updated_at = new Date().toISOString();
+        await supabase
+          .from("profiles")
+          .update(profilePatch)
+          .eq("id", buyerId)
+          .eq("role", "user")
+          .then(() => undefined, () => undefined);
+      }
+    }
+
+    await createNotification({
+      userId: buyerId,
+      type: "enquiry_sent",
+      title: `Enquiry sent: ${listing.title}`,
+      message: "We notified the broker. They'll be in touch shortly.",
+      link: "/account",
+    }).catch(() => {});
+  }
 
   const { data: brokerUser } = await supabase
     .from("users")

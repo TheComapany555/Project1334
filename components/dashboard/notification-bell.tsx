@@ -19,28 +19,121 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { NotificationIcon } from "@hugeicons/core-free-icons";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  BellRing,
+  Building2,
+  CheckCircle2,
+  Clock,
+  CornerUpLeft,
+  DollarSign,
+  Megaphone,
+  MessageSquare,
+  Receipt,
+  Send,
+  Share2,
+  Sparkles,
+  UserMinus,
+  UserPlus,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
-const NOTIFICATION_ICONS: Record<string, string> = {
-  enquiry_received: "💬",
-  enquiry_reply: "↩️",
-  listing_published: "✅",
-  listing_unpublished: "⚠️",
-  payment_received: "💰",
-  payment_approved: "✅",
-  invoice_requested: "🧾",
-  subscription_activated: "🎉",
-  subscription_cancelled: "❌",
-  subscription_expiring: "⏰",
-  broker_joined: "👤",
-  broker_removed: "👤",
-  agency_approved: "🏢",
-  general: "📢",
+type IconStyle = { Icon: LucideIcon; tone: string };
+
+const NOTIFICATION_ICON_MAP: Record<string, IconStyle> = {
+  enquiry_received: {
+    Icon: MessageSquare,
+    tone: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400",
+  },
+  enquiry_reply: {
+    Icon: CornerUpLeft,
+    tone: "bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/20 dark:text-sky-400",
+  },
+  enquiry_sent: {
+    Icon: Send,
+    tone: "bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/20 dark:text-sky-400",
+  },
+  listing_published: {
+    Icon: CheckCircle2,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  listing_unpublished: {
+    Icon: AlertTriangle,
+    tone: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400",
+  },
+  listing_shared: {
+    Icon: Share2,
+    tone: "bg-violet-500/10 text-violet-600 ring-1 ring-violet-500/20 dark:text-violet-400",
+  },
+  listing_alert_match: {
+    Icon: BellRing,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  payment_received: {
+    Icon: DollarSign,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  payment_approved: {
+    Icon: BadgeCheck,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  invoice_requested: {
+    Icon: Receipt,
+    tone: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400",
+  },
+  subscription_activated: {
+    Icon: Sparkles,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  subscription_cancelled: {
+    Icon: XCircle,
+    tone: "bg-rose-500/10 text-rose-600 ring-1 ring-rose-500/20 dark:text-rose-400",
+  },
+  subscription_expiring: {
+    Icon: Clock,
+    tone: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400",
+  },
+  broker_joined: {
+    Icon: UserPlus,
+    tone: "bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/20 dark:text-sky-400",
+  },
+  broker_removed: {
+    Icon: UserMinus,
+    tone: "bg-rose-500/10 text-rose-600 ring-1 ring-rose-500/20 dark:text-rose-400",
+  },
+  agency_approved: {
+    Icon: Building2,
+    tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  general: {
+    Icon: Megaphone,
+    tone: "bg-muted text-muted-foreground ring-1 ring-border",
+  },
 };
 
+const DEFAULT_ICON_STYLE = NOTIFICATION_ICON_MAP.general;
+
+function NotificationTypeIcon({ type }: { type: string }) {
+  const { Icon, tone } = NOTIFICATION_ICON_MAP[type] ?? DEFAULT_ICON_STYLE;
+  return (
+    <span
+      className={cn(
+        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+        tone,
+      )}
+      aria-hidden
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </span>
+  );
+}
+
 type Props = {
-  role: "broker" | "admin";
+  role: "broker" | "admin" | "user";
 };
 
 export function NotificationBell({ role }: Props) {
@@ -100,7 +193,11 @@ export function NotificationBell({ role }: Props) {
   }
 
   const notificationsPath =
-    role === "admin" ? "/admin/notifications" : "/dashboard/notifications";
+    role === "admin"
+      ? "/admin/notifications"
+      : role === "user"
+        ? "/account"
+        : "/dashboard/notifications";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -159,9 +256,7 @@ export function NotificationBell({ role }: Props) {
                   !n.is_read && "bg-muted/30"
                 )}
               >
-                <span className="mt-0.5 text-base leading-none">
-                  {NOTIFICATION_ICONS[n.type] ?? "📢"}
-                </span>
+                <NotificationTypeIcon type={n.type} />
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
@@ -198,7 +293,9 @@ export function NotificationBell({ role }: Props) {
             asChild
             onClick={() => setOpen(false)}
           >
-            <Link href={notificationsPath}>View all notifications</Link>
+            <Link href={notificationsPath}>
+              {role === "user" ? "Open my account" : "View all notifications"}
+            </Link>
           </Button>
         </div>
       </PopoverContent>

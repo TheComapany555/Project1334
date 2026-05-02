@@ -4,6 +4,7 @@ import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { UserMenu } from "@/components/shared/user-menu";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 import {
   Sheet,
   SheetContent,
@@ -160,6 +161,7 @@ function DesktopNav({
               Compare
             </TooltipContent>
           </Tooltip>
+          <NotificationBell role="user" />
         </>
       )}
 

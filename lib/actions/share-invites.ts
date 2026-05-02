@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { externalShareInviteEmail } from "@/lib/email-templates";
 import { generateSlugFromName } from "@/lib/slug";
 import { checkSlugAvailable } from "@/lib/actions/profile";
+import { createNotification } from "@/lib/actions/notifications";
 import type {
   AcceptInviteResult,
   CreateInviteResult,
@@ -179,6 +180,26 @@ export async function createExternalShareInvite(input: {
       }),
     })
     .catch(() => {});
+
+  // If the recipient already has a buyer account, drop an in-app notification so
+  // the listing surfaces in their profile panel under "Sent to me".
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id, profile:profiles(role)")
+    .eq("email", recipientEmail)
+    .maybeSingle();
+  const recipientRole = (
+    existingUser as unknown as { profile?: { role?: string } | null } | null
+  )?.profile?.role;
+  if (existingUser?.id && recipientRole === "user") {
+    await createNotification({
+      userId: existingUser.id,
+      type: "listing_shared",
+      title: `${brokerName} shared a listing with you`,
+      message: listing.title,
+      link: `/invite/${token}`,
+    }).catch(() => {});
+  }
 
   return { ok: true, inviteId: invite.id, url: inviteUrl };
 }

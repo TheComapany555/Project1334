@@ -105,13 +105,19 @@ export async function POST(request: Request) {
       .update({ photo_url: url, updated_at: new Date().toISOString() })
       .eq("id", mobileUser.sub)
       .eq("role", "user")
-      .select("name, photo_url")
+      .select("name, photo_url, phone, created_at")
       .single();
 
     if (updateError) {
       console.error("[mobile/profile/photo] profile update:", updateError);
       return NextResponse.json({ error: "Failed to save photo" }, { status: 500 });
     }
+
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("email_verified_at")
+      .eq("id", mobileUser.sub)
+      .maybeSingle();
 
     return NextResponse.json({
       user: {
@@ -123,6 +129,9 @@ export async function POST(request: Request) {
         agencyRole: mobileUser.agencyRole,
         subscriptionStatus: mobileUser.subscriptionStatus,
         photoUrl: updated?.photo_url ?? null,
+        phone: updated?.phone ?? null,
+        emailVerifiedAt: userRow?.email_verified_at ?? null,
+        createdAt: updated?.created_at ?? null,
       },
     });
   } catch (err) {
