@@ -1,0 +1,325 @@
+{
+  "info": {
+    "_postman_id": "8f2d2a9a-1f6c-4d2b-9d5e-salebiz0001",
+    "name": "Salebiz API",
+    "description": "Test collection for Salebiz.com.au — covers the mobile JSON API (auth, profile, listings, favorites, enquiries).\n\nNote: the Buyer Alerts cron job (Feature 3) no longer exposes a Vercel HTTP endpoint — it runs entirely from the GitHub Actions workflow `.github/workflows/buyer-alerts-cron.yml`. Trigger it manually from the GitHub Actions tab → \"Buyer alerts cron\" → Run workflow.\n\nImport the matching environment file too. Run `Mobile / Auth / Login` first — the test script saves your bearer token to `{{mobileToken}}` for use by the rest of the collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Mobile / Auth",
+      "description": "Mobile (buyer-role) auth flow. After Login, `mobileToken` is automatically saved to the active environment for use by the rest of the collection.",
+      "item": [
+        {
+          "name": "Register (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"register\",\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\",\n  \"name\": \"Test Buyer\",\n  \"role\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            },
+            "description": "Creates a buyer account and emails a 6-digit OTP."
+          }
+        },
+        {
+          "name": "Verify email OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"verify-email-otp\",\n  \"email\": \"{{buyerEmail}}\",\n  \"code\": \"000000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            }
+          }
+        },
+        {
+          "name": "Resend email OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"resend-email-otp\",\n  \"email\": \"{{buyerEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            }
+          }
+        },
+        {
+          "name": "Login (saves mobileToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.token) {",
+                  "    pm.environment.set('mobileToken', body.token);",
+                  "    console.log('Saved mobileToken to environment');",
+                  "  }",
+                  "  if (body.user?.id) {",
+                  "    pm.environment.set('buyerUserId', body.user.id);",
+                  "  }",
+                  "  if (body.loginNotice) {",
+                  "    console.log('Login notice:', body.loginNotice.title, '—', body.loginNotice.message);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"login\",\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            },
+            "description": "On 200, the test script saves `token` to {{mobileToken}} and `user.id` to {{buyerUserId}} in the active environment."
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reset-password\",\n  \"email\": \"{{buyerEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            }
+          }
+        },
+        {
+          "name": "Get current user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "auth"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile / Profile",
+      "description": "Buyer profile + activity stats (Feature 2). All routes require {{mobileToken}}.",
+      "item": [
+        {
+          "name": "Get account snapshot (with stats)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "profile"]
+            },
+            "description": "Returns `account` with email/name/phone/verified/createdAt + `stats: { savedListings, enquiries, ndaSigned }`."
+          }
+        },
+        {
+          "name": "Update profile (name + phone)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobileToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Buyer\",\n  \"phone\": \"+61400111222\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Upload profile photo (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "JPEG / PNG / WebP / GIF, max 5 MB"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/profile/photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "profile", "photo"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile / Listings & Categories",
+      "item": [
+        {
+          "name": "List published listings (search)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/listings?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "listings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "query", "value": "", "disabled": true },
+                { "key": "category_id", "value": "", "disabled": true },
+                { "key": "state", "value": "NSW", "disabled": true },
+                { "key": "min_price", "value": "0", "disabled": true },
+                { "key": "max_price", "value": "500000", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "categories"]
+            }
+          }
+        },
+        {
+          "name": "States",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/states",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "states"]
+            }
+          }
+        },
+        {
+          "name": "Highlights",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/highlights",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "highlights"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile / Favorites",
+      "item": [
+        {
+          "name": "List favorites",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/favorites",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "favorites"]
+            }
+          }
+        },
+        {
+          "name": "Toggle favorite (add/remove)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobileToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": \"{{listingId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/favorites",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "favorites"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile / Enquiries",
+      "item": [
+        {
+          "name": "Send enquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobileToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": \"{{listingId}}\",\n  \"reason\": \"general\",\n  \"message\": \"Hi, I'm interested in this listing — is it still available?\",\n  \"contact_name\": \"Test Buyer\",\n  \"contact_email\": \"{{buyerEmail}}\",\n  \"contact_phone\": \"+61400111222\",\n  \"consent_marketing\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/enquiries",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "enquiries"]
+            }
+          }
+        },
+        {
+          "name": "My enquiries (list)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{mobileToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/my-enquiries",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mobile", "my-enquiries"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}

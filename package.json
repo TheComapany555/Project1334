@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:admin": "npx tsx scripts/seed-admin.ts"
+    "seed:admin": "npx tsx scripts/seed-admin.ts",
+    "cron:buyer-alerts": "npx tsx scripts/buyer-alerts-cron.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

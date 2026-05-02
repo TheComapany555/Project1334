@@ -1,4 +1,8 @@
-"use server";
+/**
+ * Buyer alert matching engine. Runs as a background job (GitHub Actions cron),
+ * not as a request handler — no "use server" directive so it can also be
+ * invoked from a plain tsx script outside the Next.js runtime.
+ */
 
 import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
