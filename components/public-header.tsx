@@ -59,7 +59,7 @@ export function PublicHeader({
     <TooltipProvider delayDuration={150}>
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div
-          className={`mx-auto flex h-14 sm:h-16 items-center justify-between gap-3 px-4 sm:px-6 ${maxWidth}`}
+          className={`mx-auto flex h-14 min-w-0 w-full max-w-full sm:h-16 items-center justify-between gap-3 px-4 sm:px-6 ${maxWidth}`}
         >
           {/* ── Logo ── */}
           <Link

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -276,12 +277,16 @@ export function AlertPreferenceDialog({
                 <Label htmlFor="alert-suburb" className="text-xs font-medium text-muted-foreground">
                   Suburb (optional)
                 </Label>
-                <Input
+                <AuLocalityAutocomplete
                   id="alert-suburb"
                   value={form.suburb}
-                  onChange={(e) => update("suburb", e.target.value)}
-                  placeholder="e.g. Surry Hills"
+                  onChange={(v) => update("suburb", v)}
                   maxLength={80}
+                  onResolved={(p) => {
+                    if (p.suburb) update("suburb", p.suburb);
+                    if (p.state) update("state", p.state);
+                  }}
+                  placeholder="e.g. Surry Hills"
                 />
               </div>
             </div>

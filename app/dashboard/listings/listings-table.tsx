@@ -317,6 +317,24 @@ export function ListingsTable({
         ),
       },
       {
+        id: "ai_insight",
+        meta: { label: "AI insight" },
+        header: () => (
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            AI insight
+          </span>
+        ),
+        cell: ({ row }) => (
+          <Link
+            href={`/dashboard/listings/${row.original.id}/insights?from=listings`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline whitespace-nowrap"
+          >
+            <HugeiconsIcon icon={MagicWand01Icon} className="size-4 shrink-0" />
+            View
+          </Link>
+        ),
+      },
+      {
         id: "actions",
         header: () => <span className="sr-only">Actions</span>,
         enableHiding: false,
@@ -339,12 +357,6 @@ export function ListingsTable({
                     <Link href={`/dashboard/listings/${listing.id}/edit`}>
                       <HugeiconsIcon icon={Edit02Icon} className="size-4" />
                       Edit
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/listings/${listing.id}/insights`}>
-                      <HugeiconsIcon icon={MagicWand01Icon} className="size-4" />
-                      AI Insights
                     </Link>
                   </DropdownMenuItem>
                   {listing.status === "published" && brokerSlug && (

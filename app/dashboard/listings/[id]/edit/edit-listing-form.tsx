@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Resolver } from "react-hook-form";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   getCategories,
@@ -36,6 +36,8 @@ import {
 } from "@/lib/ai/lexical";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
+import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -69,18 +71,9 @@ const schema = z.object({
   suburb: z.string().max(100).optional(),
   postcode: z.string().max(20).optional(),
   price_type: z.enum(["fixed", "poa"]),
-  asking_price: z.preprocess(
-    (v) => (v === "" || v === undefined ? null : Number(v)),
-    z.number().min(0).nullable()
-  ),
-  revenue: z.preprocess(
-    (v) => (v === "" || v === undefined ? null : Number(v)),
-    z.number().min(0).nullable()
-  ),
-  profit: z.preprocess(
-    (v) => (v === "" || v === undefined ? null : Number(v)),
-    z.number().min(0).nullable()
-  ),
+  asking_price: z.number().min(0).nullable(),
+  revenue: z.number().min(0).nullable(),
+  profit: z.number().min(0).nullable(),
   lease_details: z.string().max(500).optional(),
   summary: z.string().max(500).optional(),
   description: z.string().max(10000).optional(),
@@ -153,7 +146,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     },
   });
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = form;
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = form;
 
   useEffect(() => {
     const fetches: [Promise<Category[]>, Promise<ListingHighlight[]>, ...Promise<Product[]>[]] = [
@@ -366,7 +359,29 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="suburb">Suburb</Label>
-                <Input id="suburb" {...register("suburb")} />
+                <Controller
+                  name="suburb"
+                  control={control}
+                  render={({ field }) => (
+                    <AuLocalityAutocomplete
+                      id="suburb"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      maxLength={100}
+                      onResolved={(p) => {
+                        if (p.suburb) setValue("suburb", p.suburb, { shouldDirty: true });
+                        if (p.state) setValue("state", p.state, { shouldDirty: true });
+                        if (p.postcode) setValue("postcode", p.postcode, { shouldDirty: true });
+                        const locLine = [p.suburb, p.state, p.postcode].filter(Boolean).join(" ");
+                        if (locLine && !form.getValues("location_text")?.trim()) {
+                          setValue("location_text", locLine, { shouldDirty: true });
+                        }
+                      }}
+                      placeholder="Start typing, e.g. Sydney"
+                    />
+                  )}
+                />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -392,17 +407,56 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
             {priceType === "fixed" && (
               <div className="space-y-2">
                 <Label htmlFor="asking_price">Asking price ($)</Label>
-                <Input id="asking_price" type="number" min={0} {...register("asking_price")} />
+                <Controller
+                  name="asking_price"
+                  control={control}
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="asking_price"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                      aria-invalid={!!errors.asking_price}
+                    />
+                  )}
+                />
+                <FieldError message={errors.asking_price?.message} />
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="revenue">Revenue ($)</Label>
-                <Input id="revenue" type="number" min={0} {...register("revenue")} />
+                <Controller
+                  name="revenue"
+                  control={control}
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="revenue"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                      aria-invalid={!!errors.revenue}
+                    />
+                  )}
+                />
+                <FieldError message={errors.revenue?.message} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="profit">Profit ($)</Label>
-                <Input id="profit" type="number" min={0} {...register("profit")} />
+                <Controller
+                  name="profit"
+                  control={control}
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="profit"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                      aria-invalid={!!errors.profit}
+                    />
+                  )}
+                />
+                <FieldError message={errors.profit?.message} />
               </div>
             </div>
             <div className="space-y-2">
@@ -634,7 +688,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/dashboard/listings/${listing.id}/insights`}>
+                <Link href={`/dashboard/listings/${listing.id}/insights?from=edit`}>
                   View AI Insights
                 </Link>
               </Button>

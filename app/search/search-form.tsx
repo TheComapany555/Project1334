@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Search, Loader2, ChevronDown, X, SlidersHorizontal } from "lucide-react";
+import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
 import type { Category, ListingHighlight } from "@/lib/types/listings";
 
 type SortOption = { value: string; label: string };
@@ -59,6 +60,13 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
   const [sort, setSort] = useState(defaultValues.sort || "newest");
   const [categoryQuery, setCategoryQuery] = useState("");
   const [highlightQuery, setHighlightQuery] = useState("");
+  const [advState, setAdvState] = useState(defaultValues.state);
+  const [advSuburb, setAdvSuburb] = useState(defaultValues.suburb);
+
+  useEffect(() => {
+    setAdvState(defaultValues.state);
+    setAdvSuburb(defaultValues.suburb);
+  }, [defaultValues.state, defaultValues.suburb]);
 
   // Open advanced filters if any are pre-filled
   const hasAdvanced = !!(
@@ -230,11 +238,28 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="search-state">State</Label>
-                  <Input id="search-state" name="state" placeholder="e.g. NSW" defaultValue={defaultValues.state} />
+                  <Input
+                    id="search-state"
+                    name="state"
+                    placeholder="e.g. NSW"
+                    value={advState}
+                    onChange={(e) => setAdvState(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="search-suburb">Suburb</Label>
-                  <Input id="search-suburb" name="suburb" placeholder="e.g. Sydney" defaultValue={defaultValues.suburb} />
+                  <AuLocalityAutocomplete
+                    id="search-suburb"
+                    name="suburb"
+                    value={advSuburb}
+                    onChange={setAdvSuburb}
+                    onResolved={(p) => {
+                      setAdvSuburb(p.suburb);
+                      if (p.state) setAdvState(p.state);
+                    }}
+                    placeholder="e.g. Sydney"
+                    maxLength={100}
+                  />
                 </div>
               </div>
             </div>

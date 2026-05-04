@@ -87,8 +87,8 @@ EMAIL_FROM=noreply@yourdomain.com
 # Optional: first admin notified on new broker signup
 ADMIN_EMAIL=admin@yourdomain.com
 
-# Optional: Google Maps (listing location map)
-NEXT_PUBLIC_GOOGLE_MAPS_KEY=your-google-maps-key
+# Optional: Geoapify (AU suburb/city autocomplete — listings, search, buyer alerts)
+GEOAPIFY_API_KEY=your-geoapify-key
 ```
 
 ### 3. Database migrations

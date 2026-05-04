@@ -30,8 +30,10 @@ import {
   Smartphone,
   Globe,
   Phone,
+  Sparkles,
 } from "lucide-react";
 import type { AnalyticsOverview } from "@/lib/actions/analytics";
+import { BrokerAccountAiInsights } from "@/components/analytics/broker-account-ai-insights";
 
 const C_PRIMARY = "#008F2F";
 const C_MOBILE = "#16a34a";
@@ -266,6 +268,8 @@ export function AnalyticsDashboard({ initialData }: Props) {
           ))}
         </div>
       </div>
+
+      <BrokerAccountAiInsights periodDays={period} />
 
       {/* ── KPI row ── */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -528,6 +532,9 @@ export function AnalyticsDashboard({ initialData }: Props) {
                         <th className="text-left pl-5 pr-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Listing
                         </th>
+                        <th className="text-left px-2 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[1%] whitespace-nowrap">
+                          AI insight
+                        </th>
                         <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Views
                         </th>
@@ -575,6 +582,14 @@ export function AnalyticsDashboard({ initialData }: Props) {
                                 </Link>
                               )}
                             </div>
+                          </td>
+                          <td className="px-2 py-3.5">
+                            <Link
+                              href={`/dashboard/listings/${row.listing_id}/insights?from=analytics`}
+                              className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+                            >
+                              Open
+                            </Link>
                           </td>
                           <td className="px-3 py-3.5">
                             <MiniBar value={row.views} max={maxViews} color={C_PRIMARY} />
@@ -624,6 +639,24 @@ export function AnalyticsDashboard({ initialData }: Props) {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {data.per_listing.length > 0 && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="gap-2"
+                onClick={() =>
+                  document
+                    .getElementById("broker-account-ai-insight")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+              >
+                <Sparkles className="h-4 w-4" />
+                AI insight
+              </Button>
+            </div>
           )}
         </>
       )}

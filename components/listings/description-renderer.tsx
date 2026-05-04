@@ -39,17 +39,19 @@ function RichTextRenderer({ json }: { json: string }) {
   )
 
   return (
-    <LexicalComposer initialConfig={config}>
-      <RichTextPlugin
-        contentEditable={
-          <ContentEditable
-            className="outline-none prose prose-sm max-w-none dark:prose-invert"
-            aria-readonly
-          />
-        }
-        ErrorBoundary={LexicalErrorBoundary}
-      />
-    </LexicalComposer>
+    <div className="min-w-0 max-w-full overflow-x-auto">
+      <LexicalComposer initialConfig={config}>
+        <RichTextPlugin
+          contentEditable={
+            <ContentEditable
+              className="outline-none prose prose-sm max-w-none break-words dark:prose-invert [&_img]:max-w-full [&_pre]:max-w-full"
+              aria-readonly
+            />
+          }
+          ErrorBoundary={LexicalErrorBoundary}
+        />
+      </LexicalComposer>
+    </div>
   )
 }
 
@@ -60,7 +62,7 @@ export function DescriptionRenderer({ content }: Props) {
 
   // Fallback: plain text (old listings)
   return (
-    <div className="text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert leading-relaxed">
+    <div className="min-w-0 max-w-full break-words text-muted-foreground whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert leading-relaxed">
       {content}
     </div>
   )

@@ -131,8 +131,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Prevent horizontal “rubber-band” scroll on mobile when a child is wider than the viewport */
+  html {
+    max-width: 100%;
+    overflow-x: clip;
+  }
   body {
     @apply bg-background text-foreground;
+    max-width: 100%;
+    overflow-x: clip;
   }
 }
 

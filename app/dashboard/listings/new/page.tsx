@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { Resolver } from "react-hook-form";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { SerializedEditorState } from "lexical";
 import {
@@ -31,6 +31,8 @@ import {
 } from "@/lib/ai/lexical";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
+import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -76,9 +78,9 @@ const step1Schema = z.object({
   suburb: z.string().max(100).optional(),
   postcode: z.string().max(20).optional(),
   price_type: z.enum(["fixed", "poa"]),
-  asking_price: z.coerce.number().min(0).nullable(),
-  revenue: z.coerce.number().min(0).nullable(),
-  profit: z.coerce.number().min(0).nullable(),
+  asking_price: z.number().min(0).nullable(),
+  revenue: z.number().min(0).nullable(),
+  profit: z.number().min(0).nullable(),
   lease_details: z.string().max(500).optional(),
 });
 
@@ -138,7 +140,7 @@ export default function NewListingPage() {
 
   const {
     register,
-    handleSubmit,
+    control,
     setValue,
     watch,
     trigger,
@@ -399,10 +401,28 @@ export default function NewListingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="suburb">Suburb</Label>
-                  <Input
-                    id="suburb"
-                    {...register("suburb")}
-                    placeholder="Sydney"
+                  <Controller
+                    name="suburb"
+                    control={control}
+                    render={({ field }) => (
+                      <AuLocalityAutocomplete
+                        id="suburb"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        maxLength={100}
+                        onResolved={(p) => {
+                          if (p.suburb) form.setValue("suburb", p.suburb, { shouldDirty: true });
+                          if (p.state) form.setValue("state", p.state, { shouldDirty: true });
+                          if (p.postcode) form.setValue("postcode", p.postcode, { shouldDirty: true });
+                          const locLine = [p.suburb, p.state, p.postcode].filter(Boolean).join(" ");
+                          if (locLine && !form.getValues("location_text")?.trim()) {
+                            form.setValue("location_text", locLine, { shouldDirty: true });
+                          }
+                        }}
+                        placeholder="Start typing, e.g. Sydney"
+                      />
+                    )}
                   />
                 </div>
               </div>
@@ -444,12 +464,18 @@ export default function NewListingPage() {
               {priceType === "fixed" && (
                 <div className="space-y-2">
                   <Label htmlFor="asking_price">Asking price ($)</Label>
-                  <Input
-                    id="asking_price"
-                    type="number"
-                    min={0}
-                    step={1000}
-                    {...register("asking_price")}
+                  <Controller
+                    name="asking_price"
+                    control={control}
+                    render={({ field }) => (
+                      <MoneyInput
+                        id="asking_price"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        aria-invalid={!!errors.asking_price}
+                      />
+                    )}
                   />
                   <FieldError message={errors.asking_price?.message} />
                 </div>
@@ -457,21 +483,37 @@ export default function NewListingPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="revenue">Revenue ($)</Label>
-                  <Input
-                    id="revenue"
-                    type="number"
-                    min={0}
-                    {...register("revenue")}
+                  <Controller
+                    name="revenue"
+                    control={control}
+                    render={({ field }) => (
+                      <MoneyInput
+                        id="revenue"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        aria-invalid={!!errors.revenue}
+                      />
+                    )}
                   />
+                  <FieldError message={errors.revenue?.message} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profit">Profit ($)</Label>
-                  <Input
-                    id="profit"
-                    type="number"
-                    min={0}
-                    {...register("profit")}
+                  <Controller
+                    name="profit"
+                    control={control}
+                    render={({ field }) => (
+                      <MoneyInput
+                        id="profit"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        aria-invalid={!!errors.profit}
+                      />
+                    )}
                   />
+                  <FieldError message={errors.profit?.message} />
                 </div>
               </div>
               <div className="space-y-2">
