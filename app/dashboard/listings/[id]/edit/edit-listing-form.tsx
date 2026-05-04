@@ -161,6 +161,39 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     });
   }, [canChangeTier]);
 
+  // Auto-fill postcode whenever the user has a suburb but no postcode (covers
+  // both manual typing and city-level autocomplete picks that omit postcode).
+  const watchedSuburb = watch("suburb");
+  const watchedState = watch("state");
+  const watchedPostcode = watch("postcode");
+  useEffect(() => {
+    const suburb = watchedSuburb?.trim();
+    if (!suburb) return;
+    if (watchedPostcode?.trim()) return;
+    const ctrl = new AbortController();
+    const t = window.setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams({ suburb });
+        const state = watchedState?.trim();
+        if (state) qs.set("state", state);
+        const res = await fetch(`/api/places/postcode?${qs.toString()}`, {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) return;
+        const j = (await res.json()) as { postcode?: string | null };
+        if (!j.postcode) return;
+        if (form.getValues("postcode")?.trim()) return;
+        setValue("postcode", j.postcode, { shouldDirty: true });
+      } catch {
+        /* ignore */
+      }
+    }, 600);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [watchedSuburb, watchedState, watchedPostcode, form, setValue]);
+
   async function onSave(data: FormData) {
     setSaving(true);
     const updatePayload: Parameters<typeof updateListing>[1] = {
