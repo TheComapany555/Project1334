@@ -83,6 +83,7 @@ import {
   X,
   RotateCcw,
   Clock,
+  Loader2,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -204,11 +205,23 @@ export function DocumentManager({
             to sign an NDA.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          {uploading && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/65 backdrop-blur-[2px]"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-md">
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden />
+                <span className="text-sm font-medium">Uploading document…</span>
+              </div>
+            </div>
+          )}
           <form
             ref={formRef}
             onSubmit={handleUpload}
-            className="space-y-4"
+            className={cn("space-y-4", uploading && "pointer-events-none")}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -276,8 +289,18 @@ export function DocumentManager({
               </div>
             )}
 
-            <Button type="submit" disabled={uploading}>
-              {uploading ? "Uploading..." : "Upload Document"}
+            <Button type="submit" disabled={uploading} className="gap-2">
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 shrink-0" aria-hidden />
+                  Upload document
+                </>
+              )}
             </Button>
           </form>
         </CardContent>
