@@ -184,20 +184,23 @@ export function AlertPreferenceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
-              <Bell className="h-3.5 w-3.5" aria-hidden />
-            </span>
-            {dialogTitle}
-          </DialogTitle>
-          <DialogDescription>
-            We&apos;ll email and notify you in-app the moment a matching listing is published.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="flex max-h-[min(85vh,760px)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <div className="shrink-0 space-y-1 border-b border-border px-6 pb-4 pt-6 pr-14">
+          <DialogHeader className="space-y-3 text-left">
+            <DialogTitle className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
+                <Bell className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              {dialogTitle}
+            </DialogTitle>
+            <DialogDescription>
+              We&apos;ll email and notify you in-app the moment a matching listing is published.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-5 py-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+          <div className="space-y-4">
           {/* ── What ───────────────────────────────────────────────── */}
           <FieldGroup
             icon={<Tag className="h-3 w-3" aria-hidden />}
@@ -383,21 +386,24 @@ export function AlertPreferenceDialog({
               )}
             </div>
           </div>
+          </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={pending || !isValid || !!priceRangeError}
-            className="min-w-[8rem]"
-          >
-            {pending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-            {editing ? "Save changes" : "Create alert"}
-          </Button>
-        </DialogFooter>
+        <div className="shrink-0 border-t border-border bg-background px-6 py-4">
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={pending || !isValid || !!priceRangeError}
+              className="min-w-[8rem]"
+            >
+              {pending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              {editing ? "Save changes" : "Create alert"}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
