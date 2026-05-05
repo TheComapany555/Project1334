@@ -25,7 +25,7 @@ export default async function ContactsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Contacts"
+        title="CRM"
         description="Your saved contacts from enquiries and manual entries. Send listings directly via email."
       />
       <ContactsClientView

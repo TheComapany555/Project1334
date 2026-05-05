@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-client"
 import { getListingsByBroker } from "@/lib/actions/listings"
 import { getEnquiriesByBroker } from "@/lib/actions/enquiries"
 import { getMySubscription } from "@/lib/actions/subscriptions"
+import { getPendingDocumentAccessRequestCount } from "@/lib/actions/documents"
 import { ChartOverview } from "@/components/dashboard/chart-overview"
 import { SectionCards } from "@/components/section-cards"
 import { buildOverviewChartData } from "@/lib/chart-data"
@@ -16,6 +17,7 @@ import {
   ArrowRight,
   Pencil,
   CreditCard,
+  FileSignature,
 } from "lucide-react"
 
 export default async function DashboardPage() {
@@ -23,10 +25,11 @@ export default async function DashboardPage() {
   const isAgencyOwner = session?.user?.agencyRole === "owner"
   const agencyName = session?.user?.agencyName
 
-  const [listings, enquiries, subscription] = await Promise.all([
+  const [listings, enquiries, subscription, pendingDocAccess] = await Promise.all([
     getListingsByBroker(),
     getEnquiriesByBroker(),
     isAgencyOwner ? getMySubscription() : Promise.resolve(null),
+    getPendingDocumentAccessRequestCount(),
   ])
 
   const total = listings.length
@@ -91,6 +94,33 @@ export default async function DashboardPage() {
           </Link>
         </Button>
       </div>
+
+      {pendingDocAccess > 0 && (
+        <Card className="border-amber-200/80 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/25">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300">
+                <FileSignature className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Document access requests
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {pendingDocAccess} buyer
+                  {pendingDocAccess !== 1 ? "s" : ""} signed an NDA and need you to approve confidential files.
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" className="shrink-0 w-full sm:w-auto">
+              <Link href="/dashboard/document-access" className="gap-2">
+                Review requests
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stat cards */}
       <SectionCards cards={statCards} />

@@ -24,6 +24,8 @@ async function generateUniqueSlug(name: string): Promise<string> {
   return candidate;
 }
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
+/** Signup / welcome verification emails (brokers and buyers). */
+const WELCOME_EMAIL_FROM = "welcome@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export type RegisterResult = { ok: true } | { ok: false; error: string };
@@ -112,7 +114,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
 
   const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: WELCOME_EMAIL_FROM,
     to: email,
     subject: "Verify your Salebiz account",
     html: verificationEmail(verifyUrl, name ?? "there"),
@@ -480,7 +482,7 @@ export async function registerBuyer(formData: FormData): Promise<RegisterResult>
   const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
   await resend.emails
     .send({
-      from: EMAIL_FROM,
+      from: WELCOME_EMAIL_FROM,
       to: email,
       subject: "Verify your Salebiz account",
       html: verificationEmail(verifyUrl, name || "there"),

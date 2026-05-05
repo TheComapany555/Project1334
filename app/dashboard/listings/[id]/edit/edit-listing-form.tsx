@@ -217,7 +217,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       updatePayload.tier_product_id = selectedTierProductId;
     }
 
-    let result: { ok: boolean; error?: string };
+    let result: { ok: boolean; error?: string; slug?: string };
     if (isAdmin && onAdminSave) {
       result = await onAdminSave(listing.id, updatePayload, data.highlight_ids ?? []);
     } else {
@@ -225,7 +225,11 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     }
     setSaving(false);
     if (result.ok) {
-      toast.success("Listing updated.");
+      toast.success(
+        result.slug && result.slug !== listing.slug
+          ? "Listing updated. Public URL slug was refreshed to match the new title."
+          : "Listing updated."
+      );
       router.replace(isAdmin ? "/admin/listings" : "/dashboard/listings");
     } else {
       toast.error(result.error ?? "Failed to update.");

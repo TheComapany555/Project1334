@@ -70,6 +70,20 @@ export async function GET(request: Request) {
             { status: 403 }
           );
         }
+
+        const { data: access } = await supabase
+          .from("document_access_requests")
+          .select("status")
+          .eq("document_id", doc.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (access?.status !== "approved") {
+          return NextResponse.json(
+            { error: "The broker has not approved access to this document yet" },
+            { status: 403 }
+          );
+        }
       }
     }
 

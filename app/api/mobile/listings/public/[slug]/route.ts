@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getMobileUser } from "@/lib/mobile-jwt";
+import { getPublicListingDocuments } from "@/lib/actions/documents";
 
 // GET /api/mobile/listings/public/[slug] - listing detail by slug (public)
 export async function GET(
@@ -113,38 +114,28 @@ export async function GET(
       // NDA is optional — don't fail
     }
 
-    // ── Documents ────────────────────────────────────────────────────────────
+    // ── Documents (NDA + broker access — same rules as web) ──────────────────
     let documents: {
       id: string;
       name: string;
       category: string;
       is_confidential: boolean;
-      file_url: string | null; // null when locked (NDA required + not signed)
+      file_url: string | null;
       file_size: number | null;
       file_type: string | null;
     }[] = [];
 
     try {
-      const { data: docs } = await supabase
-        .from("listing_documents")
-        .select("id, name, category, is_confidential, file_url, file_size, file_type, sort_order")
-        .eq("listing_id", listing.id)
-        .eq("approval_status", "approved")
-        .order("sort_order", { ascending: true });
-
-      if (docs && docs.length > 0) {
-        documents = docs.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          category: d.category,
-          is_confidential: d.is_confidential,
-          file_size: d.file_size,
-          file_type: d.file_type,
-          // Strip file_url for confidential docs when NDA required and not signed
-          file_url:
-            d.is_confidential && nda.required && !nda.signed ? null : d.file_url,
-        }));
-      }
+      const docBundle = await getPublicListingDocuments(listing.id, userId);
+      documents = docBundle.documents.map((d) => ({
+        id: d.id,
+        name: d.name,
+        category: d.category,
+        is_confidential: d.is_confidential,
+        file_size: d.file_size,
+        file_type: d.file_type,
+        file_url: d.file_url?.trim() ? d.file_url : null,
+      }));
     } catch {
       // Documents are optional — don't fail
     }

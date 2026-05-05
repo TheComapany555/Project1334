@@ -28,6 +28,7 @@ import {
   Clock,
   CornerUpLeft,
   DollarSign,
+  FileSignature,
   Megaphone,
   MessageSquare,
   Receipt,
@@ -108,6 +109,10 @@ const NOTIFICATION_ICON_MAP: Record<string, IconStyle> = {
   agency_approved: {
     Icon: Building2,
     tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  document_access_requested: {
+    Icon: FileSignature,
+    tone: "bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/20 dark:text-amber-400",
   },
   general: {
     Icon: Megaphone,

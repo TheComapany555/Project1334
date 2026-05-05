@@ -569,12 +569,14 @@ export default async function ListingPage({ params }: Props) {
         </Card>
 
         {/* Document Vault */}
-        {documentData.documents.length > 0 && (
+        {(documentData.documents.length > 0 ||
+          documentData.lockedConfidentialCount > 0) && (
           <DocumentVault
             listingId={listing.id}
             documents={documentData.documents}
             requiresNda={documentData.requiresNda}
             hasSigned={documentData.hasSigned}
+            lockedConfidentialCount={documentData.lockedConfidentialCount}
             ndaText={ndaStatus.ndaText}
             isLoggedIn={!!session?.user?.id}
           />

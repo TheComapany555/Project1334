@@ -7,6 +7,8 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import { createPendingDocumentAccessRequestsForBuyer } from "@/lib/actions/documents";
+import { createNotification } from "@/lib/actions/notifications";
 
 async function requireBroker() {
   const { getServerSession } = await import("next-auth");
@@ -158,6 +160,34 @@ export async function signNda(
   );
 
   if (error) return { ok: false, error: "Failed to sign NDA." };
+
+  await createPendingDocumentAccessRequestsForBuyer(listingId, userId);
+
+  const [{ data: listingRow }, { data: buyerProf }, confidentialCountRes] =
+    await Promise.all([
+      supabase.from("listings").select("title, broker_id").eq("id", listingId).single(),
+      supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
+      supabase
+        .from("listing_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("listing_id", listingId)
+        .eq("approval_status", "approved")
+        .eq("is_confidential", true),
+    ]);
+
+  const nConf = confidentialCountRes.count ?? 0;
+  if (listingRow?.broker_id && nConf > 0) {
+    const buyerLabel = buyerProf?.name?.trim() || email || "A buyer";
+    const listTitle = listingRow.title?.trim() || "Your listing";
+    createNotification({
+      userId: listingRow.broker_id,
+      type: "document_access_requested",
+      title: "Document access request",
+      message: `${buyerLabel} signed the NDA for “${listTitle}” and is waiting for you to approve confidential documents.`,
+      link: "/dashboard/document-access",
+    }).catch(() => {});
+  }
+
   return { ok: true };
 }
 

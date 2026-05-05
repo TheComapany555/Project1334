@@ -289,7 +289,7 @@ export function ShareListingView({ listing, contacts, tags }: Props) {
                   </div>
                   {contacts.length === 0 && (
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/dashboard/contacts">Go to Contacts</Link>
+                      <Link href="/dashboard/contacts">Go to CRM</Link>
                     </Button>
                   )}
                 </div>

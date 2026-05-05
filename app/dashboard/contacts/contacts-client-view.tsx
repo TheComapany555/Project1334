@@ -198,7 +198,7 @@ export function ContactsClientView({ contacts, tags: initialTags, listings }: Pr
         <TabsList>
           <TabsTrigger value="contacts" className="gap-1.5">
             <Users className="h-4 w-4" />
-            Contacts
+            CRM
           </TabsTrigger>
           <TabsTrigger value="bulk-send" className="gap-1.5">
             <Send className="h-4 w-4" />
@@ -214,7 +214,7 @@ export function ContactsClientView({ contacts, tags: initialTags, listings }: Pr
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-col gap-3 border-b bg-muted/30 px-4 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-0.5">
-            <CardTitle className="text-base">All contacts</CardTitle>
+            <CardTitle className="text-base">All CRM contacts</CardTitle>
             <CardDescription>
               {contacts.length === 0
                 ? "No contacts yet. Save enquiries or add contacts manually."
@@ -348,16 +348,24 @@ export function ContactsClientView({ contacts, tags: initialTags, listings }: Pr
                             {c.name || c.email}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1 truncate">
-                              <Mail className="h-3 w-3" />
+                            <a
+                              href={`mailto:${encodeURIComponent(c.email)}`}
+                              className="flex items-center gap-1 truncate text-primary hover:underline underline-offset-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
                               {c.email}
-                            </span>
-                            {c.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
+                            </a>
+                            {c.phone ? (
+                              <a
+                                href={`tel:${c.phone.replace(/\s+/g, "").replace(/[^\d+]/g, "")}`}
+                                className="flex items-center gap-1 text-primary hover:underline underline-offset-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Phone className="h-3 w-3 shrink-0" />
                                 {c.phone}
-                              </span>
-                            )}
+                              </a>
+                            ) : null}
                             {c.company && (
                               <span className="truncate">{c.company}</span>
                             )}

@@ -6,6 +6,7 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import { generateListingSlug } from "@/lib/slug";
 
 async function requireAdmin() {
   const { getServerSession } = await import("next-auth");
@@ -196,13 +197,22 @@ export async function adminUpdateListing(
   await requireAdmin();
   const supabase = createServiceRoleClient();
 
-  const { error } = await supabase
-    .from("listings")
-    .update({
-      ...fields,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  const { data: current } = await supabase.from("listings").select("title").eq("id", id).single();
+
+  const payload: Record<string, unknown> = {
+    ...fields,
+    updated_at: new Date().toISOString(),
+  };
+  if (fields.title !== undefined) {
+    const trimmed = fields.title.trim();
+    payload.title = trimmed;
+    const prev = current?.title?.trim() ?? "";
+    if (trimmed !== prev) {
+      payload.slug = generateListingSlug(trimmed);
+    }
+  }
+
+  const { error } = await supabase.from("listings").update(payload).eq("id", id);
 
   if (error) return { ok: false, error: error.message };
 

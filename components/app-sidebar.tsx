@@ -25,6 +25,7 @@ import {
   SecurityCheckIcon,
   Analytics01Icon,
   UserMultipleIcon,
+  UserIcon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -39,13 +40,17 @@ export type SidebarUser = {
 
 const workspaceActivePaths = [
   "/dashboard/workspace",
-  "/dashboard/profile",
   "/dashboard/agency",
   "/dashboard/team",
 ] as const
 
 const brokerNav = [
   { title: "Overview", url: "/dashboard", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
+  {
+    title: "Broker Profile",
+    url: "/dashboard/profile",
+    icon: <HugeiconsIcon icon={UserIcon} strokeWidth={2} />,
+  },
   {
     title: "Workspace",
     url: "/dashboard/workspace",
@@ -54,7 +59,7 @@ const brokerNav = [
   },
   { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
-  { title: "Contacts", url: "/dashboard/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
+  { title: "CRM", url: "/dashboard/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
   {
     title: "NDAs",
     url: "/dashboard/ndas",

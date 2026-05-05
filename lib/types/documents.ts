@@ -39,4 +39,6 @@ export type ListingDocument = {
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  /** Buyer signed NDA but broker has not approved document access yet */
+  buyer_access_pending?: boolean;
 };

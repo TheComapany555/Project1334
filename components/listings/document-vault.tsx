@@ -30,6 +30,8 @@ type Props = {
   documents: ListingDocument[];
   requiresNda: boolean;
   hasSigned: boolean;
+  /** Confidential files hidden until NDA signed; titles are never shown when this is positive. */
+  lockedConfidentialCount?: number;
   ndaText: string | null;
   isLoggedIn: boolean;
 };
@@ -46,16 +48,19 @@ export function DocumentVault({
   documents,
   requiresNda,
   hasSigned,
+  lockedConfidentialCount = 0,
   ndaText,
   isLoggedIn,
 }: Props) {
   const [signedState, setSignedState] = useState(hasSigned);
 
-  if (documents.length === 0) return null;
+  if (documents.length === 0 && lockedConfidentialCount === 0) return null;
 
   const publicDocs = documents.filter((d) => !d.is_confidential);
   const confidentialDocs = documents.filter((d) => d.is_confidential);
   const canAccessConfidential = !requiresNda || signedState;
+  const unsignedConfidentialCount =
+    requiresNda && !signedState ? lockedConfidentialCount : 0;
 
   return (
     <Card>
@@ -80,8 +85,8 @@ export function DocumentVault({
           </div>
         )}
 
-        {/* Confidential section */}
-        {confidentialDocs.length > 0 && (
+        {/* Confidential section: hidden file names until NDA + broker approval */}
+        {(confidentialDocs.length > 0 || unsignedConfidentialCount > 0) && (
           <div className="space-y-3">
             {publicDocs.length > 0 && (
               <div className="flex items-center gap-2 pt-2">
@@ -94,14 +99,23 @@ export function DocumentVault({
 
             {canAccessConfidential ? (
               <div className="space-y-2">
-                {signedState && requiresNda && (
+                {signedState && requiresNda && confidentialDocs.some((d) => !d.buyer_access_pending && d.file_url) && (
                   <div className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400 mb-3">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
-                    NDA signed — you have full access to all documents.
+                    NDA signed — confidential files the broker approved for you are available below.
+                  </div>
+                )}
+                {signedState && requiresNda && confidentialDocs.some((d) => d.buyer_access_pending) && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-200 mb-2">
+                    Some confidential files are awaiting the broker&apos;s approval. Titles stay hidden until then.
                   </div>
                 )}
                 {confidentialDocs.map((doc) => (
-                  <DocumentRow key={doc.id} document={doc} canAccess />
+                  <DocumentRow
+                    key={doc.id}
+                    document={doc}
+                    canAccess={!doc.buyer_access_pending && !!doc.file_url}
+                  />
                 ))}
               </div>
             ) : (
@@ -109,28 +123,13 @@ export function DocumentVault({
                 <Lock className="h-8 w-8 mx-auto text-muted-foreground" />
                 <div>
                   <p className="font-medium text-sm">
-                    {confidentialDocs.length} confidential document
-                    {confidentialDocs.length !== 1 ? "s" : ""} available
+                    {unsignedConfidentialCount > 0
+                      ? `${unsignedConfidentialCount} confidential document${unsignedConfidentialCount !== 1 ? "s" : ""} available`
+                      : `${confidentialDocs.length} confidential document${confidentialDocs.length !== 1 ? "s" : ""} available`}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sign the NDA to unlock access to these documents
+                    Sign the NDA to request access. File names stay hidden until the broker approves your request.
                   </p>
-                </div>
-
-                {/* List locked document names */}
-                <div className="space-y-1 max-w-sm mx-auto">
-                  {confidentialDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center gap-2 text-xs text-muted-foreground"
-                    >
-                      <FileText className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{doc.name}</span>
-                      <Badge variant="outline" className="text-[10px] shrink-0">
-                        {DOCUMENT_CATEGORY_LABELS[doc.category as DocumentCategory] ?? doc.category}
-                      </Badge>
-                    </div>
-                  ))}
                 </div>
 
                 {isLoggedIn && ndaText ? (
@@ -163,29 +162,36 @@ function DocumentRow({
   document: ListingDocument;
   canAccess: boolean;
 }) {
+  const pendingApproval = !!(doc.buyer_access_pending || (doc.is_confidential && !canAccess));
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
       <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{doc.name}</p>
+        <p className="text-sm font-medium truncate">
+          {pendingApproval && doc.is_confidential ? "Awaiting broker approval" : doc.name}
+        </p>
         <div className="flex items-center gap-2 mt-0.5">
+          {!pendingApproval ? (
           <Badge variant="outline" className="text-[10px]">
             {DOCUMENT_CATEGORY_LABELS[doc.category as DocumentCategory] ?? doc.category}
           </Badge>
-          {doc.file_size && (
+          ) : doc.is_confidential ? (
+            <Badge variant="secondary" className="text-[10px] gap-0.5">
+              <Lock className="h-2.5 w-2.5" />
+              Pending approval
+            </Badge>
+          ) : null}
+          {!pendingApproval && doc.file_size ? (
             <span className="text-[10px] text-muted-foreground">
               {formatFileSize(doc.file_size)}
             </span>
-          )}
-          {doc.is_confidential && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] gap-0.5"
-            >
+          ) : null}
+          {doc.is_confidential && !pendingApproval ? (
+            <Badge variant="secondary" className="text-[10px] gap-0.5">
               <Lock className="h-2.5 w-2.5" />
               Confidential
             </Badge>
-          )}
+          ) : null}
         </div>
       </div>
       {canAccess && doc.file_url && (

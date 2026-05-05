@@ -220,6 +220,7 @@ export function AnalyticsDashboard({ initialData }: Props) {
   );
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
+  const [analyticsPlusOpen, setAnalyticsPlusOpen] = useState(false);
 
   async function changePeriod(days: 7 | 30 | 90) {
     if (days === period) return;
@@ -244,11 +245,23 @@ export function AnalyticsDashboard({ initialData }: Props) {
 
       {/* ── Period selector ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Listing Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Performance across web and mobile for the selected period.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4 min-w-0">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Listing Analytics</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Performance across web and mobile for the selected period.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={analyticsPlusOpen ? "secondary" : "outline"}
+            size="sm"
+            className="gap-1.5 shrink-0"
+            onClick={() => setAnalyticsPlusOpen((open) => !open)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Analytics+
+          </Button>
         </div>
         <div className="flex gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
           {PERIODS.map((p) => (
@@ -269,7 +282,7 @@ export function AnalyticsDashboard({ initialData }: Props) {
         </div>
       </div>
 
-      <BrokerAccountAiInsights periodDays={period} />
+      {analyticsPlusOpen && <BrokerAccountAiInsights periodDays={period} />}
 
       {/* ── KPI row ── */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -639,24 +652,6 @@ export function AnalyticsDashboard({ initialData }: Props) {
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {data.per_listing.length > 0 && (
-            <div className="flex justify-center">
-              <Button
-                type="button"
-                variant="secondary"
-                className="gap-2"
-                onClick={() =>
-                  document
-                    .getElementById("broker-account-ai-insight")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                }
-              >
-                <Sparkles className="h-4 w-4" />
-                AI insight
-              </Button>
-            </div>
           )}
         </>
       )}

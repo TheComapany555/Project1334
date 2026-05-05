@@ -538,11 +538,11 @@ export async function updateListing(
     listing_tier?: "basic" | "standard" | "featured";
     tier_product_id?: string | null;
   }
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; slug?: string }> {
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
 
-  let existingQuery = supabase.from("listings").select("id").eq("id", id);
+  let existingQuery = supabase.from("listings").select("id, title").eq("id", id);
   if (agencyId && agencyRole === "owner") {
     existingQuery = existingQuery.eq("agency_id", agencyId);
   } else {
@@ -551,7 +551,16 @@ export async function updateListing(
   const { data: existing } = await existingQuery.single();
   if (!existing) return { ok: false, error: "Listing not found." };
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (form.title !== undefined) payload.title = form.title.trim();
+  let newSlug: string | undefined;
+  if (form.title !== undefined) {
+    const trimmed = form.title.trim();
+    payload.title = trimmed;
+    const prevTitle = (existing.title as string | null)?.trim() ?? "";
+    if (trimmed !== prevTitle) {
+      newSlug = generateListingSlug(trimmed);
+      payload.slug = newSlug;
+    }
+  }
   if (form.category_id !== undefined) payload.category_id = form.category_id || null;
   if (form.location_text !== undefined) payload.location_text = form.location_text?.trim() || null;
   if (form.state !== undefined) payload.state = form.state?.trim() || null;
@@ -587,7 +596,7 @@ export async function updateListing(
       );
     }
   }
-  return { ok: true };
+  return { ok: true, ...(newSlug !== undefined ? { slug: newSlug } : {}) };
 }
 
 export async function updateListingStatus(id: string, status: ListingStatus): Promise<{ ok: boolean; error?: string }> {

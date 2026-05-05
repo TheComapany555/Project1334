@@ -15,6 +15,7 @@ export type NotificationType =
   | "broker_joined"
   | "broker_removed"
   | "agency_approved"
+  | "document_access_requested"
   | "general";
 
 export type Notification = {
