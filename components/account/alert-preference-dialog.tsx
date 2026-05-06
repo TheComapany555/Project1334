@@ -184,7 +184,13 @@ export function AlertPreferenceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(85vh,760px)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          "flex w-[calc(100vw-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0",
+          // Anchor from top (not vertical center) so short viewports never clip; inner body scrolls.
+          "left-1/2 top-[max(0.75rem,env(safe-area-inset-top,0px))] max-h-[calc(100dvh-1.25rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] -translate-x-1/2 translate-y-0",
+        )}
+      >
         <div className="shrink-0 space-y-1 border-b border-border px-6 pb-4 pt-6 pr-14">
           <DialogHeader className="space-y-3 text-left">
             <DialogTitle className="flex items-center gap-2">
@@ -199,7 +205,7 @@ export function AlertPreferenceDialog({
           </DialogHeader>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4 [-webkit-overflow-scrolling:touch]">
           <div className="space-y-4">
           {/* ── What ───────────────────────────────────────────────── */}
           <FieldGroup
@@ -389,7 +395,7 @@ export function AlertPreferenceDialog({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-border bg-background px-6 py-4">
+        <div className="shrink-0 border-t border-border bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
               Cancel

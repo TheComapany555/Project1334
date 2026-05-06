@@ -47,7 +47,7 @@ export function DashboardLoader({ children }: { children: React.ReactNode }) {
       {showLoader && (
         <div
           className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-background transition-opacity duration-300 ${
-            fadeOut ? "opacity-0" : "opacity-100"
+            fadeOut ? "pointer-events-none opacity-0" : "opacity-100"
           }`}
         >
           <Image

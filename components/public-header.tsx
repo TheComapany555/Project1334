@@ -161,7 +161,6 @@ function DesktopNav({
               Compare
             </TooltipContent>
           </Tooltip>
-          <NotificationBell role="user" />
         </>
       )}
 
@@ -177,6 +176,13 @@ function DesktopNav({
             {role === "admin" ? "Admin" : "Dashboard"}
           </Link>
         </Button>
+      )}
+
+      {/* In-app notifications (buyers, brokers, admins) */}
+      {isLoggedIn && role && (
+        <div className="ml-1 flex shrink-0 items-center">
+          <NotificationBell role={role} />
+        </div>
       )}
 
       {/* Logged-out CTAs */}
@@ -232,7 +238,8 @@ function MobileNav({
   const email = session?.user?.email?.toString() ?? "";
 
   return (
-    <div className="flex sm:hidden items-center">
+    <div className="flex sm:hidden items-center gap-1">
+      {isLoggedIn && role && <NotificationBell role={role} />}
       <Sheet>
         <SheetTrigger asChild>
           <Button

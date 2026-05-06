@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Logout01Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons"
 import { ChevronDown } from "lucide-react"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
 
 export type HeaderUser = {
   name: string | null
@@ -58,12 +59,14 @@ export function SiteHeader({
         {title && <div className="flex-1" aria-hidden />}
 
         {user && (
-          <DropdownMenu>
+          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            <NotificationBell role={user.role} />
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto h-9 flex items-center gap-2 rounded-full pl-1.5 pr-2.5 hover:bg-muted transition-colors"
+                className="h-9 flex items-center gap-2 rounded-full pl-1.5 pr-2.5 hover:bg-muted transition-colors"
                 aria-label="Account menu"
               >
                 <Avatar className="h-7 w-7 rounded-full ring-2 ring-primary/20 shrink-0">
@@ -124,6 +127,7 @@ export function SiteHeader({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         )}
       </div>
       <LogoutConfirmDialog
