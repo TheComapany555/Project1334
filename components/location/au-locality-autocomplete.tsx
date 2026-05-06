@@ -266,7 +266,7 @@ export function AuLocalityAutocomplete({
           className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 text-sm shadow-md"
         >
           {predictions.map((p, idx) => (
-            <li key={p.id} role="presentation">
+            <li key={`${listboxId}-opt-${idx}`} role="presentation">
               <button
                 type="button"
                 role="option"
