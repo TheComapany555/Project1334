@@ -46,11 +46,12 @@ const ROLE_LABEL: Record<Role, string> = {
 
 export function UserMenu({ user, compact = false }: Props) {
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const displayName = user.name?.trim() || user.email.split("@")[0];
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -120,19 +121,19 @@ export function UserMenu({ user, compact = false }: Props) {
           {user.role === "user" && (
             <>
               <DropdownMenuItem asChild>
-                <Link href="/account">
+                <Link href="/account" prefetch={false} onClick={() => setMenuOpen(false)}>
                   <UserIcon className="h-4 w-4" />
                   Your account
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/saved">
+                <Link href="/saved" prefetch={false} onClick={() => setMenuOpen(false)}>
                   <Heart className="h-4 w-4" />
                   Saved listings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/compare">
+                <Link href="/compare" prefetch={false} onClick={() => setMenuOpen(false)}>
                   <GitCompareArrows className="h-4 w-4" />
                   Compare
                 </Link>
@@ -144,19 +145,27 @@ export function UserMenu({ user, compact = false }: Props) {
           {user.role === "broker" && (
             <>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard">
+                <Link href="/dashboard" prefetch={false} onClick={() => setMenuOpen(false)}>
                   <LayoutDashboard className="h-4 w-4" />
                   Dashboard
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile">
+                <Link
+                  href="/dashboard/profile"
+                  prefetch={false}
+                  onClick={() => setMenuOpen(false)}
+                >
                   <UserIcon className="h-4 w-4" />
                   Profile
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/listings">
+                <Link
+                  href="/dashboard/listings"
+                  prefetch={false}
+                  onClick={() => setMenuOpen(false)}
+                >
                   <Building2 className="h-4 w-4" />
                   Listings
                 </Link>
@@ -167,7 +176,7 @@ export function UserMenu({ user, compact = false }: Props) {
           {/* Admin items */}
           {user.role === "admin" && (
             <DropdownMenuItem asChild>
-              <Link href="/admin">
+              <Link href="/admin" prefetch={false} onClick={() => setMenuOpen(false)}>
                 <ShieldCheck className="h-4 w-4" />
                 Admin panel
               </Link>

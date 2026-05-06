@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -231,16 +235,26 @@ function MobileNav({
   isStaff: boolean;
   role: "broker" | "admin" | "user" | null;
 }) {
+  const pathname = usePathname();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  /* Uncontrolled Sheet + client navigation leaves overlay + scroll lock on the next page */
+  useEffect(() => {
+    setSheetOpen(false);
+  }, [pathname]);
+
   const displayName =
     session?.user?.name?.toString().trim() ||
     session?.user?.email?.toString().split("@")[0] ||
     "Account";
   const email = session?.user?.email?.toString() ?? "";
 
+  const closeSheet = () => setSheetOpen(false);
+
   return (
     <div className="flex sm:hidden items-center gap-1">
       {isLoggedIn && role && <NotificationBell role={role} />}
-      <Sheet>
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
@@ -288,7 +302,11 @@ function MobileNav({
 
             <nav className="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto">
               {/* Always visible */}
-              <MobileNavLink href="/search" icon={<Search className="h-4 w-4" />}>
+              <MobileNavLink
+                href="/search"
+                icon={<Search className="h-4 w-4" />}
+                onClick={closeSheet}
+              >
                 Browse listings
               </MobileNavLink>
 
@@ -299,18 +317,21 @@ function MobileNav({
                   <MobileNavLink
                     href="/account"
                     icon={<UserIcon className="h-4 w-4" />}
+                    onClick={closeSheet}
                   >
                     Your account
                   </MobileNavLink>
                   <MobileNavLink
                     href="/saved"
                     icon={<Heart className="h-4 w-4" />}
+                    onClick={closeSheet}
                   >
                     Saved listings
                   </MobileNavLink>
                   <MobileNavLink
                     href="/compare"
                     icon={<GitCompareArrows className="h-4 w-4" />}
+                    onClick={closeSheet}
                   >
                     Compare
                   </MobileNavLink>
@@ -330,6 +351,7 @@ function MobileNav({
                         <LayoutDashboard className="h-4 w-4" />
                       )
                     }
+                    onClick={closeSheet}
                   >
                     {role === "admin" ? "Admin panel" : "Dashboard"}
                   </MobileNavLink>
@@ -337,6 +359,7 @@ function MobileNav({
                     <MobileNavLink
                       href="/dashboard/listings"
                       icon={<Building2 className="h-4 w-4" />}
+                      onClick={closeSheet}
                     >
                       Listings
                     </MobileNavLink>
@@ -348,9 +371,12 @@ function MobileNav({
               {!isLoggedIn && (
                 <>
                   <MobileSection label="Get started" />
-                  <MobileNavLink href="/auth/login">Sign in</MobileNavLink>
+                  <MobileNavLink href="/auth/login" onClick={closeSheet}>
+                    Sign in
+                  </MobileNavLink>
                   <Link
                     href="/auth/register"
+                    onClick={closeSheet}
                     className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-primary hover:bg-primary/8 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Create account
@@ -363,12 +389,14 @@ function MobileNav({
             <div className="px-4 pt-2 pb-1 flex items-center gap-4 text-xs text-muted-foreground">
               <Link
                 href="/privacy"
+                onClick={closeSheet}
                 className="hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               >
                 Privacy
               </Link>
               <Link
                 href="/terms"
+                onClick={closeSheet}
                 className="hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               >
                 Terms
@@ -405,14 +433,17 @@ function MobileNavLink({
   href,
   icon,
   children,
+  onClick,
 }: {
   href: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {icon && (
