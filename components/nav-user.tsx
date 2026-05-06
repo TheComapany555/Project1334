@@ -25,11 +25,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  UserCircle02Icon,
-  Logout01Icon,
-  LinkSquare02Icon,
-} from "@hugeicons/core-free-icons"
+import { Logout01Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons"
 import { ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -120,35 +116,22 @@ export function NavUser({
 
             <DropdownMenuSeparator />
 
-            {role === "broker" && (
+            {role === "broker" && profileSlug && (
               <>
                 <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                  <Link href="/dashboard/workspace">
+                  <Link
+                    href={`/broker/${encodeURIComponent(profileSlug)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <HugeiconsIcon
-                      icon={UserCircle02Icon}
+                      icon={LinkSquare02Icon}
                       strokeWidth={2}
                       className="size-4 text-muted-foreground"
                     />
-                    Workspace
+                    View public profile
                   </Link>
                 </DropdownMenuItem>
-
-                {profileSlug && (
-                  <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                    <Link
-                      href={`/broker/${encodeURIComponent(profileSlug)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <HugeiconsIcon
-                        icon={LinkSquare02Icon}
-                        strokeWidth={2}
-                        className="size-4 text-muted-foreground"
-                      />
-                      View public profile
-                    </Link>
-                  </DropdownMenuItem>
-                )}
 
                 <DropdownMenuSeparator />
               </>

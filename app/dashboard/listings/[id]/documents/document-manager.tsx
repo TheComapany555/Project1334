@@ -110,13 +110,19 @@ export function DocumentManager({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busyDocId, setBusyDocId] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<ListingDocument | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ListingDocument | null>(
+    null,
+  );
   const [rejectReason, setRejectReason] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<ListingDocument | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ListingDocument | null>(
+    null,
+  );
   const formRef = useRef<HTMLFormElement>(null);
 
   const replaceDoc = (updated: ListingDocument) =>
-    setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === updated.id ? updated : d)),
+    );
 
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -132,7 +138,9 @@ export function DocumentManager({
       setError(result.error);
     } else {
       setDocuments((prev) => [...prev, result.document]);
-      setSuccess("Document uploaded. Review and approve to make it visible to buyers.");
+      setSuccess(
+        "Document uploaded. Review and approve to make it visible to buyers.",
+      );
       formRef.current?.reset();
       setTimeout(() => setSuccess(null), 4000);
     }
@@ -164,7 +172,11 @@ export function DocumentManager({
   const submitReject = async () => {
     if (!rejectTarget) return;
     setBusyDocId(rejectTarget.id);
-    const result = await rejectListingDocument(listingId, rejectTarget.id, rejectReason);
+    const result = await rejectListingDocument(
+      listingId,
+      rejectTarget.id,
+      rejectReason,
+    );
     setBusyDocId(null);
     if (result.ok) {
       replaceDoc(result.document);
@@ -175,7 +187,9 @@ export function DocumentManager({
     }
   };
 
-  const pendingCount = documents.filter((d) => d.approval_status === "pending").length;
+  const pendingCount = documents.filter(
+    (d) => d.approval_status === "pending",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -213,7 +227,10 @@ export function DocumentManager({
               aria-busy="true"
             >
               <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-md">
-                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden />
+                <Loader2
+                  className="h-5 w-5 shrink-0 animate-spin text-primary"
+                  aria-hidden
+                />
                 <span className="text-sm font-medium">Uploading document…</span>
               </div>
             </div>
@@ -245,7 +262,7 @@ export function DocumentManager({
                         <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
-                      )
+                      ),
                     )}
                   </SelectContent>
                 </Select>
@@ -292,7 +309,10 @@ export function DocumentManager({
             <Button type="submit" disabled={uploading} className="gap-2">
               {uploading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                  <Loader2
+                    className="h-4 w-4 animate-spin shrink-0"
+                    aria-hidden
+                  />
                   Uploading…
                 </>
               ) : (
@@ -339,9 +359,13 @@ export function DocumentManager({
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead className="pl-4 sm:pl-6">Document</TableHead>
-                  <TableHead className="hidden md:table-cell">Category</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Category
+                  </TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">Visibility</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Visibility
+                  </TableHead>
                   <TableHead className="hidden lg:table-cell">Size</TableHead>
                   <TableHead className="w-12 pr-4 sm:pr-6"></TableHead>
                 </TableRow>
@@ -513,7 +537,8 @@ export function DocumentManager({
           <DialogHeader>
             <DialogTitle>Reject document</DialogTitle>
             <DialogDescription>
-              The document will be hidden from buyers. Provide a reason for your records.
+              The document will be hidden from buyers. Provide a reason for your
+              records.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -568,21 +593,30 @@ export function DocumentManager({
   );
 }
 
-const STATUS_BADGE: Record<DocumentApprovalStatus, { variant: "default" | "secondary" | "destructive" | "outline"; className: string; icon: React.ReactNode }> = {
+const STATUS_BADGE: Record<
+  DocumentApprovalStatus,
+  {
+    variant: "default" | "secondary" | "destructive" | "outline";
+    className: string;
+    icon: React.ReactNode;
+  }
+> = {
   pending: {
     variant: "secondary",
-    className: "gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300",
+    className:
+      "gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300",
     icon: <Clock className="h-2.5 w-2.5" />,
   },
   approved: {
     variant: "secondary",
-    className: "gap-1 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300",
+    className:
+      "gap-1 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300",
     icon: <CheckCircle2 className="h-2.5 w-2.5" />,
   },
   rejected: {
     variant: "secondary",
-    className: "gap-1 bg-rose-100 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300",
+    className:
+      "gap-1 bg-rose-100 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300",
     icon: <X className="h-2.5 w-2.5" />,
   },
 };
-

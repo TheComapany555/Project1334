@@ -17,11 +17,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  UserCircle02Icon,
-  Logout01Icon,
-  LinkSquare02Icon,
-} from "@hugeicons/core-free-icons"
+import { Logout01Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons"
 import { ChevronDown } from "lucide-react"
 
 export type HeaderUser = {
@@ -107,22 +103,14 @@ export function SiteHeader({
 
               <DropdownMenuSeparator />
 
-              {user.role === "broker" && (
+              {user.role === "broker" && user.profileSlug && (
                 <>
                   <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                    <Link href="/dashboard/workspace">
-                      <HugeiconsIcon icon={UserCircle02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
-                      Workspace
+                    <Link href={`/broker/${encodeURIComponent(user.profileSlug)}`} target="_blank" rel="noopener noreferrer">
+                      <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
+                      View public profile
                     </Link>
                   </DropdownMenuItem>
-                  {user.profileSlug && (
-                    <DropdownMenuItem asChild className="gap-2.5 cursor-pointer">
-                      <Link href={`/broker/${encodeURIComponent(user.profileSlug)}`} target="_blank" rel="noopener noreferrer">
-                        <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
-                        View public profile
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                 </>
               )}

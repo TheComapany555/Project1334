@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { SALEBIZ_LOGO_URL } from "@/lib/branding"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -25,7 +26,6 @@ import {
   SecurityCheckIcon,
   Analytics01Icon,
   UserMultipleIcon,
-  UserIcon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -46,17 +46,6 @@ const workspaceActivePaths = [
 
 const brokerNav = [
   { title: "Overview", url: "/dashboard", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
-  {
-    title: "Broker Profile",
-    url: "/dashboard/profile",
-    icon: <HugeiconsIcon icon={UserIcon} strokeWidth={2} />,
-  },
-  {
-    title: "Workspace",
-    url: "/dashboard/workspace",
-    icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
-    activeMatchPaths: [...workspaceActivePaths],
-  },
   { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
   { title: "CRM", url: "/dashboard/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
@@ -77,6 +66,11 @@ export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: SidebarUser }) {
+  const pathname = usePathname()
+  const workspaceActive = workspaceActivePaths.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  )
+
   const navUser = {
     name: user.name ?? user.email ?? "Account",
     email: user.email,
@@ -101,6 +95,19 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={navItems} />
         <SidebarMenu className="mt-auto">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Workspace"
+              isActive={workspaceActive}
+              className="transition-colors duration-150 data-[active=true]:font-medium"
+            >
+              <Link href="/dashboard/workspace" prefetch={false}>
+                <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />
+                <span>Workspace</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="flex w-full items-center gap-2 p-2">
               <ThemeSwitcher />

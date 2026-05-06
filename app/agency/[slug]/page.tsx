@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
+import { PublicProfileListingRow } from "@/components/shared/public-profile-listing-row";
 import {
   Phone,
   Mail,
@@ -24,8 +25,6 @@ import {
   Linkedin,
   Facebook,
   Instagram,
-  MapPin,
-  ArrowRight,
   Building2,
   ExternalLink,
 } from "lucide-react";
@@ -83,10 +82,10 @@ export default async function AgencyPublicPage({ params }: Props) {
   const hasContact = agency.phone || agency.email || agency.website;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex min-w-0 flex-col overflow-x-clip bg-background">
       <PublicHeader session={session} maxWidth="max-w-6xl" />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
+      <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 py-8 sm:py-10">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -104,7 +103,7 @@ export default async function AgencyPublicPage({ params }: Props) {
           }}
         />
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <PageBreadcrumb
             items={[
               { label: "Home", href: "/" },
@@ -113,10 +112,10 @@ export default async function AgencyPublicPage({ params }: Props) {
             ]}
           />
 
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-4">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+            <div className="min-w-0 space-y-4">
+              <Card className="min-w-0">
+                <CardContent className="pt-6 pb-6 flex min-w-0 flex-col items-center text-center gap-4">
                   {agency.logo_url ? (
                     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
                       <Image
@@ -133,8 +132,8 @@ export default async function AgencyPublicPage({ params }: Props) {
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
-                    <h1 className="text-xl font-semibold tracking-tight">{agency.name}</h1>
+                  <div className="w-full min-w-0 space-y-1.5">
+                    <h1 className="text-balance text-xl font-semibold tracking-tight break-words">{agency.name}</h1>
                     {listings.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {listings.length} active {listings.length === 1 ? "listing" : "listings"}
@@ -145,29 +144,34 @@ export default async function AgencyPublicPage({ params }: Props) {
                   {hasContact && (
                     <>
                       <Separator />
-                      <div className="flex flex-col gap-2 w-full">
+                      <div className="flex w-full min-w-0 flex-col gap-2">
                         {agency.phone && (
-                          <Button asChild className="w-full gap-2">
-                            <a href={`tel:${agency.phone.replace(/\s/g, "")}`}>
-                              <Phone className="h-4 w-4" />
-                              {agency.phone}
+                          <Button asChild className="w-full min-w-0 gap-2">
+                            <a className="flex min-w-0 items-center gap-2" href={`tel:${agency.phone.replace(/\s/g, "")}`}>
+                              <Phone className="h-4 w-4 shrink-0" />
+                              <span className="min-w-0 truncate">{agency.phone}</span>
                             </a>
                           </Button>
                         )}
                         {agency.email && (
-                          <Button asChild variant="outline" className="w-full gap-2">
-                            <a href={`mailto:${agency.email}`}>
-                              <Mail className="h-4 w-4" />
-                              {agency.email}
+                          <Button asChild variant="outline" className="w-full min-w-0 gap-2">
+                            <a className="flex min-w-0 items-center gap-2" href={`mailto:${agency.email}`}>
+                              <Mail className="h-4 w-4 shrink-0" />
+                              <span className="min-w-0 truncate">{agency.email}</span>
                             </a>
                           </Button>
                         )}
                         {agency.website && (
-                          <Button asChild variant="outline" className="w-full gap-2">
-                            <a href={agency.website} target="_blank" rel="noopener noreferrer">
-                              <Globe className="h-4 w-4" />
-                              Website
-                              <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                          <Button asChild variant="outline" className="w-full min-w-0 gap-2">
+                            <a
+                              className="flex min-w-0 items-center gap-2"
+                              href={agency.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Globe className="h-4 w-4 shrink-0" />
+                              <span className="min-w-0 truncate">Website</span>
+                              <ExternalLink className="h-3 w-3 ml-auto shrink-0 text-muted-foreground" />
                             </a>
                           </Button>
                         )}
@@ -212,15 +216,15 @@ export default async function AgencyPublicPage({ params }: Props) {
                     <CardTitle className="text-sm">About</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{agency.bio}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">{agency.bio}</p>
                   </CardContent>
                 </Card>
               )}
             </div>
 
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="min-w-0 space-y-4">
+              <Card className="min-w-0">
+                <CardHeader className="flex min-w-0 flex-row items-center justify-between gap-2 pb-2">
                   <div>
                     <CardTitle className="text-base">Listings</CardTitle>
                     <CardDescription>
@@ -231,59 +235,23 @@ export default async function AgencyPublicPage({ params }: Props) {
                   </div>
                 </CardHeader>
                 <Separator />
-                <CardContent className="pt-4">
+                <CardContent className="min-w-0 pt-4">
                   {listings.length > 0 ? (
-                    <div className="grid gap-3">
+                    <div className="grid min-w-0 gap-3">
                       {listings.map((listing) => {
                         const thumb = listing.listing_images?.[0]?.url;
                         const location =
                           listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
                         return (
-                          <Link
+                          <PublicProfileListingRow
                             key={listing.id}
                             href={`/listing/${listing.slug}`}
-                            className="group flex gap-4 rounded-lg border border-border p-3 transition-all hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm"
-                          >
-                            {thumb ? (
-                              <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                                <Image
-                                  src={thumb}
-                                  alt={listing.title}
-                                  fill
-                                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                  sizes="112px"
-                                />
-                              </div>
-                            ) : (
-                              <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted">
-                                <Building2 className="h-5 w-5 text-muted-foreground/30" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
-                              <div>
-                                <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                                  {listing.title}
-                                </p>
-                                {location && (
-                                  <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                    <MapPin className="h-3 w-3 shrink-0" />
-                                    {location}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                {listing.category && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                    {listing.category.name}
-                                  </Badge>
-                                )}
-                                <span className="text-sm font-semibold text-foreground shrink-0 ml-auto">
-                                  {formatPrice(listing)}
-                                </span>
-                              </div>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </Link>
+                            title={listing.title}
+                            imageUrl={thumb}
+                            location={location || null}
+                            categoryName={listing.category?.name ?? null}
+                            priceLabel={formatPrice(listing)}
+                          />
                         );
                       })}
                     </div>
