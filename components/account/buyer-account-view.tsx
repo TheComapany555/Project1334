@@ -69,6 +69,7 @@ import {
   uploadBuyerPhoto,
   type BuyerAccount,
 } from "@/lib/actions/buyer-account";
+import { BuyerPreferencesCard } from "@/components/account/buyer-preferences-card";
 
 type Props = {
   account: BuyerAccount;
@@ -111,6 +112,10 @@ export function BuyerAccountView({ account }: Props) {
 
         <motion.div variants={variants}>
           <ProfileCard account={account} onSaved={handleProfileSaved} />
+        </motion.div>
+
+        <motion.div variants={variants}>
+          <BuyerPreferencesCard preferences={account.preferences} />
         </motion.div>
 
         <motion.div variants={variants}>

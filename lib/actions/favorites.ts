@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { Listing } from "@/lib/types/listings";
+import { bumpBuyerActivity } from "@/lib/actions/buyer-account";
 
 async function requireUser() {
   const { getServerSession } = await import("next-auth");
@@ -66,12 +67,14 @@ export async function toggleFavorite(
       .eq("user_id", userId)
       .eq("listing_id", listingId);
     if (error) return { ok: false, error: "Failed to remove favorite." };
+    void bumpBuyerActivity(userId);
     return { ok: true, isFavorited: false };
   } else {
     const { error } = await supabase
       .from("user_favorites")
       .insert({ user_id: userId, listing_id: listingId });
     if (error) return { ok: false, error: "Failed to save favorite." };
+    void bumpBuyerActivity(userId);
     return { ok: true, isFavorited: true };
   }
 }

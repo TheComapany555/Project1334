@@ -133,6 +133,10 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
       </motion.div>
 
       <motion.div variants={variants}>
+        <MessagesShortcut />
+      </motion.div>
+
+      <motion.div variants={variants}>
         <MatchedForYouSection
           items={snapshot.matched.items}
           total={snapshot.matched.total}
@@ -165,6 +169,30 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
         <MyAlertsSection alerts={alerts} setAlerts={setAlerts} categories={categories} />
       </motion.div>
     </motion.aside>
+  );
+}
+
+// ─── Messages shortcut (M1.3) ──────────────────────────────────────────────
+
+function MessagesShortcut() {
+  return (
+    <Link
+      href="/account/messages"
+      className="flex items-center gap-3 rounded-lg border bg-card p-3 hover:bg-muted/50 transition group"
+    >
+      <div className="rounded-md bg-primary/10 p-2 shrink-0">
+        <MessageSquare className="h-4 w-4 text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">Messages</p>
+        <p className="text-xs text-muted-foreground">
+          Chat with brokers about listings.
+        </p>
+      </div>
+      <span className="text-xs text-muted-foreground group-hover:text-foreground transition">
+        Open →
+      </span>
+    </Link>
   );
 }
 

@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 import { SubscriptionGate } from "@/components/subscription/subscription-gate";
+import { BuyerProfilePanelMount } from "@/components/dashboard/buyer-profile-panel";
 import type { SubscriptionStatus } from "@/lib/types/subscriptions";
 
 export default async function DashboardLayout({
@@ -83,6 +84,7 @@ export default async function DashboardLayout({
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <BuyerProfilePanelMount />
     </DashboardLoader>
   );
 }

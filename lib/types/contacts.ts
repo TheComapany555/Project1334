@@ -38,6 +38,7 @@ export type ContactTag = {
 export type BrokerContact = {
   id: string;
   broker_id: string;
+  buyer_user_id: string | null;
   name: string | null;
   email: string;
   phone: string | null;
@@ -49,7 +50,24 @@ export type BrokerContact = {
   consent_given_at: string | null;
   consent_source: ConsentSource | null;
   enquiry_id: string | null;
+  /** Pipeline status added in M1.1 (default 'new_lead'). */
+  status: BuyerCrmStatus | null;
+  last_emailed_at: string | null;
+  last_called_at: string | null;
+  last_contacted_at: string | null;
+  first_interaction_at: string | null;
+  next_follow_up_at: string | null;
   created_at: string;
   updated_at: string;
   tags: ContactTag[];
 };
+
+export type BuyerCrmStatus =
+  | "new_lead"
+  | "contacted"
+  | "interested"
+  | "meeting_scheduled"
+  | "nda_signed"
+  | "documents_shared"
+  | "negotiating"
+  | "closed";

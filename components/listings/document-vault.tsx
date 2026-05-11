@@ -16,6 +16,7 @@ import {
   type DocumentCategory,
   type ListingDocument,
 } from "@/lib/types/documents";
+import { recordDocumentEvent } from "@/lib/actions/documents";
 import {
   FileText,
   Download,
@@ -197,12 +198,32 @@ function DocumentRow({
       {canAccess && doc.file_url && (
         <div className="flex items-center gap-1 shrink-0">
           <Button size="icon-sm" variant="ghost" asChild>
-            <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+            <a
+              href={doc.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                // Fire-and-forget — never block the click
+                void recordDocumentEvent({
+                  documentId: doc.id,
+                  eventKind: "view",
+                }).catch(() => undefined);
+              }}
+            >
               <Eye className="h-3.5 w-3.5" />
             </a>
           </Button>
           <Button size="icon-sm" variant="ghost" asChild>
-            <a href={doc.file_url} download>
+            <a
+              href={doc.file_url}
+              download
+              onClick={() => {
+                void recordDocumentEvent({
+                  documentId: doc.id,
+                  eventKind: "download",
+                }).catch(() => undefined);
+              }}
+            >
               <Download className="h-3.5 w-3.5" />
             </a>
           </Button>

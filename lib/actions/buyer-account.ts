@@ -5,6 +5,28 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { optimizeLogo } from "@/lib/image-optimizer";
 
+export type BuyerFundingStatus =
+  | "self_funded"
+  | "pre_approved"
+  | "seeking_finance"
+  | "unspecified";
+export type BuyerTimeframe =
+  | "lt_3m"
+  | "3_6m"
+  | "6_12m"
+  | "gt_12m"
+  | "unspecified";
+
+export type BuyerPreferences = {
+  budget_min: number | null;
+  budget_max: number | null;
+  preferred_industries: string[];
+  preferred_locations: string[];
+  funding_status: BuyerFundingStatus | null;
+  timeframe: BuyerTimeframe | null;
+  location_text: string | null;
+};
+
 export type BuyerAccount = {
   id: string;
   email: string;
@@ -13,12 +35,32 @@ export type BuyerAccount = {
   photo_url: string | null;
   email_verified_at: string | null;
   created_at: string | null;
+  last_active_at: string | null;
+  preferences: BuyerPreferences;
   stats: {
     saved_listings: number;
     enquiries: number;
     nda_signed: number;
   };
 };
+
+/**
+ * Bump a buyer's `profiles.last_active_at`. Safe to fire-and-forget — never
+ * throws and never blocks the caller's primary action.
+ *
+ * Called from any buyer-initiated write (enquiry, NDA sign, favourite toggle,
+ * doc view in M2). Powers the "Last active" surface on the broker CRM panel.
+ */
+export async function bumpBuyerActivity(userId: string | null | undefined): Promise<void> {
+  if (!userId) return;
+  const supabase = createServiceRoleClient();
+  await supabase
+    .from("profiles")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("id", userId)
+    .eq("role", "user")
+    .then(() => undefined, () => undefined);
+}
 
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
@@ -41,7 +83,7 @@ export async function getBuyerAccount(): Promise<BuyerAccount> {
   const [profileRes, userRes, favCountRes, enqCountRes, ndaCountRes] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, name, phone, photo_url, created_at")
+      .select("id, name, phone, photo_url, created_at, last_active_at, budget_min, budget_max, preferred_industries, preferred_locations, funding_status, timeframe, location_text")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -75,6 +117,16 @@ export async function getBuyerAccount(): Promise<BuyerAccount> {
     photo_url: profile?.photo_url ?? null,
     email_verified_at: user.email_verified_at ?? null,
     created_at: profile?.created_at ?? user.created_at ?? null,
+    last_active_at: profile?.last_active_at ?? null,
+    preferences: {
+      budget_min: profile?.budget_min ?? null,
+      budget_max: profile?.budget_max ?? null,
+      preferred_industries: profile?.preferred_industries ?? [],
+      preferred_locations: profile?.preferred_locations ?? [],
+      funding_status: (profile?.funding_status as BuyerFundingStatus | null) ?? null,
+      timeframe: (profile?.timeframe as BuyerTimeframe | null) ?? null,
+      location_text: profile?.location_text ?? null,
+    },
     stats: {
       saved_listings: favCountRes.count ?? 0,
       enquiries: enqCountRes.count ?? 0,
@@ -86,11 +138,19 @@ export async function getBuyerAccount(): Promise<BuyerAccount> {
 export async function updateBuyerAccount(input: {
   name?: string;
   phone?: string | null;
+  // Investment preferences (M1.1):
+  budget_min?: number | null;
+  budget_max?: number | null;
+  preferred_industries?: string[] | null;
+  preferred_locations?: string[] | null;
+  funding_status?: BuyerFundingStatus | null;
+  timeframe?: BuyerTimeframe | null;
+  location_text?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const { userId } = await requireBuyer();
   const supabase = createServiceRoleClient();
 
-  const updates: Record<string, string | null> = {};
+  const updates: Record<string, unknown> = {};
 
   if (input.name !== undefined) {
     const name = input.name.trim();
@@ -112,6 +172,60 @@ export async function updateBuyerAccount(input: {
       }
       updates.phone = raw;
     }
+  }
+
+  if (input.budget_min !== undefined) {
+    if (input.budget_min !== null && (!Number.isFinite(input.budget_min) || input.budget_min < 0)) {
+      return { ok: false, error: "Minimum budget must be a non-negative number." };
+    }
+    updates.budget_min = input.budget_min;
+  }
+  if (input.budget_max !== undefined) {
+    if (input.budget_max !== null && (!Number.isFinite(input.budget_max) || input.budget_max < 0)) {
+      return { ok: false, error: "Maximum budget must be a non-negative number." };
+    }
+    updates.budget_max = input.budget_max;
+  }
+  if (
+    typeof updates.budget_min === "number" &&
+    typeof updates.budget_max === "number" &&
+    updates.budget_min > updates.budget_max
+  ) {
+    return { ok: false, error: "Minimum budget must be less than or equal to maximum." };
+  }
+
+  if (input.preferred_industries !== undefined) {
+    updates.preferred_industries = input.preferred_industries
+      ? input.preferred_industries.map((s) => s.trim()).filter(Boolean).slice(0, 20)
+      : null;
+  }
+  if (input.preferred_locations !== undefined) {
+    updates.preferred_locations = input.preferred_locations
+      ? input.preferred_locations.map((s) => s.trim()).filter(Boolean).slice(0, 20)
+      : null;
+  }
+  if (input.funding_status !== undefined) {
+    if (
+      input.funding_status !== null &&
+      !["self_funded", "pre_approved", "seeking_finance", "unspecified"].includes(input.funding_status)
+    ) {
+      return { ok: false, error: "Invalid funding status." };
+    }
+    updates.funding_status = input.funding_status;
+  }
+  if (input.timeframe !== undefined) {
+    if (
+      input.timeframe !== null &&
+      !["lt_3m", "3_6m", "6_12m", "gt_12m", "unspecified"].includes(input.timeframe)
+    ) {
+      return { ok: false, error: "Invalid timeframe." };
+    }
+    updates.timeframe = input.timeframe;
+  }
+  if (input.location_text !== undefined) {
+    const t = (input.location_text ?? "").trim();
+    if (t.length > 200) return { ok: false, error: "Location is too long." };
+    updates.location_text = t || null;
   }
 
   if (Object.keys(updates).length === 0) {

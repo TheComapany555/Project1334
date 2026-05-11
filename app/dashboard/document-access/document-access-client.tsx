@@ -20,8 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileSignature, Loader2 } from "lucide-react";
+import { FileSignature, Loader2, UserCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useBuyerPanelStore } from "@/lib/stores/buyer-panel-store";
 
 export function DocumentAccessClient({
   initialPending,
@@ -32,6 +33,7 @@ export function DocumentAccessClient({
   const [pending, setPending] = useState(initialPending);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const openBuyer = useBuyerPanelStore((s) => s.openBuyer);
 
   const empty = pending.length === 0;
 
@@ -103,9 +105,14 @@ export function DocumentAccessClient({
                   <TableRow key={row.id}>
                     <TableCell className="pl-5 align-top">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium">
+                        <button
+                          type="button"
+                          onClick={() => openBuyer(row.user_id, row.listing_id)}
+                          className="text-left text-sm font-medium hover:underline underline-offset-2 inline-flex items-center gap-1"
+                        >
+                          <UserCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           {row.buyer_name || "Buyer"}
-                        </span>
+                        </button>
                         {row.buyer_email && (
                           <span className="text-xs text-muted-foreground break-all">
                             {row.buyer_email}

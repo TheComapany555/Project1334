@@ -22,6 +22,7 @@ import {
   GitCompareArrows,
   LayoutDashboard,
   Menu,
+  MessageSquare,
   Search,
   ShieldCheck,
   User as UserIcon,
@@ -163,6 +164,19 @@ function DesktopNav({
             </TooltipTrigger>
             <TooltipContent side="bottom" className="lg:hidden">
               Compare
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild variant="ghost" size="sm" aria-label="Messages">
+                <Link href="/account/messages">
+                  <MessageSquare className="h-4 w-4" aria-hidden />
+                  <span className="hidden lg:inline ml-1.5">Messages</span>
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="lg:hidden">
+              Messages
             </TooltipContent>
           </Tooltip>
         </>
@@ -334,6 +348,13 @@ function MobileNav({
                     onClick={closeSheet}
                   >
                     Compare
+                  </MobileNavLink>
+                  <MobileNavLink
+                    href="/account/messages"
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    onClick={closeSheet}
+                  >
+                    Messages
                   </MobileNavLink>
                 </>
               )}

@@ -1,4 +1,5 @@
 export type NotificationType =
+  // Pre-existing
   | "enquiry_received"
   | "enquiry_reply"
   | "enquiry_sent"
@@ -16,7 +17,22 @@ export type NotificationType =
   | "broker_removed"
   | "agency_approved"
   | "document_access_requested"
-  | "general";
+  | "general"
+  // M1.2 (CRM)
+  | "follow_up_due"
+  | "email_received"
+  | "feedback_logged"
+  // M1.3 (messaging)
+  | "message_received"
+  | "message_sent"
+  // M2.2 (data room)
+  | "data_room_request"
+  | "data_room_view"
+  | "data_room_download"
+  | "access_approved"
+  | "access_expiring"
+  | "access_expired"
+  | "new_files_added";
 
 export type Notification = {
   id: string;

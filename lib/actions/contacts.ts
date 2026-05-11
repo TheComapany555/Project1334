@@ -6,7 +6,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import { shareListingEmail, shareMultipleListingsEmail } from "@/lib/email-templates";
 import { setContactTags } from "@/lib/actions/contact-tags";
-import type { BrokerContact, ContactTag } from "@/lib/types/contacts";
+import type {
+  BrokerContact,
+  ContactSource,
+  ContactTag,
+  ConsentSource,
+} from "@/lib/types/contacts";
 import {
   buildPaginated,
   normalizePagination,
@@ -117,7 +122,7 @@ export async function saveEnquiryAsContact(enquiryId: string): Promise<{ ok: boo
 
   const { data: enquiry } = await supabase
     .from("enquiries")
-    .select("id, contact_name, contact_email, contact_phone, interest, consent_marketing, broker_id, created_at")
+    .select("id, contact_name, contact_email, contact_phone, interest, consent_marketing, broker_id, user_id, created_at")
     .eq("id", enquiryId)
     .single();
 
@@ -129,12 +134,14 @@ export async function saveEnquiryAsContact(enquiryId: string): Promise<{ ok: boo
   const { error } = await supabase.from("broker_contacts").upsert(
     {
       broker_id: userId,
+      buyer_user_id: enquiry.user_id ?? null,
       name: enquiry.contact_name,
       email: enquiry.contact_email,
       phone: enquiry.contact_phone,
       interest: enquiry.interest ?? null,
       source: "enquiry",
       enquiry_id: enquiry.id,
+      first_interaction_at: enquiry.created_at,
       consent_marketing: consentGiven,
       consent_given_at: consentGiven ? enquiry.created_at : null,
       consent_source: consentGiven ? "enquiry" : null,
@@ -144,6 +151,110 @@ export async function saveEnquiryAsContact(enquiryId: string): Promise<{ ok: boo
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * Server-only: idempotently get or create the CRM row for `(brokerId, buyer)`.
+ *
+ * Used by the public-facing flows (enquiry submit, NDA sign, listing share) so
+ * a CRM row appears the moment a buyer engages — no manual broker action.
+ *
+ * Lookup order:
+ *   1. (broker_id, buyer_user_id) when the buyer is logged in
+ *   2. (broker_id, lower(email))
+ *   3. Insert a new row.
+ *
+ * If we find a row by email and the buyer is now logged in, we backfill
+ * `buyer_user_id` so the next encounter dedupes correctly.
+ *
+ * NOTE: does NOT call requireBroker — invoked from buyer-initiated paths.
+ */
+export async function getOrCreateBrokerContactForBuyer(args: {
+  brokerId: string;
+  buyerUserId?: string | null;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+  interest?: string | null;
+  source?: ContactSource;
+  enquiryId?: string | null;
+  consent?: { marketing: boolean; source: ConsentSource | null; givenAt?: string | null };
+  firstInteractionAt?: string | null;
+}): Promise<{ ok: true; contactId: string; created: boolean } | { ok: false; error: string }> {
+  const supabase = createServiceRoleClient();
+  const email = args.email.trim().toLowerCase();
+  if (!email) return { ok: false, error: "Email is required" };
+
+  // 1) Try buyer_user_id match first (cheapest dedup once we know the user).
+  if (args.buyerUserId) {
+    const { data: byUser } = await supabase
+      .from("broker_contacts")
+      .select("id")
+      .eq("broker_id", args.brokerId)
+      .eq("buyer_user_id", args.buyerUserId)
+      .maybeSingle();
+    if (byUser?.id) {
+      // Touch updated_at so the row floats up in CRM ordering.
+      await supabase
+        .from("broker_contacts")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", byUser.id);
+      return { ok: true, contactId: byUser.id, created: false };
+    }
+  }
+
+  // 2) Try email match.
+  const { data: byEmail } = await supabase
+    .from("broker_contacts")
+    .select("id, buyer_user_id, first_interaction_at")
+    .eq("broker_id", args.brokerId)
+    .ilike("email", email)
+    .maybeSingle();
+  if (byEmail?.id) {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (args.buyerUserId && !byEmail.buyer_user_id) {
+      patch.buyer_user_id = args.buyerUserId;
+    }
+    if (args.firstInteractionAt && !byEmail.first_interaction_at) {
+      patch.first_interaction_at = args.firstInteractionAt;
+    }
+    await supabase.from("broker_contacts").update(patch).eq("id", byEmail.id);
+    return { ok: true, contactId: byEmail.id, created: false };
+  }
+
+  // 3) Insert.
+  const consentGiven = !!args.consent?.marketing;
+  const { data: inserted, error } = await supabase
+    .from("broker_contacts")
+    .insert({
+      broker_id: args.brokerId,
+      buyer_user_id: args.buyerUserId ?? null,
+      name: args.name?.trim() || null,
+      email,
+      phone: args.phone?.trim() || null,
+      interest: args.interest?.trim() || null,
+      source: args.source ?? "enquiry",
+      enquiry_id: args.enquiryId ?? null,
+      first_interaction_at: args.firstInteractionAt ?? new Date().toISOString(),
+      consent_marketing: consentGiven,
+      consent_given_at: consentGiven ? (args.consent?.givenAt ?? new Date().toISOString()) : null,
+      consent_source: consentGiven ? (args.consent?.source ?? null) : null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !inserted) {
+    // Race: another concurrent insert won. Re-read by email.
+    const { data: retry } = await supabase
+      .from("broker_contacts")
+      .select("id")
+      .eq("broker_id", args.brokerId)
+      .ilike("email", email)
+      .maybeSingle();
+    if (retry?.id) return { ok: true, contactId: retry.id, created: false };
+    return { ok: false, error: error?.message ?? "Failed to create contact" };
+  }
+  return { ok: true, contactId: inserted.id, created: true };
 }
 
 /** Add a contact manually. */

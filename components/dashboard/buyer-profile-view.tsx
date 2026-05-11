@@ -34,6 +34,21 @@ import {
   Building2,
   Sparkles,
   Loader2,
+  StickyNote,
+  PhoneOutgoing,
+  Inbox,
+  AtSign,
+  ClipboardList,
+  TrendingUp,
+  MessagesSquare,
+  Share2,
+  Clock,
+  DollarSign,
+  Target,
+  MapPin,
+  Tag as TagIcon,
+  Download,
+  FileSearch,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +81,9 @@ import type {
   BuyerActivityKind,
   BuyerProfile,
   BuyerListingSummary,
+  BuyerCrmStatus,
 } from "@/lib/actions/buyer-profile";
+import { TAG_COLOR_CLASSES } from "@/lib/types/contacts";
 
 type Props = {
   profile: BuyerProfile;
@@ -80,8 +97,21 @@ const ACTIVITY_LABEL: Record<BuyerActivityKind, string> = {
   save: "Saved listing",
   nda_signed: "Signed NDA",
   nda_requested: "Requested document access",
-  document_approved: "Viewed document",
+  document_approved: "Document access approved",
+  document_viewed: "Viewed document",
+  document_downloaded: "Downloaded document",
   call: "Clicked call button",
+  email_sent: "Email sent",
+  email_received: "Email received",
+  call_logged: "Call logged",
+  note_added: "Note added",
+  follow_up_set: "Follow-up scheduled",
+  follow_up_completed: "Follow-up completed",
+  status_changed: "Status changed",
+  listing_shared: "Listing shared",
+  message_sent: "Message sent",
+  message_received: "Message received",
+  feedback_logged: "Feedback logged",
 };
 
 const ACTIVITY_ICON: Record<BuyerActivityKind, React.ComponentType<{ className?: string }>> = {
@@ -91,7 +121,20 @@ const ACTIVITY_ICON: Record<BuyerActivityKind, React.ComponentType<{ className?:
   nda_signed: ShieldCheck,
   nda_requested: ShieldQuestion,
   document_approved: FileText,
+  document_viewed: FileSearch,
+  document_downloaded: Download,
   call: PhoneIcon,
+  email_sent: AtSign,
+  email_received: Inbox,
+  call_logged: PhoneOutgoing,
+  note_added: StickyNote,
+  follow_up_set: CalendarClock,
+  follow_up_completed: Check,
+  status_changed: TrendingUp,
+  listing_shared: Share2,
+  message_sent: MessagesSquare,
+  message_received: MessagesSquare,
+  feedback_logged: ClipboardList,
 };
 
 const ACTIVITY_TONE: Record<BuyerActivityKind, string> = {
@@ -104,7 +147,29 @@ const ACTIVITY_TONE: Record<BuyerActivityKind, string> = {
     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   document_approved:
     "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  document_viewed:
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  document_downloaded:
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   call: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  email_sent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  email_received: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  call_logged:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  note_added:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  follow_up_set:
+    "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  follow_up_completed:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  status_changed:
+    "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
+  listing_shared:
+    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  message_sent: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  message_received: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  feedback_logged:
+    "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300",
 };
 
 const ACTIVITY_FILTERS: { value: BuyerActivityKind; label: string }[] = [
@@ -115,6 +180,17 @@ const ACTIVITY_FILTERS: { value: BuyerActivityKind; label: string }[] = [
   { value: "nda_requested", label: "NDA requested" },
   { value: "document_approved", label: "Docs viewed" },
   { value: "call", label: "Calls" },
+  { value: "email_sent", label: "Emails sent" },
+  { value: "email_received", label: "Emails received" },
+  { value: "call_logged", label: "Calls logged" },
+  { value: "note_added", label: "Notes" },
+  { value: "follow_up_set", label: "Follow-ups" },
+  { value: "follow_up_completed", label: "Follow-ups done" },
+  { value: "status_changed", label: "Status changes" },
+  { value: "listing_shared", label: "Listings shared" },
+  { value: "message_sent", label: "Messages sent" },
+  { value: "message_received", label: "Messages received" },
+  { value: "feedback_logged", label: "Feedback" },
 ];
 
 // ─── Main view ─────────────────────────────────────────────────────────────
@@ -192,6 +268,10 @@ export function BuyerProfileView({ profile }: Props) {
 
         <motion.div variants={variants}>
           <KpiStrip profile={profile} />
+        </motion.div>
+
+        <motion.div variants={variants}>
+          <CrmDetailsCard profile={profile} />
         </motion.div>
 
         <motion.div variants={variants}>
@@ -500,6 +580,301 @@ const KpiStrip = memo(function KpiStrip({ profile }: { profile: BuyerProfile }) 
   );
 });
 
+// ─── CRM details card (M1.1 + M1.2 fields) ────────────────────────────────
+
+const CRM_STATUS_LABEL: Record<BuyerCrmStatus, string> = {
+  new_lead: "New Lead",
+  contacted: "Contacted",
+  interested: "Interested",
+  meeting_scheduled: "Meeting scheduled",
+  nda_signed: "NDA Signed",
+  documents_shared: "Documents shared",
+  negotiating: "Negotiating",
+  closed: "Closed",
+};
+
+const CRM_STATUS_TONE: Record<BuyerCrmStatus, string> = {
+  new_lead: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  contacted: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  interested: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  meeting_scheduled: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  nda_signed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  documents_shared: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  negotiating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  closed: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+};
+
+const FUNDING_LABEL: Record<string, string> = {
+  self_funded: "Self-funded",
+  pre_approved: "Pre-approved",
+  seeking_finance: "Seeking finance",
+  unspecified: "Unspecified",
+};
+
+const TIMEFRAME_LABEL: Record<string, string> = {
+  lt_3m: "Within 3 months",
+  "3_6m": "3–6 months",
+  "6_12m": "6–12 months",
+  gt_12m: "More than 12 months",
+  unspecified: "Unspecified",
+};
+
+function fmtBudget(min: number | null, max: number | null): string | null {
+  if (min == null && max == null) return null;
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: "AUD",
+      maximumFractionDigits: 0,
+    }).format(n);
+  if (min != null && max != null) return `${fmt(min)} – ${fmt(max)}`;
+  if (min != null) return `from ${fmt(min)}`;
+  return `up to ${fmt(max!)}`;
+}
+
+function fmtAbsDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function CrmDetailsCard({ profile }: { profile: BuyerProfile }) {
+  const p = profile.preferences;
+  const crm = profile.crm;
+  const status = crm.status;
+
+  const hasPreferences =
+    p.budget_min != null ||
+    p.budget_max != null ||
+    p.preferred_industries.length > 0 ||
+    p.preferred_locations.length > 0 ||
+    p.funding_status != null ||
+    p.timeframe != null ||
+    !!p.location_text;
+
+  const hasCrmRow = !!crm.contact_id;
+  const hasNotesOrInterest = !!crm.notes || !!crm.interest;
+  const hasTags = crm.tags.length > 0;
+
+  const overdue =
+    crm.next_follow_up_at &&
+    new Date(crm.next_follow_up_at).getTime() < Date.now();
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="space-y-0.5">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              CRM &amp; preferences
+            </CardTitle>
+            <CardDescription>
+              What this buyer is looking for, and your relationship history.
+            </CardDescription>
+          </div>
+          {status && (
+            <Badge
+              variant="outline"
+              className={cn("text-[11px]", CRM_STATUS_TONE[status])}
+            >
+              {CRM_STATUS_LABEL[status]}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5 pt-5">
+        {/* Snapshot grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <SnapshotItem
+            label="Last contacted"
+            value={fmtAbsDate(crm.last_contacted_at)}
+          />
+          <SnapshotItem
+            label="Last emailed"
+            value={fmtAbsDate(crm.last_emailed_at)}
+          />
+          <SnapshotItem
+            label="Last called"
+            value={fmtAbsDate(crm.last_called_at)}
+          />
+          <SnapshotItem
+            label="First interaction"
+            value={fmtAbsDate(crm.first_interaction_at)}
+          />
+          <SnapshotItem
+            label="Next follow-up"
+            value={fmtAbsDate(crm.next_follow_up_at)}
+            tone={overdue ? "warn" : "default"}
+          />
+          <SnapshotItem
+            label="Last active"
+            value={fmtAbsDate(profile.last_active_at)}
+          />
+          <SnapshotItem
+            label="Account created"
+            value={fmtAbsDate(profile.created_at)}
+          />
+          <SnapshotItem
+            label="In your CRM"
+            value={hasCrmRow ? "Yes" : "Not yet"}
+          />
+        </div>
+
+        {/* Buyer details */}
+        {hasPreferences && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-3">
+                What they're looking for
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                <DetailRow
+                  icon={DollarSign}
+                  label="Budget"
+                  value={fmtBudget(p.budget_min, p.budget_max)}
+                />
+                <DetailRow
+                  icon={CalendarClock}
+                  label="Timeframe"
+                  value={p.timeframe ? TIMEFRAME_LABEL[p.timeframe] : null}
+                />
+                <DetailRow
+                  icon={DollarSign}
+                  label="Funding"
+                  value={
+                    p.funding_status ? FUNDING_LABEL[p.funding_status] : null
+                  }
+                />
+                <DetailRow
+                  icon={MapPin}
+                  label="Based in"
+                  value={p.location_text}
+                />
+                {p.preferred_industries.length > 0 && (
+                  <DetailRow
+                    icon={Building2}
+                    label="Industries"
+                    value={p.preferred_industries.join(", ")}
+                  />
+                )}
+                {p.preferred_locations.length > 0 && (
+                  <DetailRow
+                    icon={MapPin}
+                    label="Locations"
+                    value={p.preferred_locations.join(", ")}
+                  />
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* CRM record */}
+        {(hasTags || hasNotesOrInterest) && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                CRM record
+              </h3>
+              {hasTags && (
+                <div className="flex items-start gap-2">
+                  <TagIcon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex flex-wrap gap-1">
+                    {crm.tags.map((t) => (
+                      <Badge
+                        key={t.id}
+                        variant="outline"
+                        className={cn("text-[10px]", TAG_COLOR_CLASSES[t.color])}
+                      >
+                        {t.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {crm.interest && (
+                <DetailRow
+                  icon={Target}
+                  label="Interest"
+                  value={crm.interest}
+                />
+              )}
+              {crm.notes && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                  {crm.notes}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {!hasPreferences && !hasCrmRow && (
+          <p className="text-xs text-muted-foreground italic">
+            This buyer hasn't filled in preferences yet, and they're not in
+            your CRM. Use the slide-out from the CRM page to add them.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SnapshotItem({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string | null;
+  tone?: "default" | "warn";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border p-2",
+        tone === "warn" &&
+          "border-orange-300 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/30",
+      )}
+    >
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <Clock className="h-3 w-3" />
+        {label}
+      </div>
+      <p className="font-medium mt-0.5 text-foreground">{value ?? "—"}</p>
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | null | undefined;
+}) {
+  if (!value) return null;
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <span className="text-muted-foreground">{label}: </span>
+        <span className="font-medium">{value}</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tabs ──────────────────────────────────────────────────────────────────
 
 function BuyerTabs({ profile }: { profile: BuyerProfile }) {
@@ -792,14 +1167,23 @@ const ListingsTab = memo(function ListingsTab({
                 <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Views
                 </th>
+                <th
+                  className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell"
+                  title="Distinct days the buyer came back after their first visit"
+                >
+                  Returns
+                </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">
                   Enquiries
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">
                   Calls
                 </th>
-                <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">
-                  Docs
+                <th
+                  className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell"
+                  title="Document opens / downloads"
+                >
+                  Docs (view/dl)
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Signals
@@ -826,6 +1210,9 @@ const ListingsTab = memo(function ListingsTab({
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums">{l.views}</td>
                   <td className="px-3 py-3 text-sm tabular-nums hidden sm:table-cell">
+                    {l.return_visits}
+                  </td>
+                  <td className="px-3 py-3 text-sm tabular-nums hidden sm:table-cell">
                     {l.enquiries}
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums hidden md:table-cell">
@@ -833,6 +1220,12 @@ const ListingsTab = memo(function ListingsTab({
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums hidden lg:table-cell">
                     {l.documents_viewed}
+                    {l.documents_downloaded > 0 && (
+                      <span className="text-muted-foreground">
+                        {" / "}
+                        {l.documents_downloaded}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -987,7 +1380,33 @@ const ACTIVITY_ACTIVE_CLASSES: Record<BuyerActivityKind, string> = {
     "data-[state=on]:bg-violet-100 data-[state=on]:text-violet-700 dark:data-[state=on]:bg-violet-900/40 dark:data-[state=on]:text-violet-300",
   document_approved:
     "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
+  document_viewed:
+    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
+  document_downloaded:
+    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
   call: "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
+  email_sent:
+    "data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 dark:data-[state=on]:bg-blue-900/40 dark:data-[state=on]:text-blue-300",
+  email_received:
+    "data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 dark:data-[state=on]:bg-blue-900/40 dark:data-[state=on]:text-blue-300",
+  call_logged:
+    "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
+  note_added:
+    "data-[state=on]:bg-amber-100 data-[state=on]:text-amber-700 dark:data-[state=on]:bg-amber-900/40 dark:data-[state=on]:text-amber-300",
+  follow_up_set:
+    "data-[state=on]:bg-orange-100 data-[state=on]:text-orange-700 dark:data-[state=on]:bg-orange-900/40 dark:data-[state=on]:text-orange-300",
+  follow_up_completed:
+    "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
+  status_changed:
+    "data-[state=on]:bg-slate-100 data-[state=on]:text-slate-700 dark:data-[state=on]:bg-slate-900/40 dark:data-[state=on]:text-slate-300",
+  listing_shared:
+    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
+  message_sent:
+    "data-[state=on]:bg-cyan-100 data-[state=on]:text-cyan-700 dark:data-[state=on]:bg-cyan-900/40 dark:data-[state=on]:text-cyan-300",
+  message_received:
+    "data-[state=on]:bg-cyan-100 data-[state=on]:text-cyan-700 dark:data-[state=on]:bg-cyan-900/40 dark:data-[state=on]:text-cyan-300",
+  feedback_logged:
+    "data-[state=on]:bg-fuchsia-100 data-[state=on]:text-fuchsia-700 dark:data-[state=on]:bg-fuchsia-900/40 dark:data-[state=on]:text-fuchsia-300",
 };
 
 function getInitials(name: string | null, email: string | null): string {
@@ -1009,12 +1428,14 @@ function computeEngagementScore(
   const m = profile.metrics;
   let score = 0;
   score += Math.min(m.total_views, 10) * 1;
+  score += Math.min(m.total_return_visits, 10) * 2; // returning = strong signal
   score += m.total_enquiries * 8;
   score += m.saves * 4;
   score += m.nda_requested * 6;
   score += m.nda_signed * 12;
   score += m.total_calls * 5;
   score += m.documents_viewed * 4;
+  score += m.documents_downloaded * 6; // downloads outweigh views — buyer kept the file
 
   if (score >= 30)
     return {

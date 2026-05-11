@@ -8,6 +8,8 @@ import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
+import { bumpBuyerActivity } from "@/lib/actions/buyer-account";
+import { getOrCreateBrokerContactForBuyer } from "@/lib/actions/contacts";
 import {
   buildPaginated,
   normalizePagination,
@@ -74,6 +76,30 @@ export async function submitEnquiry(
     .select("id, created_at")
     .single();
   if (insertError) return { ok: false, error: "Failed to send enquiry. Please try again." };
+
+  // M1.1: Auto-create the CRM row for this broker. Idempotent (dedupes on
+  // buyer_user_id then email). Powers the "Last enquiry" / "First interaction"
+  // surfaces in the slide-out panel without requiring the broker to manually
+  // hit "Save as contact".
+  void getOrCreateBrokerContactForBuyer({
+    brokerId: listing.broker_id,
+    buyerUserId: buyerId,
+    email: contactEmail,
+    name: contactName,
+    phone: contactPhone,
+    interest,
+    source: "enquiry",
+    enquiryId: enquiryRow?.id ?? null,
+    firstInteractionAt: enquiryRow?.created_at ?? null,
+    consent: {
+      marketing: consentMarketing,
+      source: consentMarketing ? "enquiry" : null,
+      givenAt: enquiryRow?.created_at ?? null,
+    },
+  }).catch(() => {});
+
+  // M1.1: Bump the buyer's last_active_at for the CRM "Last active" surface.
+  void bumpBuyerActivity(buyerId);
 
   // Auto-save: every enquiry sent by a logged-in buyer auto-favourites the listing.
   // Auto-fill: persist the buyer's name/phone on first submit so future forms pre-fill.

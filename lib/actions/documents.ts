@@ -350,6 +350,50 @@ export type PublicListingDocumentsResult = {
 
 // ── Public: Get documents for a listing (respects NDA + broker access approval) ──
 
+/**
+ * Record a buyer's document view or download event.
+ *
+ * Powers Section 1 spec items: "Documents viewed" + "Documents downloaded" in
+ * the buyer activity feed. Best-effort — we don't block the user's click on
+ * this. The vault component fires this before opening the file URL.
+ *
+ * Authorization: the buyer must have an approved `document_access_requests`
+ * row for the document (otherwise they wouldn't see the file URL in the
+ * first place). We do not double-check here to keep the click latency low;
+ * a malicious POST can only inflate their own activity counters, not gain
+ * access to anything.
+ */
+export async function recordDocumentEvent(input: {
+  documentId: string;
+  eventKind: "view" | "download";
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (input.eventKind !== "view" && input.eventKind !== "download") {
+    return { ok: false, error: "Invalid event kind" };
+  }
+  const session = await import("next-auth")
+    .then((m) => m.getServerSession)
+    .then((fn) => fn);
+  const authOptions = (await import("@/lib/auth")).authOptions;
+  const s = await session(authOptions);
+  if (!s?.user?.id) return { ok: false, error: "Unauthorized" };
+
+  const supabase = createServiceRoleClient();
+  const { data: doc } = await supabase
+    .from("listing_documents")
+    .select("id, listing_id")
+    .eq("id", input.documentId)
+    .maybeSingle();
+  if (!doc) return { ok: false, error: "Document not found" };
+
+  await supabase.from("document_events").insert({
+    document_id: doc.id,
+    listing_id: doc.listing_id,
+    user_id: s.user.id,
+    event_kind: input.eventKind,
+  });
+  return { ok: true };
+}
+
 export async function getPublicListingDocuments(
   listingId: string,
   userId: string | null
@@ -534,7 +578,7 @@ export async function approveBuyerDocumentAccess(
 
   const { data: req } = await supabase
     .from("document_access_requests")
-    .select("id, listing_id, status")
+    .select("id, listing_id, user_id, status")
     .eq("id", requestId)
     .single();
   if (!req) return { ok: false, error: "Request not found." };
@@ -555,6 +599,25 @@ export async function approveBuyerDocumentAccess(
     .eq("id", requestId);
 
   if (error) return { ok: false, error: "Failed to approve access." };
+
+  // M1.2: Approving document access advances pipeline to "documents_shared".
+  // Run lazily — never block the approval response.
+  void (async () => {
+    const { data: listing } = await supabase
+      .from("listings")
+      .select("broker_id")
+      .eq("id", req.listing_id)
+      .maybeSingle();
+    if (!listing?.broker_id) return;
+    const { autoAdvanceContactStatus } = await import("@/lib/actions/crm");
+    await autoAdvanceContactStatus({
+      brokerId: listing.broker_id,
+      buyerUserId: req.user_id,
+      target: "documents_shared",
+      triggeredByKind: "status_changed",
+    }).catch(() => {});
+  })();
+
   return { ok: true };
 }
 

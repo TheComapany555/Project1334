@@ -33,6 +33,8 @@ import {
   ShieldOff,
 } from "lucide-react";
 import { saveEnquiryAsContact } from "@/lib/actions/contacts";
+import { useBuyerPanelStore } from "@/lib/stores/buyer-panel-store";
+import { Users } from "lucide-react";
 
 const REASON_OPTIONS = Object.entries(ENQUIRY_REASON_LABELS).map(
   ([value, label]) => ({ value, label })
@@ -80,6 +82,7 @@ type Props = {
 export function EnquiriesTable({ enquiries }: Props) {
   const [selected, setSelected] = useState<EnquiryWithListing | null>(null);
   const [savedContact, setSavedContact] = useState<string | null>(null);
+  const openBuyer = useBuyerPanelStore((s) => s.openBuyer);
 
   const columns = useMemo<ColumnDef<EnquiryWithListing>[]>(
     () => [
@@ -412,6 +415,20 @@ export function EnquiriesTable({ enquiries }: Props) {
                 </div>
 
                 <div className="flex gap-2 pt-2 flex-wrap">
+                  {selected.user_id && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        openBuyer(selected.user_id!, selected.listing_id);
+                        setSelected(null);
+                      }}
+                    >
+                      <Users className="h-3.5 w-3.5 mr-1.5" />
+                      View buyer profile
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant={

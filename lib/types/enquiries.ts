@@ -9,6 +9,8 @@ export type Enquiry = {
   id: string;
   listing_id: string;
   broker_id: string;
+  /** Set when the enquiry was submitted by a logged-in buyer. */
+  user_id: string | null;
   reason: string | null;
   message: string;
   contact_name: string | null;

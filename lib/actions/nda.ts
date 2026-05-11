@@ -9,6 +9,9 @@ import {
 } from "@/lib/types/pagination";
 import { createPendingDocumentAccessRequestsForBuyer } from "@/lib/actions/documents";
 import { createNotification } from "@/lib/actions/notifications";
+import { bumpBuyerActivity } from "@/lib/actions/buyer-account";
+import { getOrCreateBrokerContactForBuyer } from "@/lib/actions/contacts";
+import { autoAdvanceContactStatus } from "@/lib/actions/crm";
 
 async function requireBroker() {
   const { getServerSession } = await import("next-auth");
@@ -162,6 +165,37 @@ export async function signNda(
   if (error) return { ok: false, error: "Failed to sign NDA." };
 
   await createPendingDocumentAccessRequestsForBuyer(listingId, userId);
+
+  // M1.1: Ensure CRM row + bump activity. We need the listing's broker_id,
+  // which is loaded again below for the notification path; do it now too so
+  // we don't pay for a duplicate fetch.
+  const { data: listingForCrm } = await supabase
+    .from("listings")
+    .select("broker_id")
+    .eq("id", listingId)
+    .maybeSingle();
+  if (listingForCrm?.broker_id) {
+    // Ensure CRM row exists; await so the status-advance below sees it.
+    const crm = await getOrCreateBrokerContactForBuyer({
+      brokerId: listingForCrm.broker_id,
+      buyerUserId: userId,
+      email,
+      name: signerName.trim() || null,
+      source: "enquiry",
+      firstInteractionAt: new Date().toISOString(),
+    }).catch(() => null);
+    // M1.2: NDA signed → pipeline status advances (never demotes).
+    if (crm && crm.ok) {
+      void autoAdvanceContactStatus({
+        brokerId: listingForCrm.broker_id,
+        contactId: crm.contactId,
+        buyerUserId: userId,
+        target: "nda_signed",
+        triggeredByKind: "status_changed",
+      });
+    }
+  }
+  void bumpBuyerActivity(userId);
 
   const [{ data: listingRow }, { data: buyerProf }, confidentialCountRes] =
     await Promise.all([

@@ -21,7 +21,9 @@ import {
   EyeOff,
   ShieldCheck,
   Settings,
+  UserCircle,
 } from "lucide-react";
+import { useBuyerPanelStore } from "@/lib/stores/buyer-panel-store";
 
 type Props = {
   signatures: NdaSignatureWithListing[];
@@ -29,6 +31,7 @@ type Props = {
 
 export function BrokerNdaList({ signatures }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const openBuyer = useBuyerPanelStore((s) => s.openBuyer);
 
   if (signatures.length === 0) {
     return (
@@ -133,7 +136,14 @@ export function BrokerNdaList({ signatures }: Props) {
               {signatures.map((sig) => (
                 <TableRow key={sig.id}>
                   <TableCell>
-                    <p className="text-sm font-medium">{sig.signer_name}</p>
+                    <button
+                      type="button"
+                      onClick={() => openBuyer(sig.user_id, sig.listing_id)}
+                      className="text-left text-sm font-medium hover:underline underline-offset-2 inline-flex items-center gap-1"
+                    >
+                      <UserCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                      {sig.signer_name}
+                    </button>
                     <p className="text-xs text-muted-foreground">
                       {sig.signer_email}
                     </p>
