@@ -477,9 +477,9 @@ export function ContactsClientView({
                   type="button"
                   onClick={() => setPreset(t.value)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
                     active
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
@@ -647,7 +647,10 @@ export function ContactsClientView({
                   const followUpDue =
                     c.next_follow_up_at && isOverdue(c.next_follow_up_at);
                   return (
-                    <TableRow key={c.id} className="group">
+                    <TableRow
+                      key={c.id}
+                      className="group hover:bg-muted/30 transition-colors"
+                    >
                       <TableCell className="pl-4 sm:pl-6 py-3 align-top">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 shrink-0">

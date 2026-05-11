@@ -671,6 +671,289 @@ export async function listActivitiesForBuyer(
   return (data ?? []) as CrmActivity[];
 }
 
+// ─── Broker-wide activity feed (joined for the /activity page) ──────────
+
+export type ActivityFeedItem = CrmActivity & {
+  /** Resolved counterparty for display — falls back to email when name is null. */
+  buyer_name: string | null;
+  buyer_email: string | null;
+  listing_title: string | null;
+  listing_slug: string | null;
+};
+
+export async function listBrokerActivities(params: {
+  q?: string;
+  kinds?: CrmActivityKind[];
+  fromIso?: string | null;
+  toIso?: string | null;
+  limit?: number;
+  before?: string | null;
+} = {}): Promise<ActivityFeedItem[]> {
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+  const limit = Math.min(200, Math.max(1, params.limit ?? 50));
+
+  let q = supabase
+    .from("crm_activities")
+    .select("*")
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (broker.agencyId && broker.agencyRole === "owner") {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("agency_id", broker.agencyId);
+    const ids = (profiles ?? []).map((p) => p.id);
+    if (ids.length > 0) q = q.in("broker_id", ids);
+    else q = q.eq("broker_id", broker.id);
+  } else {
+    q = q.eq("broker_id", broker.id);
+  }
+
+  if (params.kinds?.length) q = q.in("kind", params.kinds);
+  if (params.fromIso) q = q.gte("occurred_at", params.fromIso);
+  if (params.toIso) q = q.lte("occurred_at", params.toIso);
+  if (params.before) q = q.lt("occurred_at", params.before);
+
+  const { data: rows } = await q;
+  const activities = (rows ?? []) as CrmActivity[];
+  if (activities.length === 0) return [];
+
+  // Resolve buyer + listing labels in two batched calls.
+  const buyerIds = Array.from(
+    new Set(activities.map((a) => a.buyer_user_id).filter((x): x is string => !!x)),
+  );
+  const contactIds = Array.from(
+    new Set(activities.map((a) => a.contact_id).filter((x): x is string => !!x)),
+  );
+  const listingIds = Array.from(
+    new Set(activities.map((a) => a.listing_id).filter((x): x is string => !!x)),
+  );
+
+  const [{ data: contacts }, { data: profileRows }, { data: userRows }, { data: listings }] =
+    await Promise.all([
+      contactIds.length > 0
+        ? supabase
+            .from("broker_contacts")
+            .select("id, name, email, buyer_user_id")
+            .in("id", contactIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null; email: string; buyer_user_id: string | null }[] }),
+      buyerIds.length > 0
+        ? supabase
+            .from("profiles")
+            .select("id, name")
+            .in("id", buyerIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
+      buyerIds.length > 0
+        ? supabase
+            .from("users")
+            .select("id, email")
+            .in("id", buyerIds)
+        : Promise.resolve({ data: [] as { id: string; email: string }[] }),
+      listingIds.length > 0
+        ? supabase
+            .from("listings")
+            .select("id, title, slug")
+            .in("id", listingIds)
+        : Promise.resolve({ data: [] as { id: string; title: string; slug: string }[] }),
+    ]);
+
+  const contactById = new Map(
+    (contacts ?? []).map((c) => [
+      c.id,
+      { name: c.name as string | null, email: c.email as string, buyer_user_id: c.buyer_user_id as string | null },
+    ]),
+  );
+  const profileById = new Map(
+    (profileRows ?? []).map((p) => [p.id, (p.name as string | null) ?? null]),
+  );
+  const emailById = new Map(
+    (userRows ?? []).map((u) => [u.id, u.email as string]),
+  );
+  const listingById = new Map(
+    (listings ?? []).map((l) => [
+      l.id,
+      { title: l.title as string, slug: l.slug as string },
+    ]),
+  );
+
+  let result: ActivityFeedItem[] = activities.map((a) => {
+    const contact = a.contact_id ? contactById.get(a.contact_id) : null;
+    const buyerName =
+      (a.buyer_user_id ? profileById.get(a.buyer_user_id) : null) ??
+      contact?.name ??
+      null;
+    const buyerEmail =
+      (a.buyer_user_id ? emailById.get(a.buyer_user_id) : null) ??
+      contact?.email ??
+      null;
+    const listing = a.listing_id ? listingById.get(a.listing_id) : null;
+    return {
+      ...a,
+      buyer_name: buyerName,
+      buyer_email: buyerEmail,
+      listing_title: listing?.title ?? null,
+      listing_slug: listing?.slug ?? null,
+    };
+  });
+
+  if (params.q?.trim()) {
+    const needle = params.q.trim().toLowerCase();
+    result = result.filter((r) => {
+      const blob =
+        `${r.buyer_name ?? ""} ${r.buyer_email ?? ""} ${r.listing_title ?? ""} ${r.subject ?? ""} ${r.body ?? ""}`.toLowerCase();
+      return blob.includes(needle);
+    });
+  }
+
+  return result;
+}
+
+// ─── All follow-ups for the /follow-ups page ─────────────────────────────
+
+export type FollowUpScope =
+  | "all_open"
+  | "today"
+  | "overdue"
+  | "upcoming"
+  | "completed";
+
+export type FollowUpFeedItem = CrmFollowUp & {
+  buyer_name: string | null;
+  buyer_email: string | null;
+  listing_title: string | null;
+};
+
+export async function listFollowUps(
+  scope: FollowUpScope = "all_open",
+  params: { q?: string; limit?: number } = {},
+): Promise<FollowUpFeedItem[]> {
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+  const limit = Math.min(500, Math.max(1, params.limit ?? 200));
+
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  let q = supabase.from("crm_follow_ups").select("*").limit(limit);
+
+  if (broker.agencyId && broker.agencyRole === "owner") {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("agency_id", broker.agencyId);
+    const ids = (profiles ?? []).map((p) => p.id);
+    if (ids.length > 0) q = q.in("broker_id", ids);
+    else q = q.eq("broker_id", broker.id);
+  } else {
+    q = q.eq("broker_id", broker.id);
+  }
+
+  if (scope === "completed") {
+    q = q.not("completed_at", "is", null).order("completed_at", { ascending: false });
+  } else if (scope === "overdue") {
+    q = q
+      .is("completed_at", null)
+      .lt("due_at", startOfToday.toISOString())
+      .order("due_at", { ascending: true });
+  } else if (scope === "today") {
+    q = q
+      .is("completed_at", null)
+      .gte("due_at", startOfToday.toISOString())
+      .lte("due_at", endOfToday.toISOString())
+      .order("due_at", { ascending: true });
+  } else if (scope === "upcoming") {
+    q = q
+      .is("completed_at", null)
+      .gt("due_at", endOfToday.toISOString())
+      .order("due_at", { ascending: true });
+  } else {
+    // all_open
+    q = q.is("completed_at", null).order("due_at", { ascending: true });
+  }
+
+  const { data: rows } = await q;
+  const followUps = (rows ?? []) as CrmFollowUp[];
+  if (followUps.length === 0) return [];
+
+  const contactIds = Array.from(
+    new Set(followUps.map((f) => f.contact_id).filter((x): x is string => !!x)),
+  );
+  const buyerIds = Array.from(
+    new Set(followUps.map((f) => f.buyer_user_id).filter((x): x is string => !!x)),
+  );
+  const listingIds = Array.from(
+    new Set(followUps.map((f) => f.listing_id).filter((x): x is string => !!x)),
+  );
+
+  const [{ data: contacts }, { data: profileRows }, { data: userRows }, { data: listings }] =
+    await Promise.all([
+      contactIds.length > 0
+        ? supabase
+            .from("broker_contacts")
+            .select("id, name, email")
+            .in("id", contactIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null; email: string }[] }),
+      buyerIds.length > 0
+        ? supabase
+            .from("profiles")
+            .select("id, name")
+            .in("id", buyerIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
+      buyerIds.length > 0
+        ? supabase.from("users").select("id, email").in("id", buyerIds)
+        : Promise.resolve({ data: [] as { id: string; email: string }[] }),
+      listingIds.length > 0
+        ? supabase.from("listings").select("id, title").in("id", listingIds)
+        : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    ]);
+
+  const contactById = new Map(
+    (contacts ?? []).map((c) => [
+      c.id,
+      { name: c.name as string | null, email: c.email as string },
+    ]),
+  );
+  const profileById = new Map(
+    (profileRows ?? []).map((p) => [p.id, (p.name as string | null) ?? null]),
+  );
+  const emailById = new Map((userRows ?? []).map((u) => [u.id, u.email as string]));
+  const listingById = new Map(
+    (listings ?? []).map((l) => [l.id, l.title as string]),
+  );
+
+  let result: FollowUpFeedItem[] = followUps.map((f) => {
+    const contact = f.contact_id ? contactById.get(f.contact_id) : null;
+    return {
+      ...f,
+      buyer_name:
+        (f.buyer_user_id ? profileById.get(f.buyer_user_id) : null) ??
+        contact?.name ??
+        null,
+      buyer_email:
+        (f.buyer_user_id ? emailById.get(f.buyer_user_id) : null) ??
+        contact?.email ??
+        null,
+      listing_title: f.listing_id ? (listingById.get(f.listing_id) ?? null) : null,
+    };
+  });
+
+  if (params.q?.trim()) {
+    const needle = params.q.trim().toLowerCase();
+    result = result.filter((r) => {
+      const blob =
+        `${r.buyer_name ?? ""} ${r.buyer_email ?? ""} ${r.title} ${r.notes ?? ""} ${r.listing_title ?? ""}`.toLowerCase();
+      return blob.includes(needle);
+    });
+  }
+
+  return result;
+}
+
 // ─── Internal helpers ────────────────────────────────────────────────────
 
 /** Set broker_contacts.next_follow_up_at to the soonest open follow-up's due_at. */

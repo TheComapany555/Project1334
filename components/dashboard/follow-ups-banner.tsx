@@ -2,11 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock, Check, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+  AlertTriangle,
+} from "lucide-react";
 import { completeFollowUp, type CrmFollowUp } from "@/lib/actions/crm";
 import { useBuyerPanelStore } from "@/lib/stores/buyer-panel-store";
 import { cn } from "@/lib/utils";
@@ -71,7 +79,11 @@ export function FollowUpsBanner({
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 shrink-0" />
+            {overdueCount > 0 ? (
+              <AlertTriangle className="h-4 w-4 text-orange-700 dark:text-orange-300 shrink-0" />
+            ) : (
+              <CalendarClock className="h-4 w-4 shrink-0" />
+            )}
             <p className="text-sm font-medium">
               {overdueCount > 0 ? (
                 <>
@@ -85,24 +97,32 @@ export function FollowUpsBanner({
               )}
             </p>
           </div>
-          {followUps.length > 3 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setExpanded((v) => !v)}
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="h-3.5 w-3.5" /> Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-3.5 w-3.5" /> Show all (
-                  {followUps.length})
-                </>
-              )}
+          <div className="flex items-center gap-1.5">
+            {followUps.length > 3 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                {expanded ? (
+                  <>
+                    <ChevronUp className="h-3.5 w-3.5" /> Show less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5" /> Show all (
+                    {followUps.length})
+                  </>
+                )}
+              </Button>
+            )}
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/dashboard/follow-ups">
+                View all
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </Button>
-          )}
+          </div>
         </div>
 
         <ul className="space-y-1.5">

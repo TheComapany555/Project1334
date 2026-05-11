@@ -28,7 +28,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ExternalLink,
@@ -354,9 +353,11 @@ function BuyerPanelContent({
 
   return (
     <div className="flex flex-col">
-      <div className="px-6 py-5 border-b">
+      <div className="px-6 py-5 border-b bg-gradient-to-b from-muted/20 to-transparent">
         <SheetHeader className="p-0 space-y-2">
-          <SheetTitle className="text-base">Buyer profile</SheetTitle>
+          <SheetTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Buyer profile
+          </SheetTitle>
           <SheetDescription className="sr-only">
             CRM details, activity, and quick actions for this buyer.
           </SheetDescription>
@@ -731,8 +732,8 @@ function SectionHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="px-6 pt-4 pb-2 flex items-center justify-between">
-      <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="px-6 pt-5 pb-2 flex items-center justify-between">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {title}
       </h3>
       {right}
@@ -753,7 +754,7 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1 rounded-md border bg-background px-2 py-2 text-[11px] hover:bg-muted transition"
+      className="flex flex-col items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 py-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/60 active:scale-[0.98] transition-all"
     >
       <Icon className="h-4 w-4" />
       <span className="truncate">{label}</span>
@@ -775,16 +776,23 @@ function SnapshotItem({
   return (
     <div
       className={cn(
-        "rounded-md border p-2",
+        "rounded-lg border bg-background/50 p-2.5 transition-colors",
         tone === "warn" &&
           "border-orange-300 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/30",
       )}
     >
-      <div className="flex items-center gap-1 text-muted-foreground">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3 w-3" />
         {label}
       </div>
-      <p className="font-medium mt-0.5">{value ?? "—"}</p>
+      <p
+        className={cn(
+          "font-medium mt-1 text-xs",
+          !value && "text-muted-foreground/60 italic",
+        )}
+      >
+        {value ?? "—"}
+      </p>
     </div>
   );
 }
@@ -819,8 +827,8 @@ function ActivityRow({
 }) {
   const Icon = ACTIVITY_ICON[event.kind];
   return (
-    <div className="flex items-start gap-2 text-xs">
-      <div className="rounded-full bg-muted h-6 w-6 flex items-center justify-center shrink-0">
+    <div className="group flex items-start gap-2.5 text-xs py-1.5 px-2 -mx-2 rounded-md hover:bg-muted/40 transition-colors">
+      <div className="rounded-full bg-muted h-7 w-7 flex items-center justify-center shrink-0">
         <Icon className="h-3 w-3" />
       </div>
       <div className="min-w-0 flex-1">
@@ -830,20 +838,17 @@ function ActivityRow({
             <>
               {" "}
               <span className="text-muted-foreground">·</span>{" "}
-              <span className="text-muted-foreground truncate">
-                {listingTitle}
-              </span>
+              <span className="text-muted-foreground">{listingTitle}</span>
             </>
           )}
         </p>
         {event.detail && (
-          <p className="text-muted-foreground text-[11px] mt-0.5 line-clamp-1">
+          <p className="text-muted-foreground text-[11px] mt-0.5 line-clamp-2">
             {event.detail}
           </p>
         )}
-        <Separator className="mt-1.5" />
       </div>
-      <span className="text-muted-foreground text-[11px] shrink-0">
+      <span className="text-muted-foreground text-[10px] shrink-0 mt-0.5">
         {fmtRelative(event.at)}
       </span>
     </div>
