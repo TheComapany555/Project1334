@@ -6,6 +6,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/actions/crm";
+import { getValidGmailAccessToken } from "@/lib/email/gmail-oauth";
+import { sendViaGmail } from "@/lib/email/gmail-send";
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -182,31 +184,54 @@ export async function sendCrmEmail(input: {
 
   const fromName =
     ctx.broker.name?.trim() || ctx.broker.company?.trim() || "Salebiz Broker";
-  const fromHeader = `${fromName} <${EMAIL_FROM}>`;
-  const replyTo = brokerProfile?.email_public?.trim() || broker.email || EMAIL_FROM;
+  const replyToFallback =
+    brokerProfile?.email_public?.trim() || broker.email || EMAIL_FROM;
 
+  // Prefer the broker's Connected Inbox (Gmail) — emails appear in their
+  // own Sent folder, replies thread naturally in their inbox.
+  // Fall back to Resend if not connected.
   let messageId: string | null = null;
-  try {
-    const { data, error } = await resend.emails.send({
-      from: fromHeader,
+  let sentVia: "gmail" | "resend" = "resend";
+
+  const gmail = await getValidGmailAccessToken(broker.id).catch(() => null);
+  if (gmail) {
+    const res = await sendViaGmail({
+      accessToken: gmail.accessToken,
+      fromName: gmail.displayName ?? fromName,
+      fromEmail: gmail.emailAddress,
       to: contact.email,
-      replyTo,
+      // No Reply-To needed — `From` is the broker's actual inbox.
       subject: renderedSubject,
       text: renderedBody,
       html: plainToHtml(renderedBody),
     });
-    if (error) {
+    if (!res.ok) return { ok: false, error: res.error };
+    messageId = res.messageId;
+    sentVia = "gmail";
+  } else {
+    try {
+      const fromHeader = `${fromName} <${EMAIL_FROM}>`;
+      const { data, error } = await resend.emails.send({
+        from: fromHeader,
+        to: contact.email,
+        replyTo: replyToFallback,
+        subject: renderedSubject,
+        text: renderedBody,
+        html: plainToHtml(renderedBody),
+      });
+      if (error) {
+        return {
+          ok: false,
+          error: typeof error === "string" ? error : (error.message ?? "Email failed"),
+        };
+      }
+      messageId = data?.id ?? null;
+    } catch (e) {
       return {
         ok: false,
-        error: typeof error === "string" ? error : (error.message ?? "Email failed"),
+        error: e instanceof Error ? e.message : "Email failed",
       };
     }
-    messageId = data?.id ?? null;
-  } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Email failed",
-    };
   }
 
   // Log to CRM. logActivity handles the mirror + status auto-advance.
@@ -220,9 +245,14 @@ export async function sendCrmEmail(input: {
     metadata: {
       message_id: messageId,
       direction: "outbound",
-      via: "in_platform_composer",
+      via: sentVia === "gmail" ? "gmail_connected_inbox" : "in_platform_composer",
       to: contact.email,
-      reply_to: replyTo,
+      reply_to:
+        sentVia === "gmail"
+          ? gmail?.emailAddress ?? null
+          : replyToFallback,
+      from_email:
+        sentVia === "gmail" ? gmail?.emailAddress ?? null : EMAIL_FROM,
     },
   });
 

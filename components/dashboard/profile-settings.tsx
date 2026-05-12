@@ -46,6 +46,7 @@ import {
   Save,
 } from "lucide-react";
 import { FieldError } from "@/components/ui/field-error";
+import { ConnectedInboxCard } from "@/components/dashboard/connected-inbox-card";
 
 const schema = z.object({
   name: z.string().max(200).optional().or(z.literal("")),
@@ -347,6 +348,10 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
           </Button>
         </div>
       )}
+
+      {/* Connected Inbox (Gmail) — sits above the profile form so brokers
+          set it up before composing emails. */}
+      <ConnectedInboxCard />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* ── Photo & logo ── */}
