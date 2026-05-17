@@ -26,15 +26,19 @@ export const DOCUMENT_APPROVAL_LABELS: Record<DocumentApprovalStatus, string> = 
 export type ListingDocument = {
   id: string;
   listing_id: string;
+  folder_id: string | null;
   name: string;
+  description: string | null;
   file_url: string;
   file_size: number | null;
   file_type: string | null;
   category: DocumentCategory;
   is_confidential: boolean;
   sort_order: number;
+  version: number;
   uploaded_by: string | null;
   created_at: string;
+  updated_at: string;
   approval_status: DocumentApprovalStatus;
   approved_by: string | null;
   approved_at: string | null;

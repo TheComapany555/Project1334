@@ -19,9 +19,19 @@ const POLL_INTERVAL_MS = 15_000;
 type Props = {
   viewerRole: MessageRole;
   initialThreads: ThreadSummary[];
+  /**
+   * Tailwind classes that control the shell's outer height. Defaults to the
+   * broker-dashboard offset; the buyer-side page (with extra header/breadcrumb
+   * chrome) overrides this so the composer stays in view.
+   */
+  containerClassName?: string;
 };
 
-export function MessagesShell({ viewerRole, initialThreads }: Props) {
+export function MessagesShell({
+  viewerRole,
+  initialThreads,
+  containerClassName,
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -76,8 +86,18 @@ export function MessagesShell({ viewerRole, initialThreads }: Props) {
   };
 
   return (
-    <div className="grid h-[calc(100vh-12rem)] grid-cols-1 md:grid-cols-[300px_1fr] rounded-md border overflow-hidden">
-      <div className={cn(selected ? "hidden md:flex md:flex-col" : "flex flex-col")}>
+    <div
+      className={cn(
+        "grid min-h-0 h-full grid-cols-1 overflow-hidden rounded-lg border bg-card shadow-sm md:grid-cols-[minmax(280px,320px)_1fr]",
+        containerClassName ?? "h-[calc(100vh-12rem)] min-h-[420px]",
+      )}
+    >
+      <div
+        className={cn(
+          "min-h-0 h-full overflow-hidden",
+          selected ? "hidden md:flex md:flex-col" : "flex flex-col",
+        )}
+      >
         <ThreadList
           threads={threads}
           isLoading={threadsQuery.isLoading && threads.length === 0}
@@ -86,7 +106,12 @@ export function MessagesShell({ viewerRole, initialThreads }: Props) {
           viewerRole={viewerRole}
         />
       </div>
-      <div className={cn(selected ? "flex flex-col" : "hidden md:flex md:flex-col")}>
+      <div
+        className={cn(
+          "min-h-0 h-full overflow-hidden",
+          selected ? "flex flex-col" : "hidden md:flex md:flex-col",
+        )}
+      >
         {selected ? (
           <ConversationPane
             thread={selected}
@@ -94,9 +119,16 @@ export function MessagesShell({ viewerRole, initialThreads }: Props) {
             onBack={handleBack}
           />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-            <MessageSquare className="h-10 w-10 mb-3 opacity-40" />
-            <p className="text-sm">Pick a conversation to read or reply.</p>
+          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted">
+              <MessageSquare className="size-5 opacity-70" />
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              Select a conversation
+            </p>
+            <p className="mt-1 max-w-xs text-xs">
+              Choose a thread from the list to read messages and reply.
+            </p>
           </div>
         )}
       </div>

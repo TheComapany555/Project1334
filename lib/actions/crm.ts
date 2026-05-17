@@ -358,6 +358,94 @@ export async function addNote(input: {
   });
 }
 
+export type FeedbackSubtype =
+  | "feedback"
+  | "objection"
+  | "concern"
+  | "lost_interest"
+  | "common_question";
+
+const FEEDBACK_SUBTYPES: FeedbackSubtype[] = [
+  "feedback",
+  "objection",
+  "concern",
+  "lost_interest",
+  "common_question",
+];
+
+export type RecentFeedbackRow = {
+  subtype: FeedbackSubtype;
+  body: string;
+  occurred_at: string;
+};
+
+/**
+ * Recent feedback rows scoped to the current broker, ordered newest first.
+ * Used by broker AI insights so the model can spot patterns
+ * ("multiple buyers concerned about pricing").
+ *
+ * Authorisation: scoped to `broker_id = currentBroker` via the activity row.
+ */
+export async function getRecentFeedbackForBroker(
+  limit = 30,
+): Promise<RecentFeedbackRow[]> {
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase
+    .from("crm_activities")
+    .select("subject, body, occurred_at")
+    .eq("broker_id", broker.id)
+    .eq("kind", "feedback_logged")
+    .not("body", "is", null)
+    .order("occurred_at", { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 100)));
+  const out: RecentFeedbackRow[] = [];
+  for (const r of data ?? []) {
+    const subject = (r.subject as string | null)?.trim();
+    if (!subject) continue;
+    if (!FEEDBACK_SUBTYPES.includes(subject as FeedbackSubtype)) continue;
+    const body = (r.body as string | null)?.trim();
+    if (!body) continue;
+    out.push({
+      subtype: subject as FeedbackSubtype,
+      body,
+      occurred_at: r.occurred_at as string,
+    });
+  }
+  return out;
+}
+
+/**
+ * Quick-add a buyer feedback / objection / concern. These rows feed the
+ * broker's AI insights (broker-insights.ts) so AI can identify patterns
+ * like "multiple buyers concerned about pricing" or "objections cluster
+ * around lease terms".
+ *
+ * Auto-advances pipeline status to "interested" when applicable.
+ */
+export async function logFeedback(input: {
+  contactId?: string | null;
+  buyerUserId?: string | null;
+  listingId?: string | null;
+  subtype: FeedbackSubtype;
+  body: string;
+}): Promise<{ ok: true; activityId: string } | { ok: false; error: string }> {
+  if (!FEEDBACK_SUBTYPES.includes(input.subtype)) {
+    return { ok: false, error: "Invalid feedback type" };
+  }
+  const body = input.body?.trim();
+  if (!body) return { ok: false, error: "Feedback can't be empty" };
+  return logActivity({
+    contactId: input.contactId,
+    buyerUserId: input.buyerUserId,
+    listingId: input.listingId,
+    kind: "feedback_logged",
+    subject: input.subtype,
+    body,
+    metadata: { subtype: input.subtype },
+  });
+}
+
 /** Log a call (after the broker hits the dial link). */
 export async function logCall(input: {
   contactId?: string | null;

@@ -431,16 +431,6 @@ export async function getPublicListingDocuments(
   const confidentialApproved = allDocs.filter((d) => d.is_confidential);
   const lockedConfidentialCount = requiresNda ? confidentialApproved.length : 0;
 
-  const accessStatusByDocId = new Map<string, string>();
-  if (userId && requiresNda && hasSigned) {
-    const { data: reqs } = await supabase
-      .from("document_access_requests")
-      .select("document_id, status")
-      .eq("listing_id", listingId)
-      .eq("user_id", userId);
-    for (const r of reqs ?? []) accessStatusByDocId.set(r.document_id, r.status);
-  }
-
   // Non–NDA listings: behave as before (approved docs visible).
   if (!requiresNda) {
     return {
@@ -462,11 +452,74 @@ export async function getPublicListingDocuments(
     };
   }
 
-  // Signed NDA: show titles/files only where broker approved this buyer's access
+  // Signed NDA: consult the data-room access record (M2 canonical model)
+  // to decide which confidential docs to unredact. The legacy
+  // document_access_requests table is no longer consulted here.
+  let accessRow:
+    | {
+        status: string;
+        access_level: string;
+        download_allowed: boolean;
+        expires_at: string | null;
+        permissions_folder_ids: Set<string>;
+        permissions_document_ids: Set<string>;
+      }
+    | null = null;
+  if (userId) {
+    const { data: access } = await supabase
+      .from("buyer_data_room_access")
+      .select("id, status, access_level, download_allowed, expires_at")
+      .eq("listing_id", listingId)
+      .eq("buyer_id", userId)
+      .maybeSingle();
+    if (access) {
+      const folderIds: string[] = [];
+      const documentIds: string[] = [];
+      if (access.access_level === "selected") {
+        const { data: perms } = await supabase
+          .from("buyer_data_room_permissions")
+          .select("folder_id, document_id")
+          .eq("access_id", access.id);
+        for (const p of perms ?? []) {
+          if (p.folder_id) folderIds.push(p.folder_id);
+          if (p.document_id) documentIds.push(p.document_id);
+        }
+      }
+      accessRow = {
+        status: access.status,
+        access_level: access.access_level,
+        download_allowed: !!access.download_allowed,
+        expires_at: access.expires_at,
+        permissions_folder_ids: new Set(folderIds),
+        permissions_document_ids: new Set(documentIds),
+      };
+    }
+  }
+
+  const isExpired =
+    accessRow?.expires_at != null &&
+    new Date(accessRow.expires_at) < new Date();
+  const accessGranted = !!accessRow && accessRow.status === "approved" && !isExpired;
+
   const released = allDocs.map((d) => {
     const row = d as ListingDocument;
     if (!row.is_confidential) return row;
-    if (accessStatusByDocId.get(row.id) === "approved") {
+    if (!accessGranted) return redactConfidentialDoc(row);
+    if (!accessRow) return redactConfidentialDoc(row);
+
+    // access_level=all → every approved confidential doc is visible.
+    if (accessRow.access_level === "all") {
+      const { buyer_access_pending: _, ...rest } = row;
+      return rest as ListingDocument;
+    }
+
+    // access_level=selected → unredact only the specific files / folders
+    // the broker has granted.
+    const inSelectedDoc = accessRow.permissions_document_ids.has(row.id);
+    const inSelectedFolder =
+      row.folder_id != null &&
+      accessRow.permissions_folder_ids.has(row.folder_id);
+    if (inSelectedDoc || inSelectedFolder) {
       const { buyer_access_pending: _, ...rest } = row;
       return rest as ListingDocument;
     }

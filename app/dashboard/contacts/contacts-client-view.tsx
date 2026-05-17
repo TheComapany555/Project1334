@@ -111,6 +111,7 @@ type Props = {
   listings: BulkListingItem[];
   customFields?: CrmCustomField[];
   customFieldValues?: Record<string, Record<string, unknown>>;
+  categories?: { id: string; name: string }[];
 };
 
 type ContactFormState = {
@@ -244,6 +245,7 @@ export function ContactsClientView({
   listings,
   customFields = [],
   customFieldValues = {},
+  categories = [],
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -266,6 +268,18 @@ export function ContactsClientView({
   const [consentFilter, setConsentFilter] = useState<"all" | "yes" | "no">(
     (searchParams.get("consent") as "all" | "yes" | "no") ?? "all",
   );
+  const [minBudgetFilter, setMinBudgetFilter] = useState<string>(
+    searchParams.get("min_budget") ?? "",
+  );
+  const [categoryFilter, setCategoryFilter] = useState<string>(
+    searchParams.get("category") ?? "all",
+  );
+  const [ndaStateFilter, setNdaStateFilter] = useState<
+    "any" | "none" | "pending" | "approved" | "denied" | "revoked" | "expired"
+  >(
+    (searchParams.get("nda") as "any" | "none" | "pending" | "approved" | "denied" | "revoked" | "expired") ??
+      "any",
+  );
   const [statusFilter, setStatusFilter] = useState<BuyerCrmStatus | "all">(
     (searchParams.get("status") as BuyerCrmStatus | "all") ?? "all",
   );
@@ -282,10 +296,24 @@ export function ContactsClientView({
     if (consentFilter !== "all") sp.set("consent", consentFilter);
     if (statusFilter !== "all") sp.set("status", statusFilter);
     if (activityFilter !== "any") sp.set("activity", activityFilter);
+    if (minBudgetFilter.trim()) sp.set("min_budget", minBudgetFilter.trim());
+    if (categoryFilter !== "all") sp.set("category", categoryFilter);
+    if (ndaStateFilter !== "any") sp.set("nda", ndaStateFilter);
     if (search.trim()) sp.set("q", search.trim());
     const qs = sp.toString();
     router.replace(qs ? `?${qs}` : "?", { scroll: false });
-  }, [preset, tagFilter, consentFilter, statusFilter, activityFilter, search, router]);
+  }, [
+    preset,
+    tagFilter,
+    consentFilter,
+    statusFilter,
+    activityFilter,
+    minBudgetFilter,
+    categoryFilter,
+    ndaStateFilter,
+    search,
+    router,
+  ]);
 
   // ─── Dialogs ───
   const [addOpen, setAddOpen] = useState(false);
@@ -340,6 +368,19 @@ export function ContactsClientView({
       if (consentFilter === "no" && c.consent_marketing) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
 
+      const minBudget = Number.parseFloat(minBudgetFilter);
+      if (Number.isFinite(minBudget) && minBudget > 0) {
+        if ((c.buyer_budget_max ?? 0) < minBudget) return false;
+      }
+
+      if (categoryFilter !== "all") {
+        if (!(c.interacted_category_ids ?? []).includes(categoryFilter)) return false;
+      }
+
+      if (ndaStateFilter !== "any") {
+        if ((c.nda_state ?? "none") !== ndaStateFilter) return false;
+      }
+
       if (activityFilter !== "any") {
         const last = c.last_contacted_at
           ? new Date(c.last_contacted_at).getTime()
@@ -359,7 +400,18 @@ export function ContactsClientView({
       }
       return true;
     });
-  }, [contacts, preset, tagFilter, consentFilter, statusFilter, activityFilter, search]);
+  }, [
+    contacts,
+    preset,
+    tagFilter,
+    consentFilter,
+    statusFilter,
+    activityFilter,
+    minBudgetFilter,
+    categoryFilter,
+    ndaStateFilter,
+    search,
+  ]);
 
   const hasFilters =
     preset !== "all" ||
@@ -367,6 +419,9 @@ export function ContactsClientView({
     consentFilter !== "all" ||
     statusFilter !== "all" ||
     activityFilter !== "any" ||
+    !!minBudgetFilter.trim() ||
+    categoryFilter !== "all" ||
+    ndaStateFilter !== "any" ||
     !!search.trim();
 
   async function handleConfirmDelete() {
@@ -558,6 +613,53 @@ export function ContactsClientView({
               <SelectItem value="no">No consent</SelectItem>
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              Min budget
+            </span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="any"
+              value={minBudgetFilter}
+              onChange={(e) => setMinBudgetFilter(e.target.value)}
+              className="h-7 w-24 text-xs"
+              aria-label="Filter by minimum buyer budget"
+            />
+          </div>
+          {categories.length > 0 && (
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger size="sm" className="w-44 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={ndaStateFilter}
+            onValueChange={(v) => setNdaStateFilter(v as typeof ndaStateFilter)}
+          >
+            <SelectTrigger size="sm" className="w-44 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">NDA: any</SelectItem>
+              <SelectItem value="none">NDA: not requested</SelectItem>
+              <SelectItem value="pending">NDA: pending review</SelectItem>
+              <SelectItem value="approved">NDA: approved</SelectItem>
+              <SelectItem value="denied">NDA: denied</SelectItem>
+              <SelectItem value="expired">NDA: expired</SelectItem>
+              <SelectItem value="revoked">NDA: revoked</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex flex-1 flex-wrap items-center gap-1.5">
             {tags.length === 0 ? (
               <span className="text-xs text-muted-foreground">
@@ -591,6 +693,9 @@ export function ContactsClientView({
                   setConsentFilter("all");
                   setStatusFilter("all");
                   setActivityFilter("any");
+                  setMinBudgetFilter("");
+                  setCategoryFilter("all");
+                  setNdaStateFilter("any");
                   setSearch("");
                 }}
               >

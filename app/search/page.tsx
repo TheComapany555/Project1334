@@ -78,6 +78,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const highlight = parseStr(params.highlight);
   const state = parseStr(params.state);
   const suburb = parseStr(params.suburb);
+  const region = parseStr(params.region);
   const price_min = parseNum(params.price_min);
   const price_max = parseNum(params.price_max);
   const revenue_min = parseNum(params.revenue_min);
@@ -96,6 +97,7 @@ export default async function SearchPage({ searchParams }: Props) {
       highlight_id: highlight ?? null,
       state: state ?? null,
       suburb: suburb ?? null,
+      region: region ?? null,
       price_min: price_min ?? null,
       price_max: price_max ?? null,
       revenue_min: revenue_min ?? null,
@@ -116,6 +118,7 @@ export default async function SearchPage({ searchParams }: Props) {
     highlight: highlight ?? "",
     state: state ?? "",
     suburb: suburb ?? "",
+    region: region ?? "",
     price_min: price_min != null ? String(price_min) : "",
     price_max: price_max != null ? String(price_max) : "",
     revenue_min: revenue_min != null ? String(revenue_min) : "",

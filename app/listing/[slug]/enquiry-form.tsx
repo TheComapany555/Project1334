@@ -26,6 +26,11 @@ import {
 } from "@/components/ui/select";
 import { FieldError } from "@/components/ui/field-error";
 import { submitEnquiry } from "@/lib/actions/enquiries";
+import {
+  FUNDING_STATUS_OPTIONS,
+  PURCHASE_TIMEFRAME_OPTIONS,
+  type ListingEnquiryFormConfig,
+} from "@/lib/types/enquiry-form-config";
 import { Loader2, CheckCircle2, Send, Mail, User, Phone, PhoneCall, Target } from "lucide-react";
 
 const REASON_OPTIONS = [
@@ -57,11 +62,24 @@ type Props = {
     contact_email?: string | null;
     contact_phone?: string | null;
   };
+  /** Per-listing field config; falls back to defaults when absent. */
+  formConfig?: ListingEnquiryFormConfig;
 };
 
-export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
+export function EnquiryForm({
+  listingId,
+  listingTitle,
+  defaults,
+  formConfig,
+}: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [callbackMode, setCallbackMode] = useState(false);
+  const [budget, setBudget] = useState("");
+  const [funding, setFunding] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [timeframe, setTimeframe] = useState("");
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [extraErrors, setExtraErrors] = useState<Record<string, string>>({});
 
   const {
     register,
@@ -114,6 +132,32 @@ export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
       if (hasError) return;
     }
 
+    // Validate the configurable qualifying fields client-side so we don't even
+    // make the round trip on the obvious cases (server enforces too).
+    const newExtraErrors: Record<string, string> = {};
+    if (formConfig?.require_phone && !data.contact_phone?.trim()) {
+      newExtraErrors.contact_phone = "Phone is required.";
+    }
+    if (formConfig?.require_budget && !budget.trim()) {
+      newExtraErrors.budget = "Budget is required.";
+    }
+    if (formConfig?.require_funding && !funding.trim()) {
+      newExtraErrors.funding = "Funding status is required.";
+    }
+    if (formConfig?.require_industry && !industry.trim()) {
+      newExtraErrors.industry = "Industry experience is required.";
+    }
+    if (formConfig?.require_timeframe && !timeframe.trim()) {
+      newExtraErrors.timeframe = "Timeframe is required.";
+    }
+    for (const q of formConfig?.custom_questions ?? []) {
+      if (q.required && !customAnswers[q.id]?.trim()) {
+        newExtraErrors[`custom_${q.id}`] = "Required.";
+      }
+    }
+    setExtraErrors(newExtraErrors);
+    if (Object.keys(newExtraErrors).length > 0) return;
+
     const formData = new FormData();
     formData.set("message", data.message);
     formData.set("contact_email", data.contact_email);
@@ -122,11 +166,25 @@ export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
     if (data.reason) formData.set("reason", data.reason);
     if (data.interest) formData.set("interest", data.interest);
     formData.set("consent_marketing", data.consent_marketing ? "true" : "false");
+    if (budget.trim()) formData.set("budget_range", budget.trim());
+    if (funding.trim()) formData.set("funding_status", funding.trim());
+    if (industry.trim()) formData.set("industry_experience", industry.trim());
+    if (timeframe.trim()) formData.set("purchase_timeframe", timeframe.trim());
+    for (const q of formConfig?.custom_questions ?? []) {
+      const answer = customAnswers[q.id]?.trim();
+      if (answer) formData.set(`custom__${q.id}`, answer);
+    }
 
     const result = await submitEnquiry(listingId, formData);
     if (result.ok) {
       setSubmitted(true);
       reset();
+      setBudget("");
+      setFunding("");
+      setIndustry("");
+      setTimeframe("");
+      setCustomAnswers({});
+      setExtraErrors({});
       toast.success(
         callbackMode
           ? "Call back request sent. The broker will contact you soon."
@@ -210,27 +268,29 @@ export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="enquiry-reason">Reason (optional)</Label>
-              <Select
-                value={reason}
-                onValueChange={(v) => {
-                  setValue("reason", v);
-                  setCallbackMode(v === "request_callback");
-                }}
-              >
-                <SelectTrigger id="enquiry-reason">
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REASON_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {(formConfig?.show_reason ?? true) && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-reason">Reason (optional)</Label>
+                <Select
+                  value={reason}
+                  onValueChange={(v) => {
+                    setValue("reason", v);
+                    setCallbackMode(v === "request_callback");
+                  }}
+                >
+                  <SelectTrigger id="enquiry-reason">
+                    <SelectValue placeholder="Select a reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REASON_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="enquiry-message">Message *</Label>
@@ -281,41 +341,170 @@ export function EnquiryForm({ listingId, listingTitle, defaults }: Props) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="enquiry-phone">
-                Phone {callbackMode ? "*" : "(optional)"}
-              </Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="enquiry-phone"
-                  type="tel"
-                  placeholder="Phone number"
-                  className={`pl-9 ${errors.contact_phone ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                  {...register("contact_phone")}
+            {(formConfig?.show_phone ?? true) && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-phone">
+                  Phone{" "}
+                  {formConfig?.require_phone || callbackMode ? "*" : "(optional)"}
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="enquiry-phone"
+                    type="tel"
+                    placeholder="Phone number"
+                    className={`pl-9 ${errors.contact_phone || extraErrors.contact_phone ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    {...register("contact_phone")}
+                  />
+                </div>
+                <FieldError
+                  message={errors.contact_phone?.message ?? extraErrors.contact_phone}
                 />
               </div>
-              <FieldError message={errors.contact_phone?.message} />
-            </div>
+            )}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="enquiry-interest">
-                What are you looking for? (optional)
-              </Label>
-              <div className="relative">
-                <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="enquiry-interest"
-                  type="text"
-                  placeholder="e.g. Cafe in Sydney under $500k"
-                  className="pl-9"
-                  {...register("interest")}
-                />
+            {(formConfig?.show_interest ?? true) && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-interest">
+                  What are you looking for? (optional)
+                </Label>
+                <div className="relative">
+                  <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="enquiry-interest"
+                    type="text"
+                    placeholder="e.g. Cafe in Sydney under $500k"
+                    className="pl-9"
+                    {...register("interest")}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Helps the broker match you with similar listings.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Helps the broker match you with similar listings.
-              </p>
-            </div>
+            )}
+
+            {formConfig?.show_budget && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-budget">
+                  Budget range{" "}
+                  {formConfig.require_budget ? "*" : "(optional)"}
+                </Label>
+                <Input
+                  id="enquiry-budget"
+                  type="text"
+                  placeholder="e.g. $250k–$500k"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  className={extraErrors.budget ? "border-destructive" : ""}
+                />
+                <FieldError message={extraErrors.budget} />
+              </div>
+            )}
+
+            {formConfig?.show_funding && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-funding">
+                  Funding status{" "}
+                  {formConfig.require_funding ? "*" : "(optional)"}
+                </Label>
+                <Select value={funding} onValueChange={setFunding}>
+                  <SelectTrigger
+                    id="enquiry-funding"
+                    className={extraErrors.funding ? "border-destructive" : ""}
+                  >
+                    <SelectValue placeholder="Select a funding status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUNDING_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={extraErrors.funding} />
+              </div>
+            )}
+
+            {formConfig?.show_industry && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-industry">
+                  Industry experience{" "}
+                  {formConfig.require_industry ? "*" : "(optional)"}
+                </Label>
+                <Textarea
+                  id="enquiry-industry"
+                  rows={2}
+                  placeholder="Tell the broker about your background in this industry."
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className={`resize-none ${extraErrors.industry ? "border-destructive" : ""}`}
+                />
+                <FieldError message={extraErrors.industry} />
+              </div>
+            )}
+
+            {formConfig?.show_timeframe && (
+              <div className="space-y-1.5">
+                <Label htmlFor="enquiry-timeframe">
+                  Purchase timeframe{" "}
+                  {formConfig.require_timeframe ? "*" : "(optional)"}
+                </Label>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger
+                    id="enquiry-timeframe"
+                    className={extraErrors.timeframe ? "border-destructive" : ""}
+                  >
+                    <SelectValue placeholder="Select a timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PURCHASE_TIMEFRAME_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={extraErrors.timeframe} />
+              </div>
+            )}
+
+            {(formConfig?.custom_questions ?? []).map((q) => (
+              <div key={q.id} className="space-y-1.5">
+                <Label htmlFor={`enquiry-custom-${q.id}`}>
+                  {q.label} {q.required ? "*" : "(optional)"}
+                </Label>
+                {q.kind === "long_text" ? (
+                  <Textarea
+                    id={`enquiry-custom-${q.id}`}
+                    rows={3}
+                    value={customAnswers[q.id] ?? ""}
+                    onChange={(e) =>
+                      setCustomAnswers((prev) => ({
+                        ...prev,
+                        [q.id]: e.target.value,
+                      }))
+                    }
+                    className={`resize-none ${extraErrors[`custom_${q.id}`] ? "border-destructive" : ""}`}
+                  />
+                ) : (
+                  <Input
+                    id={`enquiry-custom-${q.id}`}
+                    type="text"
+                    value={customAnswers[q.id] ?? ""}
+                    onChange={(e) =>
+                      setCustomAnswers((prev) => ({
+                        ...prev,
+                        [q.id]: e.target.value,
+                      }))
+                    }
+                    className={extraErrors[`custom_${q.id}`] ? "border-destructive" : ""}
+                  />
+                )}
+                <FieldError message={extraErrors[`custom_${q.id}`]} />
+              </div>
+            ))}
 
             <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
               <Checkbox

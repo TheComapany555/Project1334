@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Settings2 } from "lucide-react";
 import { getContacts } from "@/lib/actions/contacts";
 import { getContactTags } from "@/lib/actions/contact-tags";
-import { getListingsByBroker } from "@/lib/actions/listings";
+import { getCategories, getListingsByBroker } from "@/lib/actions/listings";
 import { getBrokerBccAddress } from "@/lib/actions/crm-email";
 import { getFollowUpsDueToday } from "@/lib/actions/crm";
 import {
@@ -16,7 +16,7 @@ import { BccAddressCard } from "./bcc-address-card";
 import { FollowUpsBanner } from "@/components/dashboard/follow-ups-banner";
 
 export default async function ContactsPage() {
-  const [contacts, tags, listings, bcc, followUps, customFields] =
+  const [contacts, tags, listings, bcc, followUps, customFields, categories] =
     await Promise.all([
       getContacts(),
       getContactTags(),
@@ -24,6 +24,7 @@ export default async function ContactsPage() {
       getBrokerBccAddress().catch(() => null),
       getFollowUpsDueToday().catch(() => []),
       listCustomFields().catch(() => []),
+      getCategories(),
     ]);
 
   const customFieldValues =
@@ -76,6 +77,7 @@ export default async function ContactsPage() {
         listings={publishedListings}
         customFields={customFields}
         customFieldValues={customFieldValues}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       />
     </div>
   );

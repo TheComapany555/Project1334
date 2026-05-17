@@ -53,6 +53,7 @@ import {
   Mail01Icon,
   MagicWand01Icon,
   MoreHorizontalIcon,
+  SecurityCheckIcon,
   SentIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
@@ -357,6 +358,18 @@ export function ListingsTable({
                     <Link href={`/dashboard/listings/${listing.id}/edit`}>
                       <HugeiconsIcon icon={Edit02Icon} className="size-4" />
                       Edit
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/listings/${listing.id}/data-room`}>
+                      <HugeiconsIcon icon={SecurityCheckIcon} className="size-4" />
+                      Data room
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/listings/${listing.id}/enquiry-form`}>
+                      <HugeiconsIcon icon={Mail01Icon} className="size-4" />
+                      Enquiry form
                     </Link>
                   </DropdownMenuItem>
                   {listing.status === "published" && brokerSlug && (

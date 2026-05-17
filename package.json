@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:admin": "npx tsx scripts/seed-admin.ts",
     "cron:buyer-alerts": "npx tsx scripts/buyer-alerts-cron.ts",
-    "cron:follow-ups-due": "npx tsx scripts/follow-ups-due-cron.ts"
+    "cron:follow-ups-due": "npx tsx scripts/follow-ups-due-cron.ts",
+    "cron:data-room-expiry": "npx tsx scripts/data-room-expiry-cron.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -22,6 +23,7 @@
     "@hugeicons/react": "^1.1.5",
     "@lexical/react": "^0.41.0",
     "@lexical/rich-text": "^0.41.0",
+    "@radix-ui/react-scroll-area": "^1.2.10",
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.8.0",
     "@supabase/ssr": "^0.8.0",

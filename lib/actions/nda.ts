@@ -166,6 +166,45 @@ export async function signNda(
 
   await createPendingDocumentAccessRequestsForBuyer(listingId, userId);
 
+  // M2: ensure a buyer_data_room_access row exists in pending state if the
+  // buyer hasn't already requested access via the new flow. Idempotent: an
+  // already-approved access stays approved.
+  {
+    const { data: existing } = await supabase
+      .from("buyer_data_room_access")
+      .select("id, status")
+      .eq("listing_id", listingId)
+      .eq("buyer_id", userId)
+      .maybeSingle();
+    if (!existing) {
+      await supabase
+        .from("buyer_data_room_access")
+        .insert({
+          listing_id: listingId,
+          buyer_id: userId,
+          status: "pending",
+          access_level: "all",
+        });
+    } else if (
+      existing.status === "denied" ||
+      existing.status === "revoked" ||
+      existing.status === "expired"
+    ) {
+      await supabase
+        .from("buyer_data_room_access")
+        .update({
+          status: "pending",
+          requested_at: new Date().toISOString(),
+          reviewed_at: null,
+          reviewed_by: null,
+          denial_reason: null,
+          expired_at: null,
+          revoked_at: null,
+        })
+        .eq("id", existing.id);
+    }
+  }
+
   // M1.1: Ensure CRM row + bump activity. We need the listing's broker_id,
   // which is loaded again below for the notification path; do it now too so
   // we don't pay for a duplicate fetch.

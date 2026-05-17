@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { EmailComposer } from "@/components/dashboard/email-composer";
 import { CallLogDialog } from "@/components/dashboard/call-log-dialog";
 import { AddNoteDialog } from "@/components/dashboard/add-note-dialog";
+import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
 import { FollowUpDialog } from "@/components/dashboard/follow-up-dialog";
 import {
   Select,
@@ -258,6 +259,7 @@ function BuyerPanelContent({
   const [composerOpen, setComposerOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const closePanel = useBuyerPanelStore((s) => s.close);
   const isLite = target.kind === "contact" && !profile.crm.contact_id;
@@ -297,6 +299,13 @@ function BuyerPanelContent({
       return;
     }
     setNoteOpen(true);
+  };
+  const handleFeedbackClick = () => {
+    if (!canActOnCrm) {
+      toast.error("Couldn't save — contact missing");
+      return;
+    }
+    setFeedbackOpen(true);
   };
   const handleFollowUpClick = () => {
     if (!canActOnCrm) {
@@ -457,10 +466,15 @@ function BuyerPanelContent({
       </div>
 
       {/* Quick actions row */}
-      <div className="px-6 py-3 border-b grid grid-cols-5 gap-2">
+      <div className="px-6 py-3 border-b grid grid-cols-6 gap-2">
         <QuickAction icon={Mail} label="Email" onClick={handleEmailClick} />
         <QuickAction icon={PhoneCall} label="Call" onClick={handleCallClick} />
         <QuickAction icon={StickyNote} label="Note" onClick={handleNoteClick} />
+        <QuickAction
+          icon={ClipboardList}
+          label="Feedback"
+          onClick={handleFeedbackClick}
+        />
         <QuickAction
           icon={CalendarClock}
           label="Follow-up"
@@ -499,6 +513,15 @@ function BuyerPanelContent({
       <AddNoteDialog
         open={noteOpen}
         onOpenChange={setNoteOpen}
+        contactId={profile.crm.contact_id}
+        buyerUserId={buyerUserIdForActions}
+        contactName={profile.name}
+        listingId={scopeListingId}
+        onSaved={refreshPanel}
+      />
+      <AddFeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
         contactId={profile.crm.contact_id}
         buyerUserId={buyerUserIdForActions}
         contactName={profile.name}

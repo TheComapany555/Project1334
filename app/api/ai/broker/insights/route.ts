@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBrokerAnalytics } from "@/lib/actions/analytics";
+import { getRecentFeedbackForBroker } from "@/lib/actions/crm";
 import { generateBrokerAccountInsights } from "@/lib/ai/broker-insights";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +25,11 @@ export async function POST(req: NextRequest) {
     : 30;
 
   try {
-    const overview = await getBrokerAnalytics(periodDays);
-    const ai = await generateBrokerAccountInsights(overview);
+    const [overview, feedback] = await Promise.all([
+      getBrokerAnalytics(periodDays),
+      getRecentFeedbackForBroker(30).catch(() => []),
+    ]);
+    const ai = await generateBrokerAccountInsights(overview, feedback);
     return NextResponse.json({ ai });
   } catch (err) {
     return NextResponse.json(

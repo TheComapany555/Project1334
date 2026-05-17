@@ -109,6 +109,7 @@ export async function getListingInsightsMetrics(
     ndaSignaturesRes,
     docAccessRes,
     shareInvitesRes,
+    docEventsRes,
   ] = await Promise.all([
     supabase
       .from("listing_views")
@@ -137,9 +138,10 @@ export async function getListingInsightsMetrics(
       .select("user_id, signer_name, signer_email, signed_at")
       .eq("listing_id", listingId),
 
+    // M2 canonical source: buyer_data_room_access.
     supabase
-      .from("document_access_requests")
-      .select("user_id, status, requested_at")
+      .from("buyer_data_room_access")
+      .select("buyer_id, status, requested_at")
       .eq("listing_id", listingId),
 
     supabase
@@ -148,6 +150,12 @@ export async function getListingInsightsMetrics(
         "recipient_name, recipient_email, account_created_user_id, sent_at, opened_at, nda_signed_at",
       )
       .eq("listing_id", listingId),
+
+    supabase
+      .from("document_events")
+      .select("event_kind")
+      .eq("listing_id", listingId)
+      .eq("event_kind", "view"),
   ]);
 
   const views = viewsRes.data ?? [];
@@ -160,6 +168,7 @@ export async function getListingInsightsMetrics(
   const ndaSignatures = ndaSignaturesRes.data ?? [];
   const docAccess = docAccessRes.data ?? [];
   const shareInvites = shareInvitesRes.data ?? [];
+  const docViewEvents = docEventsRes.data ?? [];
 
   // ── Aggregate views: unique vs repeat (key by user_id else ip_address) ──
   const visitorViewCounts = new Map<string, number>();
@@ -171,11 +180,11 @@ export async function getListingInsightsMetrics(
   let repeat_visitors = 0;
   for (const c of visitorViewCounts.values()) if (c > 1) repeat_visitors++;
 
-  const nda_requests = new Set(docAccess.map((d) => d.user_id)).size;
+  const nda_requests = new Set(docAccess.map((d) => d.buyer_id)).size;
   const nda_signed = new Set(ndaSignatures.map((n) => n.user_id)).size;
-  const documents_viewed = docAccess.filter(
-    (d) => d.status === "approved",
-  ).length;
+  // Real view events from document_events (was previously counting approval
+  // records, which conflated "broker approved" with "buyer actually opened").
+  const documents_viewed = docViewEvents.length;
 
   const days_live = listing.published_at
     ? Math.max(
@@ -264,12 +273,12 @@ export async function getListingInsightsMetrics(
     noteActivity(agg, s.created_at, "Saved listing");
   }
 
-  // NDA requests (document access requests indicate active interest in NDA-gated data)
+  // NDA requests (data-room access records indicate active interest in NDA-gated data)
   for (const d of docAccess) {
-    const agg = ensure(d.user_id, null, null);
+    const agg = ensure(d.buyer_id, null, null);
     if (!agg) continue;
     agg.signals.add("nda_requested");
-    noteActivity(agg, d.requested_at, "Requested document access");
+    noteActivity(agg, d.requested_at, "Requested data-room access");
   }
 
   // NDA signed — signer_name/signer_email are entered manually at signing time,

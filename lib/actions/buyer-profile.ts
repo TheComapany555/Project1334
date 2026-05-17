@@ -261,10 +261,14 @@ export async function getBuyerProfile(
       .eq("user_id", buyerId)
       .in("listing_id", targetListingIds),
 
+    // M2 canonical source: buyer_data_room_access is one row per (listing, buyer).
+    // Legacy document_access_requests is no longer consulted here — it lived
+    // at per-document granularity, but the spec timeline asks for one
+    // "NDA requested" event per listing.
     supabase
-      .from("document_access_requests")
-      .select("id, listing_id, document_id, status, requested_at, reviewed_at")
-      .eq("user_id", buyerId)
+      .from("buyer_data_room_access")
+      .select("id, listing_id, status, requested_at, reviewed_at")
+      .eq("buyer_id", buyerId)
       .in("listing_id", targetListingIds),
 
     supabase
@@ -318,16 +322,9 @@ export async function getBuyerProfile(
   }
   if (!hasInteraction) throw new Error("Forbidden");
 
-  // Resolve document names for any document_access entries (best-effort)
-  let docNameById = new Map<string, string>();
-  const docIds = Array.from(new Set(docAccess.map((d) => d.document_id))).filter(Boolean);
-  if (docIds.length) {
-    const { data: docRows } = await supabase
-      .from("listing_documents")
-      .select("id, name")
-      .in("id", docIds);
-    docNameById = new Map((docRows ?? []).map((d) => [d.id, d.name] as const));
-  }
+  // Document names are looked up lazily below from document_events
+  // (the per-document access table is no longer the timeline source).
+  const docNameById = new Map<string, string>();
 
   // 4) Build per-listing summary
   const listingsTouched = new Set<string>();
@@ -477,13 +474,26 @@ export async function getBuyerProfile(
     });
   }
   for (const d of docAccess) {
+    // Always emit the request event so the buyer's "asked for access" moment
+    // shows up on the timeline.
     activity.push({
-      id: `doc-${d.id}`,
-      kind: d.status === "approved" ? "document_approved" : "nda_requested",
-      at: d.reviewed_at ?? d.requested_at,
+      id: `dra-req-${d.id}`,
+      kind: "nda_requested",
+      at: d.requested_at,
       listing_id: d.listing_id,
-      detail: docNameById.get(d.document_id) ?? null,
+      detail: null,
     });
+    // If broker has approved/denied, emit a second event at the review time so
+    // the broker's decision is visible too.
+    if (d.status === "approved" && d.reviewed_at) {
+      activity.push({
+        id: `dra-app-${d.id}`,
+        kind: "document_approved",
+        at: d.reviewed_at,
+        listing_id: d.listing_id,
+        detail: null,
+      });
+    }
   }
   for (const c of calls) {
     activity.push({
@@ -767,7 +777,13 @@ type BuildArgs = {
   enquiries: { id: string; listing_id: string }[];
   saves: { listing_id: string }[];
   ndaSigs: { listing_id: string }[];
-  docAccess: { id: string; listing_id: string; status: string }[];
+  docAccess: {
+    id: string;
+    listing_id: string;
+    status: string;
+    requested_at: string;
+    reviewed_at: string | null;
+  }[];
   calls: { id: string }[];
   docEvents: { id: string; listing_id: string; event_kind: string }[];
   first_seen_at: string | null;

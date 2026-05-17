@@ -17,6 +17,7 @@ import {
   Inbox,
   Loader2,
   MapPin,
+  FolderLock,
   MessageSquare,
   PencilLine,
   Plus,
@@ -137,6 +138,10 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
       </motion.div>
 
       <motion.div variants={variants}>
+        <VaultShortcut />
+      </motion.div>
+
+      <motion.div variants={variants}>
         <MatchedForYouSection
           items={snapshot.matched.items}
           total={snapshot.matched.total}
@@ -187,6 +192,28 @@ function MessagesShortcut() {
         <p className="text-sm font-medium">Messages</p>
         <p className="text-xs text-muted-foreground">
           Chat with brokers about listings.
+        </p>
+      </div>
+      <span className="text-xs text-muted-foreground group-hover:text-foreground transition">
+        Open →
+      </span>
+    </Link>
+  );
+}
+
+function VaultShortcut() {
+  return (
+    <Link
+      href="/account/vault"
+      className="flex items-center gap-3 rounded-lg border bg-card p-3 hover:bg-muted/50 transition group"
+    >
+      <div className="rounded-md bg-primary/10 p-2 shrink-0">
+        <FolderLock className="h-4 w-4 text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">Data Room Vault</p>
+        <p className="text-xs text-muted-foreground">
+          Documents brokers have shared with you.
         </p>
       </div>
       <span className="text-xs text-muted-foreground group-hover:text-foreground transition">

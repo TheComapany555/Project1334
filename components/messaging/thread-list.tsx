@@ -1,20 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Inbox, MessageSquare, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Search, MessageSquare, Inbox, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import type { ThreadSummary, MessageRole } from "@/lib/actions/messages";
+import type { MessageRole, ThreadSummary } from "@/lib/actions/messages";
 
 type Props = {
   threads: ThreadSummary[];
   isLoading?: boolean;
   selectedThreadId: string | null;
   onSelect: (thread: ThreadSummary) => void;
-  /** "broker" or "buyer" — controls phrasing for the empty state. */
   viewerRole: MessageRole;
 };
 
@@ -42,36 +43,54 @@ export function ThreadList({
     return list;
   }, [threads, search, unreadOnly]);
 
+  const unreadTotal = useMemo(
+    () => threads.reduce((acc, t) => acc + (t.unread_count > 0 ? 1 : 0), 0),
+    [threads],
+  );
+
   return (
-    <div className="flex h-full flex-col border-r">
-      {/* Search bar */}
-      <div className="p-3 border-b space-y-2">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="shrink-0 space-y-2 border-b p-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search conversations…"
-            className="h-8 pl-8 text-sm"
+            className="h-9 pl-9"
           />
         </div>
-        <Button
-          size="sm"
-          variant={unreadOnly ? "default" : "outline"}
-          onClick={() => setUnreadOnly((v) => !v)}
-          className="h-7 w-full gap-1.5 text-xs"
+        <Tabs
+          value={unreadOnly ? "unread" : "all"}
+          onValueChange={(v) => setUnreadOnly(v === "unread")}
         >
-          <Filter className="h-3 w-3" />
-          {unreadOnly ? "Showing unread" : "Show unread only"}
-        </Button>
+          <TabsList className="h-8 w-full">
+            <TabsTrigger value="all" className="text-xs">
+              All
+            </TabsTrigger>
+            <TabsTrigger value="unread" className="text-xs">
+              Unread
+              {unreadTotal > 0 && (
+                <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
+                  {unreadTotal}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="min-h-0 flex-1">
         {isLoading ? (
-          <div className="p-3 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-14 rounded-md bg-muted animate-pulse" />
+          <div className="space-y-1 p-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex gap-3 rounded-lg p-3">
+                <Skeleton className="size-10 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -81,65 +100,74 @@ export function ThreadList({
             viewerRole={viewerRole}
           />
         ) : (
-          <ul>
-            {filtered.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelect(t)}
-                  className={cn(
-                    "w-full text-left px-3 py-3 border-b hover:bg-muted/50 transition relative flex items-start gap-3",
-                    selectedThreadId === t.id && "bg-muted/70",
-                    t.unread_count > 0 && "font-medium",
-                  )}
-                >
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={t.counterparty.photo_url ?? undefined} />
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                      {getInitials(
-                        t.counterparty.name ?? t.counterparty.email,
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-sm truncate">
-                        {t.counterparty.name ?? t.counterparty.email}
-                      </p>
-                      {t.last_message_at && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {fmtRelative(t.last_message_at)}
-                        </span>
-                      )}
-                    </div>
-                    {t.listing_title && (
-                      <p className="text-[10px] text-muted-foreground truncate">
-                        {t.listing_title}
-                      </p>
+          <ul className="p-1">
+            {filtered.map((t) => {
+              const isSelected = selectedThreadId === t.id;
+              const isUnread = t.unread_count > 0;
+              const name = t.counterparty.name ?? t.counterparty.email;
+              return (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(t)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors",
+                      "hover:bg-accent",
+                      isSelected && "bg-accent",
                     )}
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {t.last_sender_role && (
-                        <span className="text-muted-foreground/70">
-                          {t.last_sender_role === viewerRole ? "You: " : ""}
-                        </span>
-                      )}
-                      {t.last_message_preview ?? "No messages yet"}
-                    </p>
-                  </div>
-                  {t.unread_count > 0 && (
-                    <Badge
-                      variant="default"
-                      className="text-[10px] shrink-0 h-5 min-w-[20px] flex items-center justify-center"
-                    >
-                      {t.unread_count}
-                    </Badge>
-                  )}
-                </button>
-              </li>
-            ))}
+                  >
+                    <Avatar className="size-9 shrink-0">
+                      <AvatarImage src={t.counterparty.photo_url ?? undefined} />
+                      <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
+                        {getInitials(name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p
+                          className={cn(
+                            "truncate text-sm",
+                            isUnread ? "font-semibold text-foreground" : "font-medium text-foreground/90",
+                          )}
+                        >
+                          {name}
+                        </p>
+                        {t.last_message_at && (
+                          <span
+                            className={cn(
+                              "shrink-0 text-[11px] tabular-nums",
+                              isUnread ? "font-medium text-foreground" : "text-muted-foreground",
+                            )}
+                          >
+                            {fmtRelative(t.last_message_at)}
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className={cn(
+                          "mt-0.5 truncate text-xs",
+                          isUnread ? "text-foreground/80" : "text-muted-foreground",
+                        )}
+                      >
+                        {t.last_sender_role === viewerRole && (
+                          <span className="text-muted-foreground">You: </span>
+                        )}
+                        {t.last_message_preview ?? "No messages yet"}
+                      </p>
+                    </div>
+                    {isUnread && (
+                      <span
+                        className="size-2 shrink-0 rounded-full bg-primary"
+                        aria-label={`${t.unread_count} unread`}
+                      />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -155,27 +183,34 @@ function EmptyState({
 }) {
   if (unreadOnly) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        <Inbox className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        Inbox zero — no unread conversations.
+      <div className="flex flex-col items-center px-6 py-12 text-center">
+        <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-muted">
+          <Inbox className="size-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium">Inbox zero</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          No unread conversations.
+        </p>
       </div>
     );
   }
   if (hasAny) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
+      <p className="px-6 py-12 text-center text-sm text-muted-foreground">
         Nothing matches that search.
-      </div>
+      </p>
     );
   }
   return (
-    <div className="p-6 text-center text-sm text-muted-foreground">
-      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-      <p className="font-medium text-foreground">No conversations yet</p>
-      <p className="text-xs mt-1">
+    <div className="flex flex-col items-center px-6 py-12 text-center">
+      <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-muted">
+        <MessageSquare className="size-5 text-muted-foreground" />
+      </div>
+      <p className="text-sm font-medium">No conversations yet</p>
+      <p className="mt-1 text-xs text-muted-foreground">
         {viewerRole === "broker"
           ? "Open a buyer profile and click Message to start a chat."
-          : "When a broker replies to your enquiry via chat, the conversation appears here."}
+          : "When a broker replies to your enquiry, the conversation appears here."}
       </p>
     </div>
   );

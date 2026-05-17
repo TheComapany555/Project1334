@@ -208,6 +208,7 @@ export type SearchListingsParams = {
   highlight_id?: string | null;
   state?: string | null;
   suburb?: string | null;
+  region?: string | null;
   price_min?: number | null;
   price_max?: number | null;
   revenue_min?: number | null;
@@ -324,6 +325,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   }
   if (params.state?.trim()) query = query.eq("state", params.state.trim());
   if (params.suburb?.trim()) query = query.ilike("suburb", `%${params.suburb.trim()}%`);
+  if (params.region?.trim()) query = query.eq("region", params.region.trim());
   if (params.price_min != null) query = query.gte("asking_price", Number(params.price_min));
   if (params.price_max != null) query = query.lte("asking_price", Number(params.price_max));
   if (params.revenue_min != null) query = query.gte("revenue", Number(params.revenue_min));
@@ -527,6 +529,7 @@ export async function updateListing(
     state?: string | null;
     suburb?: string | null;
     postcode?: string | null;
+    region?: string | null;
     asking_price?: number | null;
     price_type?: "fixed" | "poa";
     revenue?: number | null;
@@ -566,6 +569,7 @@ export async function updateListing(
   if (form.state !== undefined) payload.state = form.state?.trim() || null;
   if (form.suburb !== undefined) payload.suburb = form.suburb?.trim() || null;
   if (form.postcode !== undefined) payload.postcode = form.postcode?.trim() || null;
+  if (form.region !== undefined) payload.region = form.region?.trim() || null;
   if (form.asking_price !== undefined) payload.asking_price = toNumeric(form.asking_price);
   if (form.price_type !== undefined) payload.price_type = form.price_type;
   if (form.revenue !== undefined) payload.revenue = toNumeric(form.revenue);

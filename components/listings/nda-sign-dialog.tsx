@@ -65,19 +65,21 @@ export function NdaSignDialog({ listingId, ndaText, onSigned, children }: Props)
         {children ?? (
           <Button>
             <ShieldCheck className="h-4 w-4 mr-2" />
-            Sign NDA to Unlock
+            Sign NDA & Request Access
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         {signed ? (
-          <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <div className="flex flex-col items-center justify-center py-8 space-y-3 text-center">
             <div className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 p-3">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             </div>
-            <h3 className="text-lg font-semibold">NDA Signed Successfully</h3>
-            <p className="text-sm text-muted-foreground">
-              You now have access to confidential documents for this listing.
+            <h3 className="text-lg font-semibold">NDA Signed — Request Sent</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Your access request has been sent to the broker. You&apos;ll be
+              notified by email and in-app once they approve access to the
+              confidential documents.
             </p>
           </div>
         ) : (

@@ -42,6 +42,12 @@ export type ListContactsParams = {
   q?: string | null;
   tagId?: string | null;
   consent?: "yes" | "no" | null;
+  /** Filter to buyers whose declared max budget meets or exceeds this number. */
+  minBudget?: number | null;
+  /** Filter to contacts who have interacted with at least one listing in this category. */
+  categoryId?: string | null;
+  /** Filter to contacts at this data-room/NDA state. */
+  ndaState?: "any" | "none" | "pending" | "approved" | "denied" | "revoked" | "expired";
 };
 
 /**
@@ -102,11 +108,150 @@ export async function listBrokerContacts(
     return { ...(rest as Omit<BrokerContact, "tags">), tags };
   }) as BrokerContact[];
 
+  // Join in buyer budget from profiles for the slice we fetched.
+  const buyerIds = rows
+    .map((r) => r.buyer_user_id)
+    .filter((id): id is string => !!id);
+  if (buyerIds.length > 0) {
+    const { data: budgetRows } = await supabase
+      .from("profiles")
+      .select("id, budget_min, budget_max")
+      .in("id", buyerIds);
+    const byId = new Map(
+      (budgetRows ?? []).map((p) => [
+        p.id,
+        {
+          min: p.budget_min as number | null,
+          max: p.budget_max as number | null,
+        },
+      ]),
+    );
+    rows = rows.map((r) => {
+      const b = r.buyer_user_id ? byId.get(r.buyer_user_id) : undefined;
+      return {
+        ...r,
+        buyer_budget_min: b?.min ?? null,
+        buyer_budget_max: b?.max ?? null,
+      };
+    });
+  }
+
+  // Resolve the broker's listing universe once — used by both the category
+  // join (via enquiries) and the NDA-state join (via buyer_data_room_access).
+  if (rows.length > 0) {
+    const ownListingIds = await resolveBrokerListingIds(supabase, {
+      brokerId: userId,
+      agencyId,
+      agencyRole,
+    });
+
+    if (ownListingIds.length > 0 && buyerIds.length > 0) {
+      // Listing-category interaction map (via enquiries on broker-owned listings).
+      const { data: enquiryRows } = await supabase
+        .from("enquiries")
+        .select("user_id, listing_id")
+        .in("listing_id", ownListingIds)
+        .in("user_id", buyerIds);
+      const interactedListingIdsByBuyer = new Map<string, Set<string>>();
+      for (const e of enquiryRows ?? []) {
+        if (!e.user_id || !e.listing_id) continue;
+        const set =
+          interactedListingIdsByBuyer.get(e.user_id) ?? new Set<string>();
+        set.add(e.listing_id);
+        interactedListingIdsByBuyer.set(e.user_id, set);
+      }
+      const allInteractedListingIds = [
+        ...new Set(
+          [...interactedListingIdsByBuyer.values()].flatMap((s) => [...s]),
+        ),
+      ];
+      const categoryByListingId = new Map<string, string>();
+      if (allInteractedListingIds.length > 0) {
+        const { data: listingCats } = await supabase
+          .from("listings")
+          .select("id, category_id")
+          .in("id", allInteractedListingIds);
+        for (const l of listingCats ?? []) {
+          if (l.category_id) categoryByListingId.set(l.id, l.category_id);
+        }
+      }
+
+      // Data-room / NDA state per buyer (strongest state wins).
+      const { data: accessRows } = await supabase
+        .from("buyer_data_room_access")
+        .select("buyer_id, status")
+        .in("listing_id", ownListingIds)
+        .in("buyer_id", buyerIds);
+      const ndaByBuyer = new Map<string, BrokerContact["nda_state"]>();
+      const STATE_RANK: Record<NonNullable<BrokerContact["nda_state"]>, number> = {
+        none: 0,
+        denied: 1,
+        revoked: 2,
+        expired: 3,
+        pending: 4,
+        approved: 5,
+      };
+      for (const r of accessRows ?? []) {
+        if (!r.buyer_id || !r.status) continue;
+        const next = r.status as NonNullable<BrokerContact["nda_state"]>;
+        const cur = ndaByBuyer.get(r.buyer_id) ?? "none";
+        if (STATE_RANK[next] > STATE_RANK[cur]) ndaByBuyer.set(r.buyer_id, next);
+      }
+
+      rows = rows.map((r) => {
+        if (!r.buyer_user_id) {
+          return { ...r, interacted_category_ids: [], nda_state: "none" as const };
+        }
+        const listingSet = interactedListingIdsByBuyer.get(r.buyer_user_id) ?? new Set();
+        const categories = [...listingSet]
+          .map((id) => categoryByListingId.get(id))
+          .filter((id): id is string => !!id);
+        return {
+          ...r,
+          interacted_category_ids: [...new Set(categories)],
+          nda_state: ndaByBuyer.get(r.buyer_user_id) ?? "none",
+        };
+      });
+    }
+  }
+
   if (params.tagId) {
     rows = rows.filter((c) => (c.tags ?? []).some((t) => t.id === params.tagId));
   }
+  if (typeof params.minBudget === "number" && params.minBudget > 0) {
+    const threshold = params.minBudget;
+    rows = rows.filter((c) => (c.buyer_budget_max ?? 0) >= threshold);
+  }
+  if (params.categoryId) {
+    const wanted = params.categoryId;
+    rows = rows.filter((c) =>
+      (c.interacted_category_ids ?? []).includes(wanted),
+    );
+  }
+  if (params.ndaState && params.ndaState !== "any") {
+    const wanted = params.ndaState;
+    rows = rows.filter((c) => (c.nda_state ?? "none") === wanted);
+  }
 
   return buildPaginated(rows, count ?? 0, page, pageSize);
+}
+
+async function resolveBrokerListingIds(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  ctx: { brokerId: string; agencyId: string | null; agencyRole: string | null },
+): Promise<string[]> {
+  if (ctx.agencyId && ctx.agencyRole === "owner") {
+    const { data } = await supabase
+      .from("listings")
+      .select("id")
+      .eq("agency_id", ctx.agencyId);
+    return (data ?? []).map((l) => l.id);
+  }
+  const { data } = await supabase
+    .from("listings")
+    .select("id")
+    .eq("broker_id", ctx.brokerId);
+  return (data ?? []).map((l) => l.id);
 }
 
 /** @deprecated Use `listBrokerContacts`. */

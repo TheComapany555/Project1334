@@ -35,6 +35,7 @@ export type Listing = {
   state: string | null;
   suburb: string | null;
   postcode: string | null;
+  region: string | null;
   asking_price: number | null;
   price_type: PriceType;
   revenue: number | null;
@@ -73,6 +74,7 @@ export type ListingFormData = {
   state: string | null;
   suburb: string | null;
   postcode: string | null;
+  region: string | null;
   asking_price: number | null;
   price_type: PriceType;
   revenue: number | null;
@@ -82,3 +84,37 @@ export type ListingFormData = {
   description: string | null;
   highlight_ids: string[];
 };
+
+export const SUGGESTED_REGIONS: { value: string; label: string; state?: string }[] = [
+  { value: "Sydney", label: "Sydney", state: "NSW" },
+  { value: "North Shore", label: "North Shore (Sydney)", state: "NSW" },
+  { value: "Western Sydney", label: "Western Sydney", state: "NSW" },
+  { value: "Eastern Suburbs", label: "Eastern Suburbs (Sydney)", state: "NSW" },
+  { value: "Inner West", label: "Inner West (Sydney)", state: "NSW" },
+  { value: "Northern Beaches", label: "Northern Beaches (Sydney)", state: "NSW" },
+  { value: "Regional NSW", label: "Regional NSW", state: "NSW" },
+  { value: "Newcastle / Hunter", label: "Newcastle / Hunter", state: "NSW" },
+  { value: "Central Coast", label: "Central Coast", state: "NSW" },
+  { value: "Wollongong / Illawarra", label: "Wollongong / Illawarra", state: "NSW" },
+
+  { value: "Brisbane", label: "Brisbane", state: "QLD" },
+  { value: "Gold Coast", label: "Gold Coast", state: "QLD" },
+  { value: "Sunshine Coast", label: "Sunshine Coast", state: "QLD" },
+  { value: "Regional QLD", label: "Regional QLD", state: "QLD" },
+
+  { value: "Melbourne", label: "Melbourne", state: "VIC" },
+  { value: "Regional VIC", label: "Regional VIC", state: "VIC" },
+  { value: "Geelong / Bellarine", label: "Geelong / Bellarine", state: "VIC" },
+
+  { value: "Adelaide", label: "Adelaide", state: "SA" },
+  { value: "Regional SA", label: "Regional SA", state: "SA" },
+
+  { value: "Perth", label: "Perth", state: "WA" },
+  { value: "Regional WA", label: "Regional WA", state: "WA" },
+
+  { value: "Hobart", label: "Hobart", state: "TAS" },
+  { value: "Regional TAS", label: "Regional TAS", state: "TAS" },
+
+  { value: "Canberra / ACT", label: "Canberra / ACT", state: "ACT" },
+  { value: "Darwin / NT", label: "Darwin / NT", state: "NT" },
+];

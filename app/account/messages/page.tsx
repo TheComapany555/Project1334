@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { listBuyerThreads } from "@/lib/actions/messages";
 import { PublicHeader } from "@/components/public-header";
-import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { MessagesShell } from "@/components/messaging/messages-shell";
 
 export const dynamic = "force-dynamic";
@@ -23,24 +22,15 @@ export default async function BuyerMessagesPage() {
   const threads = await listBuyerThreads();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <PublicHeader session={session} maxWidth="max-w-7xl" />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:py-10 space-y-6">
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Account", href: "/account" },
-            { label: "Messages" },
-          ]}
-        />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Conversations with brokers about listings you’ve enquired on.
-          </p>
-        </div>
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <PublicHeader session={session} maxWidth="max-w-none" />
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Suspense fallback={null}>
-          <MessagesShell viewerRole="buyer" initialThreads={threads} />
+          <MessagesShell
+            viewerRole="buyer"
+            initialThreads={threads}
+            containerClassName="flex-1 min-h-0 rounded-none border-0 border-t shadow-none"
+          />
         </Suspense>
       </main>
     </div>

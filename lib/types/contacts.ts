@@ -60,6 +60,16 @@ export type BrokerContact = {
   created_at: string;
   updated_at: string;
   tags: ContactTag[];
+  /** Joined from `profiles` when the contact is a registered buyer. */
+  buyer_budget_min?: number | null;
+  buyer_budget_max?: number | null;
+  /** Distinct category_ids of broker-owned listings this contact has interacted with. */
+  interacted_category_ids?: string[];
+  /**
+   * Highest data-room access state this contact has reached across any of the
+   * broker's listings. "none" = no record; otherwise the strongest state.
+   */
+  nda_state?: "none" | "pending" | "approved" | "denied" | "revoked" | "expired";
 };
 
 export type BuyerCrmStatus =

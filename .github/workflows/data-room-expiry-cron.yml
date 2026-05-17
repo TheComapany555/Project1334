@@ -1,0 +1,51 @@
+# M2 Phase 5 — Data-room access expiry sweep. Daily at ~7am AEST (21:00 UTC).
+#
+# Marks any `buyer_data_room_access` rows past their `expires_at` as expired,
+# deletes their per-buyer permissions, and notifies the buyer. Also fires a
+# 3-day-warning `access_expiring` notification (deduped via a 4-day lookback
+# on existing notifications so it only sends once per buyer per access).
+#
+# Required GitHub repository secrets:
+#   NEXT_PUBLIC_SUPABASE_URL    Supabase project URL
+#   SUPABASE_SERVICE_ROLE_KEY   Service-role key
+#
+# Manual trigger: Actions tab → "Data room expiry cron" → Run workflow.
+name: Data room expiry cron
+
+on:
+  schedule:
+    # 21:00 UTC = 07:00 AEST (09:00 AEDT during DST). Idempotent — safe to
+    # re-run; expired stays expired and the expiring-soon path checks for
+    # existing notifications.
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-room-expiry-cron
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --prefer-offline
+
+      - name: Sweep expired data-room access
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run cron:data-room-expiry

@@ -1,20 +1,29 @@
 import { getOpenAIClient, OPENAI_MODEL } from "./openai";
 import type { AnalyticsOverview } from "@/lib/actions/analytics";
+import type { RecentFeedbackRow } from "@/lib/actions/crm";
 import type { AIListingInsights } from "./listing-insights";
+
+const FEEDBACK_SUBTYPE_LABELS: Record<string, string> = {
+  feedback: "Feedback",
+  objection: "Objection",
+  concern: "Concern",
+  lost_interest: "Lost-interest reason",
+  common_question: "Common question",
+};
 
 const SYSTEM_PROMPT = `You are an analytics assistant for Salebiz, an Australian marketplace where brokers list businesses for sale.
 
-Your audience is the BROKER. Summarise their whole portfolio (all of their listings they manage in this account) using the numbers provided.
+Your audience is the BROKER. Summarise their whole portfolio (all of their listings they manage in this account) using the numbers AND the buyer-feedback notes provided.
 
 Produce three outputs in plain Australian English:
 
-1. "performance_summary" — one short paragraph (2 to 5 sentences, max 380 characters) on how the portfolio is performing in the selected period. Lead with headline metrics (views, enquiries, trends). Mention concentration if one listing dominates, or breadth if spread evenly. No headings, bullets, or markdown.
+1. "performance_summary" — one short paragraph (2 to 5 sentences, max 380 characters) on how the portfolio is performing in the selected period. Lead with headline metrics (views, enquiries, trends). If the buyer-feedback notes reveal a clear pattern (multiple objections about pricing, repeated lease concerns, frequent questions about financials, etc.), weave that pattern into the summary. No headings, bullets, or markdown.
 
-2. "suggested_actions" — an array of 2 to 3 practical next steps for the broker across their listings (not per listing). Each one sentence, max 160 characters, plain text.
+2. "suggested_actions" — an array of 2 to 3 practical next steps for the broker across their listings (not per listing). Each one sentence, max 160 characters, plain text. If buyer feedback suggests a fix (e.g. "publish updated P&L", "review asking price", "clarify lease terms in the listing"), reflect it here.
 
 3. "seller_update" — a short paragraph the broker could reuse when updating sellers or stakeholders about overall activity this period. Plain text, max 480 characters. Do not use a single seller name; refer to "your listing(s)" or "the businesses we have listed" as appropriate. No emojis or markdown.
 
-Style: factual, calm, confident. No em dash characters (use commas instead). Do not invent metrics. Use the numbers exactly as supplied.
+Style: factual, calm, confident. No em dash characters (use commas instead). Do not invent metrics. Use the numbers exactly as supplied. Do not quote buyer feedback verbatim — paraphrase patterns ("several buyers raised concerns about…").
 
 Return ONLY JSON with keys "performance_summary" (string), "suggested_actions" (string[]), and "seller_update" (string).`;
 
@@ -48,6 +57,21 @@ function describeOverviewForPrompt(o: AnalyticsOverview): string {
     if (o.per_listing.length > 15) {
       lines.push(`... and ${o.per_listing.length - 15} more listing(s).`);
     }
+  }
+  return lines.join("\n");
+}
+
+function describeFeedbackForPrompt(feedback: RecentFeedbackRow[]): string {
+  if (feedback.length === 0) {
+    return "No buyer feedback has been logged in the CRM. Do not invent patterns; if the analytics alone are quiet, say so in the summary and keep suggestions general.";
+  }
+  const lines: string[] = [
+    `Recent buyer feedback the broker has logged in the CRM (${feedback.length} item${feedback.length === 1 ? "" : "s"}, newest first). Use this to spot patterns across multiple buyers — do NOT quote any single comment verbatim:`,
+  ];
+  for (const row of feedback.slice(0, 30)) {
+    const label = FEEDBACK_SUBTYPE_LABELS[row.subtype] ?? "Feedback";
+    const trimmed = row.body.length > 220 ? `${row.body.slice(0, 217)}...` : row.body;
+    lines.push(`- [${label}] ${trimmed}`);
   }
   return lines.join("\n");
 }
@@ -93,6 +117,7 @@ function parseInsightsJson(raw: string | null | undefined): AIListingInsights {
 
 export async function generateBrokerAccountInsights(
   overview: AnalyticsOverview,
+  feedback: RecentFeedbackRow[] = [],
 ): Promise<AIListingInsights> {
   if (overview.per_listing.length === 0) {
     return {
@@ -126,7 +151,7 @@ export async function generateBrokerAccountInsights(
     };
   }
 
-  const userPrompt = `Here is the broker's portfolio analytics:\n\n${describeOverviewForPrompt(overview)}\n\nReturn JSON with keys "performance_summary", "suggested_actions", and "seller_update".`;
+  const userPrompt = `Here is the broker's portfolio analytics:\n\n${describeOverviewForPrompt(overview)}\n\n${describeFeedbackForPrompt(feedback)}\n\nReturn JSON with keys "performance_summary", "suggested_actions", and "seller_update".`;
 
   const openai = getOpenAIClient();
   const completion = await openai.chat.completions.create({

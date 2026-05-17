@@ -19,7 +19,7 @@ import {
   reorderListingImages,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
-import type { Category, Listing, ListingHighlight, ListingTier } from "@/lib/types/listings";
+import { SUGGESTED_REGIONS, type Category, type Listing, type ListingHighlight, type ListingTier } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import { TierBadge } from "@/components/shared/tier-badge";
@@ -70,6 +70,7 @@ const schema = z.object({
   state: z.string().max(100).optional(),
   suburb: z.string().max(100).optional(),
   postcode: z.string().max(20).optional(),
+  region: z.string().max(100).optional(),
   price_type: z.enum(["fixed", "poa"]),
   asking_price: z.number().min(0).nullable(),
   revenue: z.number().min(0).nullable(),
@@ -135,6 +136,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       state: listing.state ?? "",
       suburb: listing.suburb ?? "",
       postcode: listing.postcode ?? "",
+      region: listing.region ?? "",
       price_type: listing.price_type,
       asking_price: listing.asking_price ?? null,
       revenue: listing.revenue ?? null,
@@ -203,6 +205,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       state: data.state || null,
       suburb: data.suburb || null,
       postcode: data.postcode || null,
+      region: data.region || null,
       asking_price: data.asking_price ?? null,
       price_type: data.price_type,
       revenue: data.revenue ?? null,
@@ -247,6 +250,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       state: data.state || null,
       suburb: data.suburb || null,
       postcode: data.postcode || null,
+      region: data.region || null,
       asking_price: data.asking_price ?? null,
       price_type: data.price_type,
       revenue: data.revenue ?? null,
@@ -430,6 +434,31 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
                 <Label htmlFor="location_text">Location (free text)</Label>
                 <Input id="location_text" {...register("location_text")} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="region">Region (optional)</Label>
+              <Select
+                value={watch("region") || "__none__"}
+                onValueChange={(v) =>
+                  setValue("region", v === "__none__" ? "" : v, { shouldDirty: true })
+                }
+              >
+                <SelectTrigger id="region">
+                  <SelectValue placeholder="Pick a wider area (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No region</SelectItem>
+                  {SUGGESTED_REGIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Shown on listing cards and used in search filters. Useful when
+                you don&apos;t want to commit to a specific suburb early.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Price type</Label>

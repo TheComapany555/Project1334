@@ -41,6 +41,7 @@ import { DocumentVault } from "@/components/listings/document-vault";
 import { FavoriteButton } from "@/components/listings/favorite-button";
 import { CompareButton } from "@/components/listings/compare-button";
 import { getPublicListingDocuments } from "@/lib/actions/documents";
+import { getListingEnquiryFormConfig } from "@/lib/actions/enquiry-form-config";
 import { getListingNdaStatus } from "@/lib/actions/nda";
 import { isFavorited } from "@/lib/actions/favorites";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
@@ -132,12 +133,14 @@ export default async function ListingPage({ params }: Props) {
     "";
 
   // Fetch NDA status, documents, favorites, and comparison data
-  const [ndaStatus, documentData, isFav, comparisonIds] = await Promise.all([
-    getListingNdaStatus(listing.id),
-    getPublicListingDocuments(listing.id, session?.user?.id ?? null),
-    session?.user?.id ? isFavorited(listing.id) : Promise.resolve(false),
-    session?.user?.id ? getComparisonListingIds() : Promise.resolve([]),
-  ]);
+  const [ndaStatus, documentData, isFav, comparisonIds, enquiryFormConfig] =
+    await Promise.all([
+      getListingNdaStatus(listing.id),
+      getPublicListingDocuments(listing.id, session?.user?.id ?? null),
+      session?.user?.id ? isFavorited(listing.id) : Promise.resolve(false),
+      session?.user?.id ? getComparisonListingIds() : Promise.resolve([]),
+      getListingEnquiryFormConfig(listing.id),
+    ]);
   const isInComparison = comparisonIds.includes(listing.id);
 
   // Auto-fill enquiry form for logged-in buyers (Feature 2).
@@ -599,6 +602,7 @@ export default async function ListingPage({ params }: Props) {
             listingId={listing.id}
             listingTitle={listing.title}
             defaults={enquiryDefaults}
+            formConfig={enquiryFormConfig}
           />
         </div>
 

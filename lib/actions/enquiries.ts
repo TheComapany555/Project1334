@@ -10,6 +10,7 @@ import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-
 import { createNotification } from "@/lib/actions/notifications";
 import { bumpBuyerActivity } from "@/lib/actions/buyer-account";
 import { getOrCreateBrokerContactForBuyer } from "@/lib/actions/contacts";
+import { getListingEnquiryFormConfig } from "@/lib/actions/enquiry-form-config";
 import {
   buildPaginated,
   normalizePagination,
@@ -34,6 +35,12 @@ export async function submitEnquiry(
   const reason = (formData.get("reason") as string)?.trim() || null;
   const interest = (formData.get("interest") as string)?.trim() || null;
   const consentMarketing = formData.get("consent_marketing") === "true";
+  const budgetRange = (formData.get("budget_range") as string)?.trim() || null;
+  const fundingStatus = (formData.get("funding_status") as string)?.trim() || null;
+  const industryExperience =
+    (formData.get("industry_experience") as string)?.trim() || null;
+  const purchaseTimeframe =
+    (formData.get("purchase_timeframe") as string)?.trim() || null;
 
   if (!message || message.length < 10) {
     return { ok: false, error: "Please enter a message (at least 10 characters)." };
@@ -51,6 +58,33 @@ export async function submitEnquiry(
     .single();
   if (listError || !listing) {
     return { ok: false, error: "Listing not found or not available." };
+  }
+
+  // Honour per-listing custom enquiry form: required fields + custom questions.
+  const formConfig = await getListingEnquiryFormConfig(listing.id);
+  if (formConfig.require_phone && !contactPhone) {
+    return { ok: false, error: "Please add a contact phone number." };
+  }
+  if (formConfig.require_budget && !budgetRange) {
+    return { ok: false, error: "Please share your budget range." };
+  }
+  if (formConfig.require_funding && !fundingStatus) {
+    return { ok: false, error: "Please tell us your funding status." };
+  }
+  if (formConfig.require_industry && !industryExperience) {
+    return { ok: false, error: "Please describe your industry experience." };
+  }
+  if (formConfig.require_timeframe && !purchaseTimeframe) {
+    return { ok: false, error: "Please pick your purchase timeframe." };
+  }
+
+  const customAnswers: Record<string, string> = {};
+  for (const q of formConfig.custom_questions) {
+    const raw = (formData.get(`custom__${q.id}`) as string | null)?.trim() ?? "";
+    if (q.required && !raw) {
+      return { ok: false, error: `Please answer: ${q.label}` };
+    }
+    if (raw) customAnswers[q.id] = raw;
   }
 
   // If a buyer is logged in, link this enquiry to their account so it shows up in
@@ -72,6 +106,11 @@ export async function submitEnquiry(
       interest,
       consent_marketing: consentMarketing,
       user_id: buyerId,
+      budget_range: budgetRange,
+      funding_status: fundingStatus,
+      industry_experience: industryExperience,
+      purchase_timeframe: purchaseTimeframe,
+      custom_answers: customAnswers,
     })
     .select("id, created_at")
     .single();

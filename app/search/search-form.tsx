@@ -28,7 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Search, Loader2, ChevronDown, X, SlidersHorizontal } from "lucide-react";
 import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
-import type { Category, ListingHighlight } from "@/lib/types/listings";
+import { SUGGESTED_REGIONS, type Category, type ListingHighlight } from "@/lib/types/listings";
 
 type SortOption = { value: string; label: string };
 
@@ -42,6 +42,7 @@ type Props = {
     highlight: string;
     state: string;
     suburb: string;
+    region: string;
     price_min: string;
     price_max: string;
     revenue_min: string;
@@ -62,16 +63,19 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
   const [highlightQuery, setHighlightQuery] = useState("");
   const [advState, setAdvState] = useState(defaultValues.state);
   const [advSuburb, setAdvSuburb] = useState(defaultValues.suburb);
+  const [advRegion, setAdvRegion] = useState(defaultValues.region);
 
   useEffect(() => {
     setAdvState(defaultValues.state);
     setAdvSuburb(defaultValues.suburb);
-  }, [defaultValues.state, defaultValues.suburb]);
+    setAdvRegion(defaultValues.region);
+  }, [defaultValues.state, defaultValues.suburb, defaultValues.region]);
 
   // Open advanced filters if any are pre-filled
   const hasAdvanced = !!(
     defaultValues.state ||
     defaultValues.suburb ||
+    defaultValues.region ||
     defaultValues.price_min ||
     defaultValues.price_max ||
     defaultValues.revenue_min ||
@@ -88,6 +92,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
     const q = (data.get("q") as string)?.trim() || "";
     const state = (data.get("state") as string)?.trim() || "";
     const suburb = (data.get("suburb") as string)?.trim() || "";
+    const region = (data.get("region") as string)?.trim() || "";
     const price_min = (data.get("price_min") as string)?.trim() || "";
     const price_max = (data.get("price_max") as string)?.trim() || "";
     const revenue_min = (data.get("revenue_min") as string)?.trim() || "";
@@ -101,6 +106,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
     if (highlight && highlight !== "_any") params.set("highlight", highlight);
     if (state) params.set("state", state);
     if (suburb) params.set("suburb", suburb);
+    if (region) params.set("region", region);
     if (price_min) params.set("price_min", price_min);
     if (price_max) params.set("price_max", price_max);
     if (revenue_min) params.set("revenue_min", revenue_min);
@@ -261,6 +267,23 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
                     maxLength={100}
                   />
                 </div>
+              </div>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="search-region">Region</Label>
+                <select
+                  id="search-region"
+                  name="region"
+                  value={advRegion}
+                  onChange={(e) => setAdvRegion(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value="">Any region</option>
+                  {SUGGESTED_REGIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
