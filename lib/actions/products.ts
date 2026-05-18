@@ -173,6 +173,10 @@ export async function createProduct(form: {
   product_type?: string;
   category_id?: string | null;
   scope?: FeaturedScope | null;
+  pricing_model?: "flat" | "tiered_seats";
+  included_seats?: number | null;
+  extra_seat_price?: number | null;
+  tier_rank?: number | null;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
@@ -189,6 +193,10 @@ export async function createProduct(form: {
       category_id: form.category_id ?? null,
       scope: form.scope ?? null,
       status: "active",
+      pricing_model: form.pricing_model ?? "flat",
+      included_seats: form.included_seats ?? null,
+      extra_seat_price: form.extra_seat_price ?? null,
+      tier_rank: form.tier_rank ?? null,
     })
     .select("id")
     .single();
@@ -209,6 +217,10 @@ export async function updateProduct(
     product_type?: string;
     category_id?: string | null;
     scope?: FeaturedScope | null;
+    pricing_model?: "flat" | "tiered_seats";
+    included_seats?: number | null;
+    extra_seat_price?: number | null;
+    tier_rank?: number | null;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
@@ -228,6 +240,10 @@ export async function updateProduct(
     payload.product_type = form.product_type;
   if (form.category_id !== undefined) payload.category_id = form.category_id;
   if (form.scope !== undefined) payload.scope = form.scope;
+  if (form.pricing_model !== undefined) payload.pricing_model = form.pricing_model;
+  if (form.included_seats !== undefined) payload.included_seats = form.included_seats;
+  if (form.extra_seat_price !== undefined) payload.extra_seat_price = form.extra_seat_price;
+  if (form.tier_rank !== undefined) payload.tier_rank = form.tier_rank;
 
   const { error } = await supabase
     .from("products")

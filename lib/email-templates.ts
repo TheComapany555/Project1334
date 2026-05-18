@@ -348,6 +348,7 @@ export function invoiceRequestedAdminEmail({
   listingTitle,
   productName,
   amount,
+  breakdown,
   notes,
   adminUrl,
 }: {
@@ -355,6 +356,8 @@ export function invoiceRequestedAdminEmail({
   listingTitle: string;
   productName: string;
   amount: string;
+  /** Optional per-seat breakdown for tiered subscription invoices. */
+  breakdown?: string | null;
   notes: string | null;
   adminUrl: string;
 }): string {
@@ -370,7 +373,8 @@ export function invoiceRequestedAdminEmail({
       <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Agency</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600;">${agencyName}</td></tr>
       <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Listing</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;">${listingTitle}</td></tr>
       <tr><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;">Product</td><td style="padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:14px;">${productName}</td></tr>
-      <tr><td style="padding:12px 16px;font-size:13px;color:#888;">Amount</td><td style="padding:12px 16px;font-size:14px;font-weight:600;">${amount}</td></tr>
+      <tr><td style="padding:12px 16px;${breakdown ? "border-bottom:1px solid #f0f0f0;" : ""}font-size:13px;color:#888;">Amount</td><td style="padding:12px 16px;${breakdown ? "border-bottom:1px solid #f0f0f0;" : ""}font-size:14px;font-weight:600;">${amount}</td></tr>
+      ${breakdown ? `<tr><td style="padding:12px 16px;font-size:13px;color:#888;">Breakdown</td><td style="padding:12px 16px;font-size:13px;color:#555;">${breakdown}</td></tr>` : ""}
     </table>
 
     ${notes ? `<p style="margin:0 0 20px 0;font-size:13px;color:#666;">

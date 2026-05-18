@@ -35,6 +35,8 @@ export async function upsertAgencyPricing(form: {
   agency_id: string;
   product_id: string;
   custom_price: number; // in cents
+  /** Tiered_seats plans only — overrides the per-extra-seat price. NULL = use product default. */
+  custom_extra_seat_price?: number | null;
   currency?: string;
   notes?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
@@ -44,6 +46,12 @@ export async function upsertAgencyPricing(form: {
   if (form.custom_price < 0) {
     return { ok: false, error: "Price cannot be negative." };
   }
+  if (
+    form.custom_extra_seat_price != null &&
+    form.custom_extra_seat_price < 0
+  ) {
+    return { ok: false, error: "Extra seat price cannot be negative." };
+  }
 
   const { error } = await supabase
     .from("agency_pricing_overrides")
@@ -52,6 +60,7 @@ export async function upsertAgencyPricing(form: {
         agency_id: form.agency_id,
         product_id: form.product_id,
         custom_price: form.custom_price,
+        custom_extra_seat_price: form.custom_extra_seat_price ?? null,
         currency: form.currency ?? "aud",
         notes: form.notes?.trim() || null,
         updated_at: new Date().toISOString(),

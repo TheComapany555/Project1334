@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { resolveProductPrice } from "@/lib/actions/products";
+import { quoteAgencyPlan } from "@/lib/actions/subscription-pricing";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -110,15 +110,23 @@ export async function POST(req: NextRequest) {
       subRecordId = subRecord.id;
     }
 
-    // Resolve agency-specific pricing (custom override or default)
-    const resolved = await resolveProductPrice(productId, agencyId);
-    const finalPrice = resolved?.price ?? product.price;
-    const finalCurrency = resolved?.currency ?? product.currency;
+    // Resolve agency-specific pricing using the unified quote helper.
+    // Returns base price + per-seat overage based on current broker count,
+    // with admin overrides applied.
+    const quote = await quoteAgencyPlan(agencyId, productId);
+    if (!quote) {
+      return NextResponse.json(
+        { error: "Failed to price subscription plan" },
+        { status: 500 },
+      );
+    }
 
-    // Use the same PaymentIntent approach as featured listings
+    // First-month charge = base + any extra-seat overage at sign-up time.
+    const firstChargeCents = quote.monthly_total_cents;
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: finalPrice,
-      currency: finalCurrency,
+      amount: firstChargeCents,
+      currency: quote.currency,
       automatic_payment_methods: { enabled: true },
       metadata: {
         payment_type: "subscription",
@@ -127,13 +135,27 @@ export async function POST(req: NextRequest) {
         product_id: productId,
         agency_name: agency?.name ?? "",
         agency_email: agency?.email ?? session.user.email ?? "",
+        // Snapshots so the webhook can construct the recurring Stripe sub
+        // with the right line items + quantities.
+        pricing_model: quote.pricing_model,
+        included_seats: String(quote.included_seats ?? 0),
+        extra_seat_price: String(quote.extra_seat_price_cents ?? 0),
+        seat_quantity: String(quote.current_seats),
+        base_price_cents: String(quote.base_price_cents),
       },
     });
 
-    // Store the payment intent ID on the subscription record
+    // Persist snapshots on the subscription row so billing is stable even if
+    // an admin edits the plan's pricing later. Quantity is the broker count
+    // we're billing for this period; it gets reconciled at each invoice cycle.
     await supabase
       .from("agency_subscriptions")
-      .update({ stripe_payment_intent: paymentIntent.id })
+      .update({
+        stripe_payment_intent: paymentIntent.id,
+        quantity: quote.current_seats,
+        included_seats_snapshot: quote.included_seats,
+        extra_seat_price_snapshot: quote.extra_seat_price_cents,
+      })
       .eq("id", subRecordId);
 
     return NextResponse.json({

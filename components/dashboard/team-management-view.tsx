@@ -18,6 +18,7 @@ import { Users, Clock, Mail } from "lucide-react";
 import { InviteForm } from "@/app/dashboard/team/invite-form";
 import { ResendButton, RevokeButton } from "@/app/dashboard/team/invitation-actions";
 import { BrokersTable } from "@/app/dashboard/team/brokers-table";
+import { SeatStatusBanner } from "@/components/dashboard/seat-status-banner";
 import type { AgencyBroker, AgencyInvitation } from "@/lib/types/agencies";
 
 function formatDate(iso: string) {
@@ -47,6 +48,9 @@ export function TeamManagementView({
           description={`Manage brokers in ${agencyName ?? "your agency"}. Invite new brokers or remove existing ones.`}
         />
       )}
+
+      {/* Seat / billing impact preview */}
+      <SeatStatusBanner brokerCount={brokers.length} />
 
       {/* Invite broker */}
       <Card>

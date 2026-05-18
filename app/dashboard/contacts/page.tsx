@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { ContactsClientView } from "./contacts-client-view";
 import { BccAddressCard } from "./bcc-address-card";
+import { LogFeedbackButton } from "./log-feedback-button";
 import { FollowUpsBanner } from "@/components/dashboard/follow-ups-banner";
 
 export default async function ContactsPage() {
@@ -59,12 +60,15 @@ export default async function ContactsPage() {
           title="CRM"
           description="Your saved contacts from enquiries and manual entries. Send listings directly via email."
         />
-        <Button asChild size="sm" variant="outline" className="shrink-0">
-          <Link href="/dashboard/agency/custom-fields">
-            <Settings2 className="h-4 w-4" />
-            Custom fields
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <LogFeedbackButton />
+          <Button asChild size="sm" variant="outline">
+            <Link href="/dashboard/agency/custom-fields">
+              <Settings2 className="h-4 w-4" />
+              Custom fields
+            </Link>
+          </Button>
+        </div>
       </div>
       <FollowUpsBanner
         followUps={followUps}

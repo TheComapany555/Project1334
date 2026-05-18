@@ -302,16 +302,41 @@ export async function logActivity(input: {
     contactId: input.contactId,
     buyerUserId: input.buyerUserId,
   });
-  if (!target) return { ok: false, error: "Contact or buyer not found" };
+
+  // Feedback can be logged with no buyer and no listing — e.g. the broker
+  // jots down general feedback heard on a call with an unregistered contact.
+  // Other activity kinds (email, call, note, etc.) still require a
+  // buyer/contact target so they have something to mirror onto.
+  const isLooseFeedback = !target && input.kind === "feedback_logged";
+  if (!target && !isLooseFeedback) {
+    return { ok: false, error: "Contact or buyer not found" };
+  }
+
+  // If a listingId is supplied (with or without a buyer), verify the broker
+  // owns the listing so they can't tag feedback onto someone else's.
+  if (input.listingId) {
+    const { data: listing } = await supabase
+      .from("listings")
+      .select("id, broker_id, agency_id")
+      .eq("id", input.listingId)
+      .maybeSingle();
+    if (!listing) return { ok: false, error: "Listing not found" };
+    const owns =
+      listing.broker_id === broker.id ||
+      (broker.agencyId &&
+        broker.agencyRole === "owner" &&
+        listing.agency_id === broker.agencyId);
+    if (!owns) return { ok: false, error: "You do not own this listing" };
+  }
 
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
   const { data: inserted, error } = await supabase
     .from("crm_activities")
     .insert({
-      broker_id: target.brokerId,
-      contact_id: target.contactId,
-      buyer_user_id: target.buyerUserId,
+      broker_id: target?.brokerId ?? broker.id,
+      contact_id: target?.contactId ?? null,
+      buyer_user_id: target?.buyerUserId ?? null,
       listing_id: input.listingId ?? null,
       kind: input.kind,
       subject: input.subject ?? null,
@@ -326,7 +351,7 @@ export async function logActivity(input: {
     return { ok: false, error: error?.message ?? "Failed to log activity" };
   }
 
-  if (input.applySideEffects !== false && target.contactId) {
+  if (input.applySideEffects !== false && target?.contactId) {
     await applyContactMirrors(supabase, target.contactId, input.kind, occurredAt);
 
     const advanceTarget = autoAdvanceTargetFor(input.kind);
@@ -378,6 +403,95 @@ export type RecentFeedbackRow = {
   body: string;
   occurred_at: string;
 };
+
+export type ListingFeedbackRow = RecentFeedbackRow & {
+  buyer_user_id: string | null;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  activity_id: string;
+};
+
+/**
+ * Recent feedback rows tagged to a specific listing, newest first. Used by
+ * the listing AI Insights page so the model can produce a seller update
+ * that mentions buyer-specific feedback collected for THIS listing.
+ *
+ * Authorisation: verifies the current broker owns the listing (or owns the
+ * parent agency that does). Matches the spec's per-broker scoping rule —
+ * one broker can never see another broker's feedback even if it sits on a
+ * shared agency listing they don't own.
+ */
+export async function getRecentFeedbackForListing(
+  listingId: string,
+  limit = 30,
+): Promise<ListingFeedbackRow[]> {
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, broker_id, agency_id")
+    .eq("id", listingId)
+    .maybeSingle();
+  if (!listing) return [];
+  const owns =
+    listing.broker_id === broker.id ||
+    (broker.agencyId &&
+      broker.agencyRole === "owner" &&
+      listing.agency_id === broker.agencyId);
+  if (!owns) return [];
+
+  const { data: activities } = await supabase
+    .from("crm_activities")
+    .select("id, subject, body, occurred_at, buyer_user_id, contact_id")
+    .eq("listing_id", listingId)
+    .eq("kind", "feedback_logged")
+    .not("body", "is", null)
+    .order("occurred_at", { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 100)));
+
+  const rows = activities ?? [];
+  if (rows.length === 0) return [];
+
+  // Enrich with buyer names/emails for the rows that have a buyer attached.
+  const buyerIds = [
+    ...new Set(
+      rows.map((r) => r.buyer_user_id).filter((id): id is string => !!id),
+    ),
+  ];
+  const profileById = new Map<string, { name: string | null }>();
+  const userById = new Map<string, { email: string }>();
+  if (buyerIds.length > 0) {
+    const [{ data: profiles }, { data: users }] = await Promise.all([
+      supabase.from("profiles").select("id, name").in("id", buyerIds),
+      supabase.from("users").select("id, email").in("id", buyerIds),
+    ]);
+    for (const p of profiles ?? []) profileById.set(p.id, { name: p.name });
+    for (const u of users ?? []) userById.set(u.id, { email: u.email });
+  }
+
+  const out: ListingFeedbackRow[] = [];
+  for (const r of rows) {
+    const subtype = (r.subject as string | null)?.trim();
+    if (!subtype || !FEEDBACK_SUBTYPES.includes(subtype as FeedbackSubtype)) continue;
+    const body = (r.body as string | null)?.trim();
+    if (!body) continue;
+    out.push({
+      activity_id: r.id,
+      subtype: subtype as FeedbackSubtype,
+      body,
+      occurred_at: r.occurred_at as string,
+      buyer_user_id: r.buyer_user_id,
+      buyer_name: r.buyer_user_id
+        ? profileById.get(r.buyer_user_id)?.name ?? null
+        : null,
+      buyer_email: r.buyer_user_id
+        ? userById.get(r.buyer_user_id)?.email ?? null
+        : null,
+    });
+  }
+  return out;
+}
 
 /**
  * Recent feedback rows scoped to the current broker, ordered newest first.

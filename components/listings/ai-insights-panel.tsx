@@ -67,6 +67,9 @@ import type {
   ListingInsightsMetrics,
 } from "@/lib/actions/listing-insights";
 import type { AIListingInsights } from "@/lib/ai/listing-insights";
+import type { FeedbackSubtype, ListingFeedbackRow } from "@/lib/actions/crm";
+import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
+import { ClipboardList, Plus } from "lucide-react";
 
 type InsightsResponse = {
   metrics: ListingInsightsMetrics;
@@ -254,6 +257,14 @@ export function AIInsightsPanel({ listingId }: Props) {
                 />
               </SectionMotion>
             </div>
+
+            <SectionMotion reducedMotion={reducedMotion}>
+              <BuyerFeedbackCard
+                listingId={listingId}
+                feedback={data.metrics.recent_feedback}
+                onChanged={() => load("refresh", period)}
+              />
+            </SectionMotion>
 
             <SectionMotion reducedMotion={reducedMotion}>
               <SellerUpdateCard message={data.ai.seller_update} />
@@ -1098,4 +1109,153 @@ function fmtRelative(date: Date): string {
     month: "short",
     year: "numeric",
   });
+}
+
+// ─── Buyer feedback card ───────────────────────────────────────────────────
+
+const FEEDBACK_SUBTYPE_LABEL: Record<FeedbackSubtype, string> = {
+  feedback: "Feedback",
+  objection: "Objection",
+  concern: "Concern",
+  lost_interest: "Lost interest",
+  common_question: "Common question",
+};
+
+const FEEDBACK_SUBTYPE_TONE: Record<FeedbackSubtype, string> = {
+  feedback: "bg-muted text-muted-foreground",
+  objection: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  concern: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  lost_interest:
+    "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  common_question:
+    "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+};
+
+function BuyerFeedbackCard({
+  listingId,
+  feedback,
+  onChanged,
+}: {
+  listingId: string;
+  feedback: ListingFeedbackRow[];
+  onChanged: () => void;
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Quick stats — count per subtype so the broker sees patterns at a glance.
+  const counts = useMemo(() => {
+    const c: Partial<Record<FeedbackSubtype, number>> = {};
+    for (const row of feedback) {
+      c[row.subtype] = (c[row.subtype] ?? 0) + 1;
+    }
+    return c;
+  }, [feedback]);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <ClipboardList className="size-4 text-primary" />
+              Buyer feedback
+              <Badge variant="secondary" className="text-[10px]">
+                {feedback.length}
+              </Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Log feedback you hear from buyers about this listing. The AI
+              uses recurring themes to help draft the seller update below.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setDialogOpen(true)}
+            className="gap-1.5 shrink-0"
+          >
+            <Plus className="size-3.5" />
+            Log feedback
+          </Button>
+        </div>
+
+        {feedback.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {(Object.keys(FEEDBACK_SUBTYPE_LABEL) as FeedbackSubtype[]).map(
+              (k) =>
+                (counts[k] ?? 0) > 0 ? (
+                  <Badge
+                    key={k}
+                    variant="secondary"
+                    className={cn(
+                      "text-[10px] font-medium",
+                      FEEDBACK_SUBTYPE_TONE[k],
+                    )}
+                  >
+                    {FEEDBACK_SUBTYPE_LABEL[k]} · {counts[k]}
+                  </Badge>
+                ) : null,
+            )}
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="pt-0">
+        {feedback.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+            <p>No feedback logged for this listing yet.</p>
+            <p className="mt-1 text-xs">
+              When you log feedback, the seller update below will reflect
+              what buyers are saying.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+            {feedback.map((row) => (
+              <li
+                key={row.activity_id}
+                className="rounded-md border border-border bg-card px-3 py-2.5 text-sm"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "text-[10px] font-medium",
+                      FEEDBACK_SUBTYPE_TONE[row.subtype],
+                    )}
+                  >
+                    {FEEDBACK_SUBTYPE_LABEL[row.subtype]}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {fmtRelative(new Date(row.occurred_at))}
+                  </span>
+                  {row.buyer_name || row.buyer_email ? (
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      · {row.buyer_name || row.buyer_email}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      · No buyer attached
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  {row.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+
+      <AddFeedbackDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        contactId={null}
+        buyerUserId={null}
+        contactName={null}
+        listingId={listingId}
+        lockListing
+        onSaved={onChanged}
+      />
+    </Card>
+  );
 }

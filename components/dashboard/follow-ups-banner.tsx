@@ -117,7 +117,7 @@ export function FollowUpsBanner({
               </Button>
             )}
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/follow-ups">
+              <Link href="/dashboard/contacts/follow-ups">
                 View all
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>

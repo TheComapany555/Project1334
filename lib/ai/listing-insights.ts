@@ -9,22 +9,23 @@ export type AIListingInsights = {
 
 const SYSTEM_PROMPT = `You are an analytics assistant for Salebiz, an Australian marketplace where business owners list their businesses for sale through brokers.
 
-Your audience is the BROKER, not the buyer. Your job is to read the listing's recent performance numbers and produce three things in plain Australian English:
+Your audience is the BROKER, not the buyer. Your job is to read the listing's recent performance numbers AND any buyer feedback the broker has logged, then produce three things in plain Australian English:
 
-1. "performance_summary" — one short paragraph (2 to 4 sentences, max 320 characters) describing how the listing is performing this month. Lead with the actual numbers. Be factual, not hyped. Mention the most relevant signals (views, enquiries, NDA requests, repeat visitors). Suitable for the broker to read and forward to a seller. No headings. No bullet points. No markdown.
+1. "performance_summary" — one short paragraph (2 to 4 sentences, max 360 characters) describing how the listing is performing this month. Lead with the actual numbers. If buyer feedback shows a clear pattern (e.g. multiple concerns about price, repeated questions about lease, common objection to staff size), surface that pattern in plain language. Be factual, not hyped. No headings. No bullet points. No markdown.
 
-2. "suggested_actions" — an array of 2 to 3 short, practical, numbers-driven recommendations the broker could take next. Each item is one sentence, plain text, max 160 characters. Examples of the kind of guidance to produce:
+2. "suggested_actions" — an array of 2 to 3 short, practical recommendations the broker could take next. Each item is one sentence, plain text, max 180 characters. Tailor to both the numbers AND the feedback patterns. Examples:
    - "Follow up with the 3 buyers who requested NDAs but haven't signed yet."
-   - "248 views with only 6 NDA requests suggests price friction. Consider revisiting the asking price."
-   - "Send updated financials to NDA-signed buyers to push toward an offer."
-   Tailor them to the actual numbers. If the listing has no activity, suggest improving exposure, not buyer follow-ups.
+   - "Buyers keep flagging the asking price as high. Consider sharing an updated valuation rationale or revisiting the price."
+   - "Multiple buyers asked about staff retention. Add a brief operations note to the listing description to head off that objection."
+   If the listing has no activity, suggest improving exposure, not buyer follow-ups.
 
-3. "seller_update" — a ready-to-send professional message the broker can copy and paste straight to their seller. Plain text. Open with "Hi [Seller Name]," and close with no signature. Include the real numbers inline. 2 to 4 sentences, max 480 characters. Tone: confident, calm, factual. No emojis. No marketing fluff.
+3. "seller_update" — a ready-to-send professional message the broker can copy and paste straight to their seller (the business owner). Plain text. Open with "Hi [Seller Name]," and close with no signature. Include the real numbers inline. If buyer feedback reveals a recurring theme worth raising with the seller (pricing pushback, requests for more financial detail, concerns about an asset), reference it in neutral, summarised language. Do NOT quote buyer messages verbatim. 3 to 5 sentences, max 600 characters. Tone: confident, calm, factual. No emojis. No marketing fluff.
 
 Style rules across all three outputs:
 - Plain Australian English. Confident and factual. Never salesy.
 - Avoid em dash characters; use commas, periods, or parentheses instead.
-- Do not invent metrics that were not provided. Use the numbers exactly as supplied.
+- Do not invent metrics or feedback that were not provided. Use what is supplied.
+- Do not quote buyer feedback verbatim. Paraphrase recurring patterns.
 - Do not invent a seller name; always write the literal placeholder "[Seller Name]".
 - No emojis. No markdown. No headings.
 
@@ -80,8 +81,37 @@ function describeMetricsForPrompt(input: ListingInsightsMetrics): string {
     );
   }
 
+  // Buyer feedback the broker has logged against this listing. The model
+  // uses these to spot patterns and inform the seller_update.
+  const fb = input.recent_feedback ?? [];
+  if (fb.length > 0) {
+    parts.push("");
+    parts.push(
+      `Buyer feedback logged for this listing (${fb.length} item${fb.length === 1 ? "" : "s"}, newest first). Spot patterns — do NOT quote verbatim:`,
+    );
+    for (const row of fb.slice(0, 25)) {
+      const label = FEEDBACK_SUBTYPE_LABEL[row.subtype] ?? "Feedback";
+      const trimmed =
+        row.body.length > 220 ? `${row.body.slice(0, 217)}...` : row.body;
+      parts.push(`- [${label}] ${trimmed}`);
+    }
+  } else {
+    parts.push("");
+    parts.push(
+      "No buyer feedback has been logged for this listing yet. Do not invent feedback patterns — focus the seller update on the numbers alone.",
+    );
+  }
+
   return parts.join("\n");
 }
+
+const FEEDBACK_SUBTYPE_LABEL: Record<string, string> = {
+  feedback: "Feedback",
+  objection: "Objection",
+  concern: "Concern",
+  lost_interest: "Lost-interest reason",
+  common_question: "Common question",
+};
 
 function parseInsightsJson(raw: string | null | undefined): AIListingInsights {
   if (!raw) throw new Error("AI returned an empty response. Please try again.");

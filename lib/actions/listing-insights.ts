@@ -3,6 +3,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  getRecentFeedbackForListing,
+  type ListingFeedbackRow,
+} from "@/lib/actions/crm";
 
 const DEFAULT_PERIOD_DAYS = 30;
 const ALLOWED_PERIODS = [7, 30, 90] as const;
@@ -58,6 +62,8 @@ export type ListingInsightsMetrics = {
     days_live: number;
   };
   hot_buyers: HotBuyer[];
+  /** Recent buyer feedback rows tagged to this listing — newest first. */
+  recent_feedback: ListingFeedbackRow[];
 };
 
 async function requireBrokerForListing(listingId: string) {
@@ -378,6 +384,13 @@ export async function getListingInsightsMetrics(
     ? ((rawCat[0] as { name?: string | null } | undefined)?.name ?? null)
     : ((rawCat as { name?: string | null } | null | undefined)?.name ?? null);
 
+  // Pull recent buyer feedback for this listing so AI insights can use it.
+  // Capped at 30 most-recent rows — anything older than ~3 months is stale
+  // for the seller-update use case.
+  const recent_feedback = await getRecentFeedbackForListing(listingId, 30).catch(
+    () => [] as ListingFeedbackRow[],
+  );
+
   return {
     listing: {
       id: listing.id,
@@ -402,5 +415,6 @@ export async function getListingInsightsMetrics(
       days_live,
     },
     hot_buyers,
+    recent_feedback,
   };
 }

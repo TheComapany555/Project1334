@@ -3,6 +3,8 @@ export type AgencyPricingOverride = {
   agency_id: string;
   product_id: string;
   custom_price: number; // cents
+  /** Override for tiered_seats plans only. NULL = use product default. */
+  custom_extra_seat_price: number | null;
   currency: string;
   notes: string | null;
   created_at: string;

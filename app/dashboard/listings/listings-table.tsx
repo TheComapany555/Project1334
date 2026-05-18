@@ -48,6 +48,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
+  Comment01Icon,
   Delete02Icon,
   Edit02Icon,
   Mail01Icon,
@@ -57,6 +58,7 @@ import {
   SentIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
+import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
 
 const STATUS_OPTIONS: { value: ListingStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -107,6 +109,10 @@ export function ListingsTable({
 }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [feedbackListing, setFeedbackListing] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const { state, setPage, setPageSize, setSearch } = useTableUrlState();
   const [searchInput, setSearchInput] = React.useState(state.q);
   const [isPending, startTransition] = React.useTransition();
@@ -416,6 +422,15 @@ export function ListingsTable({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setFeedbackListing({ id: listing.id, title: listing.title });
+                    }}
+                  >
+                    <HugeiconsIcon icon={Comment01Icon} className="size-4" />
+                    Log buyer feedback
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     variant="destructive"
                     onSelect={(e) => {
                       e.preventDefault();
@@ -482,6 +497,17 @@ export function ListingsTable({
             });
           },
         }}
+      />
+
+      <AddFeedbackDialog
+        open={!!feedbackListing}
+        onOpenChange={(open) => !open && setFeedbackListing(null)}
+        contactId={null}
+        buyerUserId={null}
+        contactName={null}
+        listingId={feedbackListing?.id ?? null}
+        listingTitle={feedbackListing?.title ?? null}
+        lockListing
       />
 
       {deletingId && (

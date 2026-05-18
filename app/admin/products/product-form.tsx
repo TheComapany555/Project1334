@@ -33,6 +33,10 @@ const productSchema = z.object({
   product_type: z.enum(["featured", "listing_tier", "subscription"]),
   scope: z.enum(["homepage", "category", "both", "none"]),
   category_id: z.string(),
+  pricing_model: z.enum(["flat", "tiered_seats"]),
+  included_seats: z.string().optional().or(z.literal("")),
+  extra_seat_price: z.string().optional().or(z.literal("")),
+  tier_rank: z.string().optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof productSchema>;
@@ -75,12 +79,23 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
         (product?.scope as FormValues["scope"] | undefined) ??
         (initialFeaturedScope && !product ? initialFeaturedScope : "homepage"),
       category_id: product?.category_id ?? "",
+      pricing_model: product?.pricing_model ?? "flat",
+      included_seats:
+        product?.included_seats != null ? String(product.included_seats) : "",
+      extra_seat_price:
+        product?.extra_seat_price != null
+          ? String(product.extra_seat_price / 100)
+          : "",
+      tier_rank: product?.tier_rank != null ? String(product.tier_rank) : "",
     },
   });
 
   const productType = watch("product_type");
   const scope = watch("scope");
+  const pricingModel = watch("pricing_model");
   const isFeatured = productType === "featured";
+  const isSubscription = productType === "subscription";
+  const isTieredSeats = isSubscription && pricingModel === "tiered_seats";
   const showCategory = isFeatured && (scope === "category" || scope === "both");
   const categoryRequired = isFeatured && scope === "category";
 
@@ -113,6 +128,31 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
         ? values.category_id
         : null;
 
+      // Subscription-only tiered fields
+      let includedSeats: number | null = null;
+      let extraSeatPriceCents: number | null = null;
+      let tierRank: number | null = null;
+      if (isSubscription) {
+        if (pricingModel === "tiered_seats") {
+          const isn = parseInt(values.included_seats ?? "", 10);
+          if (!Number.isFinite(isn) || isn < 0) {
+            toast.error("Included seats must be a non-negative whole number");
+            setIsSubmitting(false);
+            return;
+          }
+          includedSeats = isn;
+          const ep = parseFloat(values.extra_seat_price ?? "");
+          if (!Number.isFinite(ep) || ep < 0) {
+            toast.error("Extra seat price must be a non-negative number");
+            setIsSubmitting(false);
+            return;
+          }
+          extraSeatPriceCents = Math.round(ep * 100);
+        }
+        const rank = parseInt(values.tier_rank ?? "", 10);
+        if (Number.isFinite(rank)) tierRank = rank;
+      }
+
       const payload = {
         name: values.name,
         description: values.description || null,
@@ -122,7 +162,11 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
         product_type: values.product_type,
         scope: resolvedScope,
         category_id: resolvedCategoryId,
-      };
+        pricing_model: isSubscription ? pricingModel : "flat",
+        included_seats: includedSeats,
+        extra_seat_price: extraSeatPriceCents,
+        tier_rank: tierRank,
+      } as const;
 
       const res = isEdit && product
         ? await updateProduct(product.id, payload)
@@ -180,6 +224,83 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
           Controls where this plan appears for agencies.
         </p>
       </div>
+
+      {isSubscription && (
+        <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+          <div className="space-y-2">
+            <Label>Pricing model</Label>
+            <Select
+              value={pricingModel}
+              onValueChange={(v) =>
+                setValue("pricing_model", v as "flat" | "tiered_seats")
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="flat">
+                  Flat — one price, unlimited brokers
+                </SelectItem>
+                <SelectItem value="tiered_seats">
+                  Tiered with seat overage — N brokers included + per-extra-seat fee
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Tiered plans let you cap included brokers and charge a per-broker
+              overage for anything above that.
+            </p>
+          </div>
+
+          {isTieredSeats && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="included_seats">Included brokers</Label>
+                <Input
+                  id="included_seats"
+                  type="number"
+                  min="0"
+                  step="1"
+                  {...register("included_seats")}
+                  placeholder="e.g. 10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Brokers covered by the base price.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="extra_seat_price">Extra broker (AUD/mo)</Label>
+                <Input
+                  id="extra_seat_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("extra_seat_price")}
+                  placeholder="e.g. 29.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Charged per broker above the included count, per month.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="tier_rank">Tier rank (display order)</Label>
+            <Input
+              id="tier_rank"
+              type="number"
+              step="1"
+              {...register("tier_rank")}
+              placeholder="e.g. 10 (Starter), 20 (Growth), 30 (Scale)"
+            />
+            <p className="text-xs text-muted-foreground">
+              Lower numbers show first in the agency-facing plan picker.
+            </p>
+          </div>
+        </div>
+      )}
 
       {isFeatured && (
         <div className="space-y-2">

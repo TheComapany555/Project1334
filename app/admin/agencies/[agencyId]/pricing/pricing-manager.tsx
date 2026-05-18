@@ -84,8 +84,15 @@ function PricingRow({
   override: AgencyPricingOverride | null;
   onSaved: () => void;
 }) {
+  const isTieredSeats = product.pricing_model === "tiered_seats";
+
   const [customPrice, setCustomPrice] = useState(
     override ? String(override.custom_price / 100) : ""
+  );
+  const [customSeatPrice, setCustomSeatPrice] = useState(
+    override?.custom_extra_seat_price != null
+      ? String(override.custom_extra_seat_price / 100)
+      : "",
   );
   const [notes, setNotes] = useState(override?.notes ?? "");
   const [saving, setSaving] = useState(false);
@@ -93,6 +100,8 @@ function PricingRow({
 
   const hasOverride = !!override;
   const defaultPriceDollars = product.price / 100;
+  const defaultSeatDollars =
+    product.extra_seat_price != null ? product.extra_seat_price / 100 : null;
 
   async function handleSave() {
     const priceNum = parseFloat(customPrice);
@@ -100,11 +109,21 @@ function PricingRow({
       toast.error("Please enter a valid price.");
       return;
     }
+    let seatOverride: number | null = null;
+    if (isTieredSeats && customSeatPrice.trim()) {
+      const seatNum = parseFloat(customSeatPrice);
+      if (isNaN(seatNum) || seatNum < 0) {
+        toast.error("Please enter a valid extra-seat price.");
+        return;
+      }
+      seatOverride = Math.round(seatNum * 100);
+    }
     setSaving(true);
     const result = await upsertAgencyPricing({
       agency_id: agencyId,
       product_id: product.id,
       custom_price: Math.round(priceNum * 100),
+      custom_extra_seat_price: seatOverride,
       currency: product.currency,
       notes: notes || null,
     });
@@ -125,6 +144,7 @@ function PricingRow({
     if (result.ok) {
       toast.success(`Reverted to default price for ${product.name}`);
       setCustomPrice("");
+      setCustomSeatPrice("");
       setNotes("");
       onSaved();
     } else {
@@ -154,20 +174,35 @@ function PricingRow({
               </CardDescription>
             )}
           </div>
-          <div className="text-right">
+          <div className="text-right space-y-0.5">
             <p className="text-xs text-muted-foreground">Default price</p>
             <p className="text-sm font-semibold">
               {formatPrice(product.price, product.currency)}
             </p>
+            {isTieredSeats && (
+              <p className="text-[10px] text-muted-foreground">
+                {product.included_seats ?? 0} included ·{" "}
+                {defaultSeatDollars != null
+                  ? formatPrice(product.extra_seat_price ?? 0, product.currency)
+                  : "—"}
+                /extra
+              </p>
+            )}
           </div>
         </div>
       </CardHeader>
       <Separator />
-      <CardContent className="pt-4">
-        <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
+      <CardContent className="pt-4 space-y-3">
+        <div
+          className={
+            isTieredSeats
+              ? "grid gap-4 sm:grid-cols-2"
+              : "grid gap-4 sm:grid-cols-[1fr_1fr_auto]"
+          }
+        >
           <div className="space-y-1.5">
             <Label htmlFor={`price-${product.id}`} className="text-xs">
-              Custom price (AUD)
+              {isTieredSeats ? "Custom base price (AUD)" : "Custom price (AUD)"}
             </Label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -183,49 +218,125 @@ function PricingRow({
               />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`notes-${product.id}`} className="text-xs">
-              Notes
-            </Label>
-            <Input
-              id={`notes-${product.id}`}
-              placeholder="e.g. Agreed in contract #123"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-          <div className="flex items-end gap-2">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={saving || !customPrice}
-              className="gap-1.5"
-            >
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              Save
-            </Button>
-            {hasOverride && (
+          {isTieredSeats && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`seat-${product.id}`} className="text-xs">
+                Custom extra-seat price (AUD)
+              </Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  id={`seat-${product.id}`}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={
+                    defaultSeatDollars != null ? String(defaultSeatDollars) : "0"
+                  }
+                  value={customSeatPrice}
+                  onChange={(e) => setCustomSeatPrice(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Leave blank to use the product default.
+              </p>
+            </div>
+          )}
+          {!isTieredSeats && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`notes-${product.id}`} className="text-xs">
+                Notes
+              </Label>
+              <Input
+                id={`notes-${product.id}`}
+                placeholder="e.g. Agreed in contract #123"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          )}
+          {!isTieredSeats && (
+            <div className="flex items-end gap-2">
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={handleRemove}
-                disabled={removing}
-                className="gap-1.5 text-muted-foreground"
+                onClick={handleSave}
+                disabled={saving || !customPrice}
+                className="gap-1.5"
               >
-                {removing ? (
+                {saving ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <Save className="h-3.5 w-3.5" />
                 )}
-                Reset
+                Save
               </Button>
-            )}
-          </div>
+              {hasOverride && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRemove}
+                  disabled={removing}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  {removing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  )}
+                  Reset
+                </Button>
+              )}
+            </div>
+          )}
         </div>
+
+        {isTieredSeats && (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor={`notes-${product.id}`} className="text-xs">
+                Notes
+              </Label>
+              <Input
+                id={`notes-${product.id}`}
+                placeholder="e.g. Agreed in contract #123"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={saving || !customPrice}
+                className="gap-1.5"
+              >
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save
+              </Button>
+              {hasOverride && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRemove}
+                  disabled={removing}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  {removing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  )}
+                  Reset
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

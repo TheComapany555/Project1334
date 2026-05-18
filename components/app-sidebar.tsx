@@ -23,12 +23,9 @@ import {
   MailIcon,
   Wallet02Icon,
   Building03Icon,
-  SecurityCheckIcon,
   Analytics01Icon,
   UserMultipleIcon,
   MessageMultipleIcon,
-  Activity01Icon,
-  CheckListIcon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -47,19 +44,15 @@ const workspaceActivePaths = [
   "/dashboard/team",
 ] as const
 
+// CRM consolidates Contacts, Follow-ups, Activity, and NDAs as tabs inside
+// /dashboard/contacts (see app/dashboard/contacts/layout.tsx). Old top-level
+// routes for those still exist but redirect to the consolidated tab.
 const brokerNav = [
   { title: "Overview", url: "/dashboard", icon: <HugeiconsIcon icon={LayoutDashboard} strokeWidth={2} /> },
   { title: "Listings", url: "/dashboard/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/dashboard/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
   { title: "CRM", url: "/dashboard/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
-  { title: "Follow-ups", url: "/dashboard/follow-ups", icon: <HugeiconsIcon icon={CheckListIcon} strokeWidth={2} /> },
-  { title: "Activity", url: "/dashboard/activity", icon: <HugeiconsIcon icon={Activity01Icon} strokeWidth={2} /> },
   { title: "Messages", url: "/dashboard/messages", icon: <HugeiconsIcon icon={MessageMultipleIcon} strokeWidth={2} /> },
-  {
-    title: "NDAs",
-    url: "/dashboard/ndas",
-    icon: <HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={2} />,
-  },
   {
     title: "Analytics",
     url: "/dashboard/analytics",

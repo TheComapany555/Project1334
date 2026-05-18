@@ -161,7 +161,7 @@ export async function listAdminSubscriptions(
   let query = supabase
     .from("agency_subscriptions")
     .select(
-      `*, agency:agencies!agency_id(id, name, slug, email), plan_product:products!plan_product_id(id, name, price, currency)`,
+      `*, agency:agencies!agency_id(id, name, slug, email), plan_product:products!plan_product_id(id, name, price, currency, pricing_model, included_seats, extra_seat_price)`,
       { count: "exact" },
     );
 
@@ -207,12 +207,28 @@ export async function listAdminSubscriptions(
   );
   const countMap = new Map(counts);
 
-  const rows: SubscriptionForAdmin[] = filtered.map((sub) => ({
-    ...sub,
-    agency_name: sub.agency?.name ?? "Unknown",
-    agency_email: sub.agency?.email ?? null,
-    broker_count: countMap.get(sub.agency_id) ?? 0,
-  }));
+  const rows: SubscriptionForAdmin[] = filtered.map((sub) => {
+    const brokerCount = countMap.get(sub.agency_id) ?? 0;
+    const plan = sub.plan_product;
+    const tieredPlan = plan?.pricing_model === "tiered_seats";
+    const includedSeats =
+      sub.included_seats_snapshot ?? plan?.included_seats ?? 0;
+    const extraSeatPrice =
+      sub.extra_seat_price_snapshot ?? plan?.extra_seat_price ?? 0;
+    const extraSeatsNow = tieredPlan
+      ? Math.max(0, brokerCount - includedSeats)
+      : 0;
+    const basePrice = plan?.price ?? 0;
+    const monthlyTotal = basePrice + extraSeatsNow * extraSeatPrice;
+    return {
+      ...sub,
+      agency_name: sub.agency?.name ?? "Unknown",
+      agency_email: sub.agency?.email ?? null,
+      broker_count: brokerCount,
+      monthly_total_cents: monthlyTotal,
+      extra_seats_now: extraSeatsNow,
+    };
+  });
 
   return buildPaginated(rows, count ?? 0, page, pageSize);
 }

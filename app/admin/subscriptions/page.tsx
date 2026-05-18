@@ -120,6 +120,7 @@ export default async function AdminSubscriptionsPage() {
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Plan</th>
                     <th className="px-4 py-3 text-left font-medium">Brokers</th>
+                    <th className="px-4 py-3 text-left font-medium">Monthly</th>
                     <th className="px-4 py-3 text-left font-medium">Period end</th>
                     <th className="px-4 py-3 text-left font-medium">Stripe</th>
                     <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -147,11 +148,37 @@ export default async function AdminSubscriptionsPage() {
                           <span className="ml-1 text-[10px] text-amber-600">cancelling</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {sub.plan_product?.name ?? "Manual"}
+                      <td className="px-4 py-3">
+                        <div className="text-sm">
+                          {sub.plan_product?.name ?? "Manual"}
+                        </div>
+                        {sub.plan_product?.pricing_model === "tiered_seats" && (
+                          <div className="text-[10px] text-muted-foreground">
+                            {sub.included_seats_snapshot ??
+                              sub.plan_product.included_seats ??
+                              0}{" "}
+                            included
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {sub.broker_count}
+                        <div className="text-sm">{sub.broker_count}</div>
+                        {sub.extra_seats_now > 0 && (
+                          <div className="text-[10px] text-amber-700 dark:text-amber-400">
+                            +{sub.extra_seats_now} over plan
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {sub.monthly_total_cents > 0
+                          ? new Intl.NumberFormat("en-AU", {
+                              style: "currency",
+                              currency: (
+                                sub.plan_product?.currency ?? "aud"
+                              ).toUpperCase(),
+                              minimumFractionDigits: 0,
+                            }).format(sub.monthly_total_cents / 100)
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {sub.current_period_end

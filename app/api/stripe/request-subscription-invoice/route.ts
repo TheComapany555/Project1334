@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { resolveProductPrice } from "@/lib/actions/products";
+import { quoteAgencyPlan } from "@/lib/actions/subscription-pricing";
 import { Resend } from "resend";
 import { invoiceRequestedAdminEmail } from "@/lib/email-templates";
 import { notifyAdmins } from "@/lib/actions/notifications";
@@ -73,18 +73,30 @@ export async function POST(req: NextRequest) {
     .eq("agency_id", agencyId)
     .in("status", ["pending", "expired", "cancelled"]);
 
-  // Resolve agency pricing
-  const resolved = await resolveProductPrice(productId, agencyId);
-  const finalPrice = resolved?.price ?? product.price;
-  const finalCurrency = resolved?.currency ?? product.currency;
+  // Resolve agency pricing including per-seat overage (uses snapshots so the
+  // invoice amount is locked at request-time even if seat count changes
+  // before admin approves).
+  const quote = await quoteAgencyPlan(agencyId, productId);
+  if (!quote) {
+    return NextResponse.json(
+      { error: "Failed to price subscription plan" },
+      { status: 500 },
+    );
+  }
+  const finalPrice = quote.monthly_total_cents;
+  const finalCurrency = quote.currency;
 
-  // Create a pending subscription record
+  // Create a pending subscription record with the seat snapshot so admin
+  // knows what the agency was sized for at request time.
   const { data: subRecord, error: subError } = await supabase
     .from("agency_subscriptions")
     .insert({
       agency_id: agencyId,
       plan_product_id: productId,
       status: "pending",
+      quantity: quote.current_seats,
+      included_seats_snapshot: quote.included_seats,
+      extra_seat_price_snapshot: quote.extra_seat_price_cents,
     })
     .select("id")
     .single();
@@ -131,11 +143,25 @@ export async function POST(req: NextRequest) {
 
   // Send admin notification email
   try {
-    const formattedAmount = new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: finalCurrency.toUpperCase(),
-      minimumFractionDigits: 2,
-    }).format(finalPrice / 100);
+    const fmt = (cents: number) =>
+      new Intl.NumberFormat("en-AU", {
+        style: "currency",
+        currency: finalCurrency.toUpperCase(),
+        minimumFractionDigits: 2,
+      }).format(cents / 100);
+
+    // Build a per-seat breakdown line for tiered plans so admin knows how
+    // the total was calculated.
+    let breakdown: string | null = null;
+    if (quote.pricing_model === "tiered_seats") {
+      const basePart = `${fmt(quote.base_price_cents)} base (${quote.included_seats} included)`;
+      if (quote.extra_seats > 0 && quote.extra_seat_price_cents) {
+        const extraTotal = quote.extra_seats * quote.extra_seat_price_cents;
+        breakdown = `${basePart} + ${quote.extra_seats} extra × ${fmt(quote.extra_seat_price_cents)} = ${fmt(quote.base_price_cents + extraTotal)}`;
+      } else {
+        breakdown = `${basePart} — no overage (${quote.current_seats} broker${quote.current_seats === 1 ? "" : "s"})`;
+      }
+    }
 
     const { data: admins } = await supabase
       .from("profiles")
@@ -149,12 +175,13 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from: EMAIL_FROM,
         to: adminEmails,
-        subject: `Subscription Invoice Request: ${agency?.name ?? "Agency"}`,
+        subject: `Subscription Invoice Request: ${agency?.name ?? "Agency"} — ${product.name}`,
         html: invoiceRequestedAdminEmail({
           agencyName: agency?.name ?? "Agency",
-          listingTitle: "Agency Monthly Subscription",
+          listingTitle: product.name,
           productName: product.name,
-          amount: `${formattedAmount} ${finalCurrency.toUpperCase()}`,
+          amount: `${fmt(finalPrice)} ${finalCurrency.toUpperCase()}`,
+          breakdown,
           notes: notes?.trim() || null,
           adminUrl: `${APP_URL}/admin/payments`,
         }),
