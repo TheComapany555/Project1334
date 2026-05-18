@@ -15,28 +15,37 @@ type TierOption = {
   recommended?: boolean;
 };
 
-function buildTierOptions(products: Product[]): TierOption[] {
-  // Products come sorted by price ascending from getActiveProducts
-  const sorted = [...products].sort((a, b) => a.price - b.price);
-  const basic = sorted[0] ?? null;
-  const standard = sorted[1] ?? null;
-  const featured = sorted[2] ?? null;
+/**
+ * Match a product to a tier slot by name. Admins can rename products but
+ * the seed names ("Basic Listing", "Standard Listing", "Featured Listing
+ * Tier") are stable enough for a contains-match. If admin renames a
+ * product to something exotic, the slot just won't find it and will be
+ * filtered out below — broker sees one fewer tier rather than wrong prices.
+ */
+function matchProduct(
+  products: Product[],
+  tier: ListingTier,
+): Product | null {
+  const needle =
+    tier === "basic" ? "basic" : tier === "standard" ? "standard" : "featured";
+  return (
+    products.find((p) => p.name.toLowerCase().includes(needle)) ?? null
+  );
+}
 
-  return [
+function buildTierOptions(products: Product[]): TierOption[] {
+  const slots: TierOption[] = [
     {
       tier: "basic",
-      product: basic,
+      product: matchProduct(products, "basic"),
       label: "Basic",
       description: "Only people with the link can see it",
-      features: [
-        "Shareable link",
-        "Shown on your broker profile",
-      ],
+      features: ["Shareable link", "Shown on your broker profile"],
       icon: <Eye className="h-5 w-5" />,
     },
     {
       tier: "standard",
-      product: standard,
+      product: matchProduct(products, "standard"),
       label: "Standard",
       description: "Buyers can find it when browsing",
       features: [
@@ -49,7 +58,7 @@ function buildTierOptions(products: Product[]): TierOption[] {
     },
     {
       tier: "featured",
-      product: featured,
+      product: matchProduct(products, "featured"),
       label: "Featured",
       description: "Get the most eyes on your listing",
       features: [
@@ -61,6 +70,11 @@ function buildTierOptions(products: Product[]): TierOption[] {
       icon: <Star className="h-5 w-5" />,
     },
   ];
+
+  // Hide any tier where the admin has deactivated (or renamed) the
+  // backing product. Previously this slot would fall through to the next
+  // product by price-index, causing mismatched prices on the wrong cards.
+  return slots.filter((s) => s.product !== null);
 }
 
 function formatPrice(cents: number, currency: string): string {

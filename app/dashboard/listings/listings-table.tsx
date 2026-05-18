@@ -45,6 +45,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
@@ -53,11 +60,11 @@ import {
   Edit02Icon,
   Mail01Icon,
   MagicWand01Icon,
-  MoreHorizontalIcon,
   SecurityCheckIcon,
   SentIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
+import { Plus } from "lucide-react";
 import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
 
 const STATUS_OPTIONS: { value: ListingStatus; label: string }[] = [
@@ -100,6 +107,58 @@ type Props = {
   isAgencyOwner?: boolean;
   canFeature?: boolean;
 };
+
+/**
+ * Row-level actions trigger. Lives at the front of every row.
+ *
+ * Owns its own `open` state explicitly (rather than relying on Tailwind's
+ * `data-[state=open]` variant) so the icon rotation is deterministic — the
+ * "+" cleanly tweens to an "×" while the menu is open, regardless of how
+ * Radix's Slot composition merges data attributes onto the Button.
+ */
+function ListingActionsMenu({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <TooltipProvider delayDuration={250}>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                aria-label="Listing actions"
+                aria-expanded={open}
+                className={cn(
+                  "h-9 w-9 rounded-full text-white shadow-sm",
+                  "bg-emerald-500 hover:bg-emerald-600",
+                  "ring-0 ring-emerald-300/40",
+                  "transition-all duration-200 ease-out",
+                  "hover:shadow-md hover:ring-4",
+                  "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60",
+                  open && "bg-emerald-600 ring-4 shadow-md",
+                )}
+              >
+                <Plus
+                  strokeWidth={2.5}
+                  className={cn(
+                    "size-4 transition-transform duration-200 ease-out",
+                    open && "rotate-45",
+                  )}
+                />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={6}>
+            Listing actions
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="start" className="w-56">
+          {children}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipProvider>
+  );
+}
 
 export function ListingsTable({
   result,
@@ -323,130 +382,134 @@ export function ListingsTable({
           </span>
         ),
       },
-      {
-        id: "ai_insight",
-        meta: { label: "AI insight" },
-        header: () => (
-          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            AI insight
-          </span>
-        ),
-        cell: ({ row }) => (
-          <Link
-            href={`/dashboard/listings/${row.original.id}/insights?from=listings`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline whitespace-nowrap"
-          >
-            <HugeiconsIcon icon={MagicWand01Icon} className="size-4 shrink-0" />
-            View
-          </Link>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        enableHiding: false,
-        cell: ({ row }) => {
-          const listing = row.original;
-          return (
-            <div className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <HugeiconsIcon
-                      icon={MoreHorizontalIcon}
-                      className="size-4"
-                    />
-                    <span className="sr-only">Actions</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/listings/${listing.id}/edit`}>
-                      <HugeiconsIcon icon={Edit02Icon} className="size-4" />
-                      Edit
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/listings/${listing.id}/data-room`}>
-                      <HugeiconsIcon icon={SecurityCheckIcon} className="size-4" />
-                      Data room
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/listings/${listing.id}/enquiry-form`}>
-                      <HugeiconsIcon icon={Mail01Icon} className="size-4" />
-                      Enquiry form
-                    </Link>
-                  </DropdownMenuItem>
-                  {listing.status === "published" && brokerSlug && (
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/listing/${listing.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <HugeiconsIcon
-                          icon={ArrowRight01Icon}
-                          className="size-4"
-                        />
-                        View public
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {listing.status === "published" && (
-                    <DropdownMenuItem asChild>
-                      <Link href={`/dashboard/listings/${listing.id}/share`}>
-                        <HugeiconsIcon icon={SentIcon} className="size-4" />
-                        Share with contacts
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {listing.status === "published" && (
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/dashboard/listings/${listing.id}/share-external`}
-                      >
-                        <HugeiconsIcon icon={Mail01Icon} className="size-4" />
-                        Send to new email
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {canFeature && listing.status === "published" && (
-                    <DropdownMenuItem asChild>
-                      <Link href={`/dashboard/listings/${listing.id}/feature`}>
-                        <HugeiconsIcon icon={StarIcon} className="size-4" />
-                        {isListingFeaturedAnywhere(listing)
-                          ? "Extend featured"
-                          : "Feature this listing"}
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setFeedbackListing({ id: listing.id, title: listing.title });
-                    }}
-                  >
-                    <HugeiconsIcon icon={Comment01Icon} className="size-4" />
-                    Log buyer feedback
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setDeletingId(listing.id);
-                    }}
-                  >
-                    <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          );
-        },
-      }
+      // AI insight column is pulled out and prepended after the actions
+      // column below so it sits right after the green "+" trigger.
     );
+
+    // Prepend AI insight first — then actions on top of it — so the final
+    // order is: [actions, ai_insight, ...rest].
+    cols.unshift({
+      id: "ai_insight",
+      meta: { label: "AI insight" },
+      header: () => (
+        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+          AI insight
+        </span>
+      ),
+      cell: ({ row }) => (
+        <Link
+          href={`/dashboard/listings/${row.original.id}/insights?from=listings`}
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline whitespace-nowrap"
+        >
+          <HugeiconsIcon icon={MagicWand01Icon} className="size-4 shrink-0" />
+          View
+        </Link>
+      ),
+    });
+
+    // Prepend the primary "Actions" column so it sits in the FIRST position
+    // of every row. The trigger is a vivid green circle with a "＋" that
+    // rotates 45° to an "✕" while the menu is open — much more discoverable
+    // than the old ⋯ at the far right.
+    cols.unshift({
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      enableSorting: false,
+      size: 44,
+      cell: ({ row }) => {
+        const listing = row.original;
+        return (
+          <ListingActionsMenu>
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/listings/${listing.id}/edit`}>
+                <HugeiconsIcon icon={Edit02Icon} className="size-4" />
+                Edit listing
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href={`/dashboard/listings/${listing.id}/insights?from=listings`}
+              >
+                <HugeiconsIcon icon={MagicWand01Icon} className="size-4" />
+                AI insights
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/listings/${listing.id}/data-room`}>
+                <HugeiconsIcon icon={SecurityCheckIcon} className="size-4" />
+                Data room
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/listings/${listing.id}/enquiry-form`}>
+                <HugeiconsIcon icon={Mail01Icon} className="size-4" />
+                Enquiry form
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setFeedbackListing({ id: listing.id, title: listing.title });
+              }}
+            >
+              <HugeiconsIcon icon={Comment01Icon} className="size-4" />
+              Log buyer feedback
+            </DropdownMenuItem>
+            {listing.status === "published" && brokerSlug && (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/listing/${listing.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  View public page
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {listing.status === "published" && (
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/listings/${listing.id}/share`}>
+                  <HugeiconsIcon icon={SentIcon} className="size-4" />
+                  Share with contacts
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {listing.status === "published" && (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/dashboard/listings/${listing.id}/share-external`}
+                >
+                  <HugeiconsIcon icon={Mail01Icon} className="size-4" />
+                  Send to new email
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {canFeature && listing.status === "published" && (
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/listings/${listing.id}/feature`}>
+                  <HugeiconsIcon icon={StarIcon} className="size-4" />
+                  {isListingFeaturedAnywhere(listing)
+                    ? "Extend featured"
+                    : "Feature this listing"}
+                </Link>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={(e) => {
+                e.preventDefault();
+                setDeletingId(listing.id);
+              }}
+            >
+              <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+              Delete listing
+            </DropdownMenuItem>
+          </ListingActionsMenu>
+        );
+      },
+    });
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
