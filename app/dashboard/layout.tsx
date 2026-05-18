@@ -43,7 +43,9 @@ export default async function DashboardLayout({
   }
 
   const user = {
-    name: session.user.name ?? null,
+    // Live profile name wins over the (potentially stale) JWT session.name —
+    // editing the profile updates this without needing to sign out/in.
+    name: navInfo.name ?? session.user.name ?? null,
     email: session.user.email ?? "",
     role: session.user.role as "broker" | "admin",
     profileSlug: navInfo.slug ?? undefined,

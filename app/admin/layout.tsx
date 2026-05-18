@@ -16,7 +16,9 @@ export default async function AdminLayout({
 
   const navInfo = await getProfileNavInfo(session.user.id);
   const user = {
-    name: session.user.name ?? null,
+    // Live profile name wins over the stale JWT — see dashboard/layout.tsx
+    // for the same pattern.
+    name: navInfo.name ?? session.user.name ?? null,
     email: session.user.email ?? "",
     role: session.user.role as "broker" | "admin",
     photoUrl: navInfo.photo_url ?? undefined,

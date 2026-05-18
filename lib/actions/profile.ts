@@ -82,17 +82,23 @@ export async function getBrokerSlug(): Promise<string | null> {
 }
 
 /** Slug and photo for nav (broker + admin). Call with current session user id. */
-export async function getProfileNavInfo(userId: string): Promise<{ slug: string | null; photo_url: string | null }> {
+export async function getProfileNavInfo(
+  userId: string,
+): Promise<{ slug: string | null; photo_url: string | null; name: string | null }> {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("slug, photo_url")
+    .select("slug, photo_url, name")
     .eq("id", userId)
     .single();
-  if (error || !data) return { slug: null, photo_url: null };
+  if (error || !data) return { slug: null, photo_url: null, name: null };
   return {
     slug: (data.slug as string) ?? null,
     photo_url: (data.photo_url as string) ?? null,
+    // Live name from the DB — sidebar uses this so editing the profile is
+    // reflected immediately without needing to sign out/in for the JWT to
+    // refresh.
+    name: (data.name as string | null) ?? null,
   };
 }
 

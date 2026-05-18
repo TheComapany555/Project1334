@@ -9,7 +9,6 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,10 +41,27 @@ export function NavUser({
 }) {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const { isMobile } = useSidebar()
-  const initial = (user.name || user.email).charAt(0).toUpperCase()
 
-  const roleBadgeLabel =
-    role === "broker" && agencyRole === "owner" ? "agency_owner" : role
+  // Prefer the broker's profile name. If a broker hasn't set a name yet,
+  // fall back to the local part of their email (e.g. "aamirdeveloper07@…"
+  // → "aamirdeveloper07") rather than dumping the whole address in the
+  // sidebar — keeps the chrome clean while still being identifiable.
+  const displayName =
+    user.name?.trim() || user.email.split("@")[0] || "Account"
+  const initial = displayName.charAt(0).toUpperCase()
+
+  // Humanise the role label for the dropdown header — no underscores, no
+  // database keys leaking into the UI.
+  const roleLabel =
+    role === "admin"
+      ? "Admin"
+      : agencyRole === "owner"
+        ? "Agency owner"
+        : agencyRole === "member"
+          ? "Agency member"
+          : role === "broker"
+            ? "Broker"
+            : null
 
   return (
     <SidebarMenu>
@@ -61,20 +77,15 @@ export function NavUser({
               )}
             >
               <Avatar className="h-8 w-8 rounded-full ring-2 ring-primary/20 shrink-0">
-                <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                <AvatarImage src={user.avatar || undefined} alt={displayName} />
                 <AvatarFallback className="rounded-full bg-primary/15 text-primary text-sm font-semibold">
                   {initial}
                 </AvatarFallback>
               </Avatar>
 
-              <div className="grid flex-1 text-left leading-tight min-w-0">
-                <span className="truncate text-sm font-semibold text-sidebar-foreground">
-                  {user.name}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
+              <span className="flex-1 truncate text-left text-sm font-semibold text-sidebar-foreground">
+                {displayName}
+              </span>
 
               <ChevronUp className="ml-auto size-3.5 text-muted-foreground shrink-0" />
             </SidebarMenuButton>
@@ -86,29 +97,25 @@ export function NavUser({
             align="end"
             sideOffset={6}
           >
-            {/* User info header */}
+            {/* User info header — name + humanised role only. Email is
+                intentionally omitted; the user knows who they are signed in
+                as, and the row is visually tighter without it. */}
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-3 px-3 py-3">
                 <Avatar className="h-10 w-10 rounded-full ring-2 ring-primary/20 shrink-0">
-                  <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                  <AvatarImage src={user.avatar || undefined} alt={displayName} />
                   <AvatarFallback className="rounded-full bg-primary/15 text-primary font-semibold">
                     {initial}
                   </AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 min-w-0 gap-0.5">
+                <div className="grid flex-1 min-w-0 gap-0.5 leading-tight">
                   <span className="truncate text-sm font-semibold">
-                    {user.name}
+                    {displayName}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                  {roleBadgeLabel && (
-                    <Badge
-                      variant="secondary"
-                      className="w-fit text-[10px] px-1.5 py-0 mt-1 font-medium"
-                    >
-                      {roleBadgeLabel}
-                    </Badge>
+                  {roleLabel && (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {roleLabel}
+                    </span>
                   )}
                 </div>
               </div>
