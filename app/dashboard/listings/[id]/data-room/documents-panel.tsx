@@ -86,6 +86,7 @@ import {
   ChevronRight,
   Clock,
   Edit3,
+  Eye,
   Folder,
   FolderPlus,
   Lock,
@@ -96,6 +97,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/listings/document-preview-modal";
 
 type Props = {
   listingId: string;
@@ -127,6 +129,7 @@ export function DocumentsPanel({ listingId }: Props) {
   const [renameDocName, setRenameDocName] = useState("");
   const [renameDocDescription, setRenameDocDescription] = useState("");
   const [rejectDoc, setRejectDoc] = useState<ListingDocument | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<ListingDocument | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -541,6 +544,7 @@ export function DocumentsPanel({ listingId }: Props) {
                 }}
                 onMove={handleMoveDoc}
                 onDelete={(d) => setDeleteDocTarget(d)}
+                onPreview={setPreviewDoc}
               />
             ) : (
               <>
@@ -574,6 +578,7 @@ export function DocumentsPanel({ listingId }: Props) {
                   }}
                   onMove={handleMoveDoc}
                   onDelete={(d) => setDeleteDocTarget(d)}
+                  onPreview={setPreviewDoc}
                 />
               </>
             )}
@@ -786,6 +791,15 @@ export function DocumentsPanel({ listingId }: Props) {
           await uploadFiles(files, folderId, confidential);
         }}
       />
+
+      <DocumentPreviewModal
+        doc={previewDoc}
+        open={!!previewDoc}
+        onOpenChange={(o) => !o && setPreviewDoc(null)}
+        onDownload={(d) => {
+          window.open(d.file_url, "_blank", "noopener,noreferrer");
+        }}
+      />
     </div>
   );
 }
@@ -936,6 +950,7 @@ function DocList({
   onRename,
   onMove,
   onDelete,
+  onPreview,
 }: {
   docs: ListingDocument[];
   folders: FlatFolder[];
@@ -946,6 +961,7 @@ function DocList({
   onRename: (d: ListingDocument) => void;
   onMove: (docId: string, folderId: string | null) => void;
   onDelete: (d: ListingDocument) => void;
+  onPreview: (d: ListingDocument) => void;
 }) {
   if (docs.length === 0) {
     return (
@@ -989,6 +1005,15 @@ function DocList({
               </p>
             )}
           </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onPreview(d)}
+            className="gap-1"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Document actions">

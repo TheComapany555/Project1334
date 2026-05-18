@@ -1,12 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,6 +18,7 @@ import {
 import { recordDocumentEvent } from "@/lib/actions/documents";
 import type { DocumentFolder } from "@/lib/types/data-room";
 import type { ListingDocument } from "@/lib/types/documents";
+import { DocumentPreviewModal } from "@/components/listings/document-preview-modal";
 
 type Props = {
   folders: DocumentFolder[];
@@ -215,29 +210,13 @@ export function BuyerVaultBrowser({
         </Card>
       </div>
 
-      <Dialog open={!!previewDoc} onOpenChange={(o) => !o && setPreviewDoc(null)}>
-        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] p-0 flex flex-col">
-          <DialogHeader className="px-4 py-3 border-b border-border">
-            <DialogTitle className="flex items-center justify-between gap-3">
-              <span className="truncate">{previewDoc?.name}</span>
-              {previewDoc && downloadAllowed && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => triggerDownload(previewDoc)}
-                  className="gap-1"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </Button>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden bg-muted/40">
-            {previewDoc && <PreviewContent doc={previewDoc} />}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DocumentPreviewModal
+        doc={previewDoc}
+        open={!!previewDoc}
+        onOpenChange={(o) => !o && setPreviewDoc(null)}
+        showDownload={downloadAllowed}
+        onDownload={triggerDownload}
+      />
     </div>
   );
 }
@@ -437,44 +416,6 @@ function DocList({
           )}
         </div>
       ))}
-    </div>
-  );
-}
-
-function PreviewContent({ doc }: { doc: ListingDocument }) {
-  const fileType = (doc.file_type ?? "").toLowerCase();
-  const name = doc.name.toLowerCase();
-  const isImage = fileType.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(name);
-  const isPdf = fileType === "application/pdf" || name.endsWith(".pdf");
-
-  if (isImage) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={doc.file_url}
-        alt={doc.name}
-        className="w-full h-full object-contain bg-black/5"
-      />
-    );
-  }
-  if (isPdf) {
-    return (
-      <iframe
-        src={`${doc.file_url}#toolbar=1&view=FitH`}
-        className="w-full h-full border-0"
-        title={doc.name}
-      />
-    );
-  }
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-sm text-muted-foreground gap-3 px-6 text-center">
-      <FileText className="h-10 w-10" />
-      <p>Preview isn&apos;t available for this file type.</p>
-      <Button asChild variant="outline" size="sm">
-        <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-          Open in new tab
-        </a>
-      </Button>
     </div>
   );
 }
