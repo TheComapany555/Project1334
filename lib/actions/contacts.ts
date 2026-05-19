@@ -20,7 +20,18 @@ import {
 
 export type { BrokerContact } from "@/lib/types/contacts";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy Resend client. Constructing it eagerly at module load throws if
+// RESEND_API_KEY isn't set in the env, which breaks code paths that import
+// this file but never actually send email (e.g. the data-room-expiry cron
+// which only needs `getOrCreateBrokerContactForBuyer`). Defer the
+// construction until the first call site that actually sends.
+let _resend: Resend | null = null;
+function resendClient(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
@@ -706,12 +717,12 @@ export async function sendListingToContacts(
     }));
 
     try {
-      await resend.batch.send(payloads);
+      await resendClient().batch.send(payloads);
     } catch {
       // Fallback to individual sends so partial failures are recorded
       for (const contact of slice) {
         try {
-          await resend.emails.send({
+          await resendClient().emails.send({
             from: EMAIL_FROM,
             to: contact.email,
             subject,
@@ -897,12 +908,12 @@ export async function sendMultipleListingsToContacts(
     }));
 
     try {
-      await resend.batch.send(payloads);
+      await resendClient().batch.send(payloads);
     } catch {
       // Batch failed — retry individually so we capture per-address failures
       for (const contact of slice) {
         try {
-          await resend.emails.send({
+          await resendClient().emails.send({
             from: EMAIL_FROM,
             to: contact.email,
             subject,
