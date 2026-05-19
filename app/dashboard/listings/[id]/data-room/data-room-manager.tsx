@@ -5,7 +5,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FolderLock, ShieldCheck, Files, Activity, LineChart } from "lucide-react";
+import {
+  ArrowLeft,
+  FolderLock,
+  ShieldCheck,
+  Files,
+  Activity,
+  LineChart,
+} from "lucide-react";
 import type { ListingDocument } from "@/lib/types/documents";
 import type { ListingNda } from "@/lib/types/nda";
 import type { DataRoomAccessWithBuyer } from "@/lib/types/data-room";
@@ -49,7 +56,7 @@ export function DataRoomManager({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <FolderLock className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-semibold">Data Room</h1>
+            <h1 className="text-xl font-semibold">Virtual Data Room</h1>
           </div>
           <p className="text-sm text-muted-foreground truncate max-w-xl">
             {listingTitle}
@@ -63,7 +70,10 @@ export function DataRoomManager({
             <Activity className="h-4 w-4" />
             Access Requests
             {counts.pending > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+              <Badge
+                variant="secondary"
+                className="ml-1 h-5 px-1.5 text-[10px]"
+              >
                 {counts.pending}
               </Badge>
             )}
@@ -104,10 +114,7 @@ export function DataRoomManager({
         </TabsContent>
 
         <TabsContent value="nda" className="mt-6">
-          <NdaTemplatePanel
-            listingId={listingId}
-            initialNda={initialNda}
-          />
+          <NdaTemplatePanel listingId={listingId} initialNda={initialNda} />
         </TabsContent>
       </Tabs>
     </div>

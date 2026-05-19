@@ -9,8 +9,8 @@
 #   NEXT_PUBLIC_SUPABASE_URL    Supabase project URL
 #   SUPABASE_SERVICE_ROLE_KEY   Service-role key
 #
-# Manual trigger: Actions tab → "Data room expiry cron" → Run workflow.
-name: Data room expiry cron
+# Manual trigger: Actions tab → "Virtual Data Room expiry cron" → Run workflow.
+name: Virtual Data Room expiry cron
 
 on:
   schedule:

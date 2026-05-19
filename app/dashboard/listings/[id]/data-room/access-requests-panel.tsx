@@ -66,12 +66,32 @@ type Props = {
 
 type StatusFilter = "pending" | "approved" | "all";
 
-const STATUS_BADGE: Record<DataRoomAccessStatus, { color: string; icon: typeof Clock }> = {
-  pending: { color: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300", icon: Clock },
-  approved: { color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300", icon: CheckCircle2 },
-  denied: { color: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300", icon: XCircle },
-  revoked: { color: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", icon: ShieldOff },
-  expired: { color: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", icon: Clock },
+const STATUS_BADGE: Record<
+  DataRoomAccessStatus,
+  { color: string; icon: typeof Clock }
+> = {
+  pending: {
+    color:
+      "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+    icon: Clock,
+  },
+  approved: {
+    color:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+    icon: CheckCircle2,
+  },
+  denied: {
+    color: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+    icon: XCircle,
+  },
+  revoked: {
+    color: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+    icon: ShieldOff,
+  },
+  expired: {
+    color: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+    icon: Clock,
+  },
 };
 
 export function AccessRequestsPanel({
@@ -82,7 +102,9 @@ export function AccessRequestsPanel({
   onChange,
 }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("pending");
-  const [approving, setApproving] = useState<DataRoomAccessWithBuyer | null>(null);
+  const [approving, setApproving] = useState<DataRoomAccessWithBuyer | null>(
+    null,
+  );
   const [denying, setDenying] = useState<DataRoomAccessWithBuyer | null>(null);
   const [pending, startTransition] = useTransition();
   const [nowMs] = useState(() => Date.now());
@@ -101,7 +123,9 @@ export function AccessRequestsPanel({
   }
 
   function handleRevoke(row: DataRoomAccessWithBuyer) {
-    if (!confirm(`Revoke ${row.buyer.email}'s access to this data room?`)) {
+    if (
+      !confirm(`Revoke ${row.buyer.email}'s access to this Virtual Data Room?`)
+    ) {
       return;
     }
     startTransition(async () => {
@@ -377,7 +401,9 @@ function ApproveDialog({
 
   async function handleSave() {
     if (accessLevel === "selected" && selectedDocs.size === 0) {
-      toast.error("Select at least one file, or switch to 'All approved files'.");
+      toast.error(
+        "Select at least one file, or switch to 'All approved files'.",
+      );
       return;
     }
     setSaving(true);
@@ -405,11 +431,12 @@ function ApproveDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit access" : "Approve access"} for {row.buyer.full_name ?? row.buyer.email}
+            {isEdit ? "Edit access" : "Approve access"} for{" "}
+            {row.buyer.full_name ?? row.buyer.email}
           </DialogTitle>
           <DialogDescription>
-            Choose what this buyer can see in the data room and when their
-            access expires.
+            Choose what this buyer can see in the Virtual Data Room and when
+            their access expires.
           </DialogDescription>
         </DialogHeader>
 
@@ -428,8 +455,8 @@ function ApproveDialog({
                 <div className="text-sm">
                   <div className="font-medium">All approved files</div>
                   <div className="text-xs text-muted-foreground">
-                    Buyer sees every approved file in the data room, including
-                    files you approve later.
+                    Buyer sees every approved file in the Virtual Data Room,
+                    including files you approve later.
                   </div>
                 </div>
               </label>
@@ -551,7 +578,9 @@ function DenyDialog({
 
   async function handleDeny() {
     if (!reason.trim()) {
-      toast.error("Please provide a reason — the buyer won't see it, but it helps you keep track.");
+      toast.error(
+        "Please provide a reason — the buyer won't see it, but it helps you keep track.",
+      );
       return;
     }
     setSaving(true);
@@ -592,11 +621,7 @@ function DenyDialog({
           <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDeny}
-            disabled={saving}
-          >
+          <Button variant="destructive" onClick={handleDeny} disabled={saving}>
             {saving ? "Denying..." : "Deny request"}
           </Button>
         </DialogFooter>

@@ -11,10 +11,7 @@ import type { Listing, ListingStatus, ListingTier } from "@/lib/types/listings";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
 import { TierBadge } from "@/components/shared/tier-badge";
-import {
-  updateListingStatus,
-  deleteListing,
-} from "@/lib/actions/listings";
+import { updateListingStatus, deleteListing } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -271,7 +268,8 @@ export function ListingsTable({
         ),
         cell: ({ row }) => {
           const listing = row.original;
-          const nextStatuses = ALLOWED_NEXT[listing.status as ListingStatus] ?? [];
+          const nextStatuses =
+            ALLOWED_NEXT[listing.status as ListingStatus] ?? [];
           return (
             <div className="flex items-center gap-2 flex-wrap">
               <Badge
@@ -302,7 +300,7 @@ export function ListingsTable({
                   {STATUS_OPTIONS.filter(
                     (opt) =>
                       opt.value === listing.status ||
-                      nextStatuses.includes(opt.value)
+                      nextStatuses.includes(opt.value),
                   ).map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
@@ -324,11 +322,15 @@ export function ListingsTable({
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-1.5">
-            <TierBadge tier={(row.original.listing_tier as ListingTier) ?? "basic"} />
+            <TierBadge
+              tier={(row.original.listing_tier as ListingTier) ?? "basic"}
+            />
             {row.original.listing_tier !== "basic" &&
               !row.original.tier_paid_at && (
                 <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                  {row.original.status === "draft" ? "Unpaid" : "Payment pending"}
+                  {row.original.status === "draft"
+                    ? "Unpaid"
+                    : "Payment pending"}
                 </span>
               )}
           </div>
@@ -344,9 +346,7 @@ export function ListingsTable({
           <DataTableColumnHeader column={column} title="Category" />
         ),
         cell: ({ row }) => (
-          <span className="text-sm">
-            {row.original.category?.name ?? "—"}
-          </span>
+          <span className="text-sm">{row.original.category?.name ?? "—"}</span>
         ),
       },
       {
@@ -438,7 +438,7 @@ export function ListingsTable({
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/listings/${listing.id}/data-room`}>
                 <HugeiconsIcon icon={SecurityCheckIcon} className="size-4" />
-                Data room
+                Virtual Data Room
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -478,9 +478,7 @@ export function ListingsTable({
             )}
             {listing.status === "published" && (
               <DropdownMenuItem asChild>
-                <Link
-                  href={`/dashboard/listings/${listing.id}/share-external`}
-                >
+                <Link href={`/dashboard/listings/${listing.id}/share-external`}>
                   <HugeiconsIcon icon={Mail01Icon} className="size-4" />
                   Send to new email
                 </Link>
@@ -519,7 +517,10 @@ export function ListingsTable({
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 px-4 py-12 sm:py-16 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
-          <HugeiconsIcon icon={Edit02Icon} className="size-6 text-muted-foreground" />
+          <HugeiconsIcon
+            icon={Edit02Icon}
+            className="size-6 text-muted-foreground"
+          />
         </div>
         <h3 className="font-semibold text-foreground mb-1">No listings yet</h3>
         <p className="text-sm text-muted-foreground max-w-sm mb-6">
@@ -537,7 +538,11 @@ export function ListingsTable({
       <DataTable
         columns={columns}
         data={listings}
-        searchColumnId={["title", "category", ...(isAgencyOwner ? ["broker"] : [])]}
+        searchColumnId={[
+          "title",
+          "category",
+          ...(isAgencyOwner ? ["broker"] : []),
+        ]}
         searchPlaceholder={
           isAgencyOwner
             ? "Search by title, category or broker…"

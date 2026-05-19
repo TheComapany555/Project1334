@@ -27,19 +27,22 @@ A hard, cross-cutting rule applies to every piece of work below:
 ### 1.1 Unified, click-through buyer profile
 
 **Current state.**
+
 - `broker_contacts` table (added 2026-04-10) stores name, email, phone, company, notes, interest, source.
 - `contact_tags` and `contact_tag_map` (2026-04-18) provide tags.
-- `app/dashboard/buyers/[id]/page.tsx` and `getBuyerProfile()` already aggregate enquiries, NDA activity, document views, calls and views into a `BuyerProfile` shape — but it is built from the *user* `id`, not from `broker_contacts.id`, and not all entry points link to it.
-- Surfaces that *should* deep-link to the buyer profile (Enquiries table, NDA list, Document Access requests, Messages, Listing enquiry rows) currently do not link to a single canonical buyer view.
+- `app/dashboard/buyers/[id]/page.tsx` and `getBuyerProfile()` already aggregate enquiries, NDA activity, document views, calls and views into a `BuyerProfile` shape — but it is built from the _user_ `id`, not from `broker_contacts.id`, and not all entry points link to it.
+- Surfaces that _should_ deep-link to the buyer profile (Enquiries table, NDA list, Document Access requests, Messages, Listing enquiry rows) currently do not link to a single canonical buyer view.
 
 **Gap.**
+
 - No single canonical URL for "this broker's view of this buyer". `broker_contacts` and `profiles` are not linked, so the same person can appear as two records.
 - Several CRM dimensions on the spec are not stored anywhere: budget range, preferred industries, preferred locations, funding status, timeframe to purchase, last active date, location.
 - Click-through to a buyer profile is missing from CRM, Enquiries, Messages, NDA Requests and Listing Enquiries.
 
 **Fix.**
 
-1. **Schema — extend `broker_contacts`** *(migration `20260507000001_broker_contacts_buyer_fields.sql`)*
+1. **Schema — extend `broker_contacts`** _(migration `20260507000001_broker_contacts_buyer_fields.sql`)_
+
    ```sql
    alter table broker_contacts
      add column buyer_user_id uuid references profiles(id) on delete set null,
@@ -59,7 +62,7 @@ A hard, cross-cutting rule applies to every piece of work below:
    ```
 
 2. **Auto-link buyer accounts.** When a logged-in buyer enquires on a broker's listing, the existing enquiry handler already creates / upserts a `broker_contacts` row. Extend that upsert to also stamp `buyer_user_id`, `first_interaction_at` (on insert) and `last_active_at` (on every touch).
-   *Files:* `lib/actions/enquiries.ts`, `lib/actions/contacts.ts`.
+   _Files:_ `lib/actions/enquiries.ts`, `lib/actions/contacts.ts`.
 
 3. **Canonical URL.** All buyer links route to `/dashboard/buyers/[id]` where `[id]` is the `broker_contacts.id`. Wire deep-links from:
    - CRM table rows (`app/dashboard/contacts/contacts-client-view.tsx`)
@@ -72,19 +75,21 @@ A hard, cross-cutting rule applies to every piece of work below:
 4. **Profile UI.** Refactor `components/dashboard/buyer-profile-view.tsx` into three sections:
    - **Header card:** name, email, phone, location, account age, last active, "Open in CRM" / "Add follow-up" / "Email" / "Call".
    - **Buyer details card:** budget range, preferred industries, preferred locations, funding status, timeframe to purchase. All inline-editable by the broker.
-   - **Activity tabs:** *Listings*, *Enquiries*, *Documents*, *Calls/Emails*, *Notes*, *Files shared*.
+   - **Activity tabs:** _Listings_, _Enquiries_, _Documents_, _Calls/Emails_, _Notes_, _Files shared_.
 
-   *Files:* `components/dashboard/buyer-profile-view.tsx`, new `components/dashboard/buyer-details-card.tsx`.
+   _Files:_ `components/dashboard/buyer-profile-view.tsx`, new `components/dashboard/buyer-details-card.tsx`.
 
 ### 1.2 Broker-scoped activity only
 
 **Current state.** `lib/actions/buyer-profile.ts` already filters listings/enquiries/NDA/calls by `broker_id = session.user.id` (or agency owner extension). Document approvals are filtered through `listing_id IN (broker's listings)`.
 
 **Gap.**
-- Some queries fall back to *all* listings the buyer touched if the broker scope returns nothing — this leaks platform-wide data.
+
+- Some queries fall back to _all_ listings the buyer touched if the broker scope returns nothing — this leaks platform-wide data.
 - AI insights (Section 4) currently feed from listing-wide data without explicit broker filtering.
 
 **Fix.**
+
 - Audit every query in `lib/actions/buyer-profile.ts`, `lib/ai/broker-insights.ts`, and any new code in this spec for an explicit `broker_id =` (or `listing.broker_id =`) clause; never fall back to global data.
 - Add a Postgres RLS policy `broker_contacts_broker_isolation` enforcing `broker_id = auth.uid()` (or `agency_id = (select agency_id from profiles where id = auth.uid())` when the broker is an agency owner).
 - Add automated test in `scripts/` that asserts a second broker cannot read another broker's contacts, timeline events, or follow-ups.
@@ -97,11 +102,13 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **New view — `broker_buyer_timeline`** *(migration `20260507000002_broker_buyer_timeline.sql`)*. A Postgres `view` (not a table) that `UNION ALL`s normalised rows from the source tables, each shaped as:
+1. **New view — `broker_buyer_timeline`** _(migration `20260507000002_broker_buyer_timeline.sql`)_. A Postgres `view` (not a table) that `UNION ALL`s normalised rows from the source tables, each shaped as:
+
    ```
    broker_id, contact_id, buyer_user_id, listing_id, event_kind,
    event_at, actor ('buyer'|'broker'|'system'), summary, metadata jsonb
    ```
+
    `event_kind` covers: `viewed_listing`, `enquired`, `nda_requested`, `nda_signed`, `documents_viewed`, `documents_downloaded`, `broker_emailed`, `broker_called`, `broker_shared_files`, `broker_sent_listing`, `followup_added`, `note_added`, `status_changed`, `message_sent`, `message_received`.
 
 2. **Server action.** `getBuyerTimeline(contactId, { limit, before })` in `lib/actions/buyer-profile.ts` returning paginated, broker-scoped rows.
@@ -132,7 +139,8 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **Schema additions** *(same migration as 1.3 or `20260507000003_crm_followups.sql`)*
+1. **Schema additions** _(same migration as 1.3 or `20260507000003_crm_followups.sql`)_
+
    ```sql
    create table broker_email_log (
      id uuid primary key default gen_random_uuid(),
@@ -190,7 +198,8 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **Schema** *(migration `20260507000004_broker_contacts_status.sql`)*
+1. **Schema** _(migration `20260507000004_broker_contacts_status.sql`)_
+
    ```sql
    alter table broker_contacts
      add column crm_status text not null default 'new_lead'
@@ -217,7 +226,8 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **Schema** *(migration `20260507000005_crm_custom_fields.sql`)*
+1. **Schema** _(migration `20260507000005_crm_custom_fields.sql`)_
+
    ```sql
    create table broker_crm_fields (
      id uuid primary key default gen_random_uuid(),
@@ -246,7 +256,7 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **Schema** *(small additive migration `20260507000006_call_tracking_outcome.sql`)*
+1. **Schema** _(small additive migration `20260507000006_call_tracking_outcome.sql`)_
    ```sql
    alter table call_tracking
      add column outcome text check (outcome in
@@ -264,13 +274,13 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-- Rename sidebar nav item and breadcrumbs from **Contacts** → **CRM**. *Files:* `components/dashboard/app-sidebar.tsx`, breadcrumb usages.
+- Rename sidebar nav item and breadcrumbs from **Contacts** → **CRM**. _Files:_ `components/dashboard/app-sidebar.tsx`, breadcrumb usages.
 - Make email and phone cells `mailto:` / `tel:` links that also fire `logCommunication()` server action so the click counts as an outbound touch.
 - Filter bar additions: budget range, NDA status, last activity (relative: today / 7d / 30d / 90d / >90d), listing category, enquiry stage, follow-up due (today / overdue / this-week).
 - Row-level quick actions: **Email**, **Call**, **Note**, **Follow-up**, **Send listing**, **Open profile**.
-- New tabs at the CRM page top: *All*, *Hot leads*, *Follow-ups due*, *NDA signed*, *Documents shared*, *Negotiating* (driven by the new `crm_status` column).
+- New tabs at the CRM page top: _All_, _Hot leads_, _Follow-ups due_, _NDA signed_, _Documents shared_, _Negotiating_ (driven by the new `crm_status` column).
 
-*Files:* `app/dashboard/contacts/contacts-client-view.tsx`, new `components/dashboard/crm-filters.tsx`, new `components/dashboard/crm-quick-actions.tsx`.
+_Files:_ `app/dashboard/contacts/contacts-client-view.tsx`, new `components/dashboard/crm-filters.tsx`, new `components/dashboard/crm-quick-actions.tsx`.
 
 ---
 
@@ -280,7 +290,8 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 **Fix.**
 
-1. **Schema** *(migration `20260508000001_broker_buyer_threads.sql`)*
+1. **Schema** _(migration `20260508000001_broker_buyer_threads.sql`)_
+
    ```sql
    create table broker_buyer_threads (
      id uuid primary key default gen_random_uuid(),
@@ -306,6 +317,7 @@ A hard, cross-cutting rule applies to every piece of work below:
    create index broker_buyer_messages_thread_idx
      on broker_buyer_messages(thread_id, created_at desc);
    ```
+
    RLS policy: `sender_id = auth.uid() OR (broker_id = auth.uid()) OR (buyer_user_id = auth.uid())`, scoped through the parent thread.
 
 2. **API & realtime.** `app/api/messages/[threadId]/route.ts` for send + paginated history; Supabase Realtime channel keyed on `thread_id` for live updates. Mobile app reuses the same endpoints.
@@ -334,7 +346,8 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 ### 4.1 Broker-input feedback surfaces
 
-1. **Schema** *(migration `20260508000002_broker_feedback.sql`)*
+1. **Schema** _(migration `20260508000002_broker_feedback.sql`)_
+
    ```sql
    create table broker_buyer_feedback (
      id uuid primary key default gen_random_uuid(),
@@ -365,19 +378,19 @@ A hard, cross-cutting rule applies to every piece of work below:
 
 The insights API (`app/api/ai/listings/insights/route.ts`) returns three new fields on top of the existing `summary`, `actions[]`, `seller_message`:
 
-- `patterns[]` — short bullets like *"Multiple buyers concerned about pricing (4 mentions)."*
-- `dropoff_signals[]` — *"Interest is high but conversion is low after NDA stage — 9 NDAs signed, 2 documents viewed."*
+- `patterns[]` — short bullets like _"Multiple buyers concerned about pricing (4 mentions)."_
+- `dropoff_signals[]` — _"Interest is high but conversion is low after NDA stage — 9 NDAs signed, 2 documents viewed."_
 - `seller_update_long` — a longer paragraph version of `seller_message` for monthly reports.
 
 ### 4.3 Suggested AI actions
 
-The existing `actions[]` schema already supports free-form bullets. We extend the Claude system prompt with a small action taxonomy so suggestions cluster around: *adjust price*, *add documents*, *improve description*, *follow up with specific buyers*, *update lease detail*, *add financial transparency*. The output JSON additionally tags each action with one of these `kind` values so we can render an icon and (where relevant) a deep-link CTA (e.g. *Add documents → /dashboard/listings/[id]/documents*).
+The existing `actions[]` schema already supports free-form bullets. We extend the Claude system prompt with a small action taxonomy so suggestions cluster around: _adjust price_, _add documents_, _improve description_, _follow up with specific buyers_, _update lease detail_, _add financial transparency_. The output JSON additionally tags each action with one of these `kind` values so we can render an icon and (where relevant) a deep-link CTA (e.g. _Add documents → /dashboard/listings/[id]/documents_).
 
 ### 4.4 Seller-update generator
 
 A new "Generate seller update" button on the listing analytics page calls the same endpoint with `mode = 'seller_update'`. The output is a copy-ready email body and a printable PDF (via existing `pdf Documents` pipeline) brokers can attach to a client email in one click.
 
-*Files touched:* `lib/ai/broker-insights.ts`, `app/api/ai/listings/insights/route.ts`, `components/listings/ai-insights-panel.tsx`, new `components/analytics/seller-update-card.tsx`.
+_Files touched:_ `lib/ai/broker-insights.ts`, `app/api/ai/listings/insights/route.ts`, `components/listings/ai-insights-panel.tsx`, new `components/analytics/seller-update-card.tsx`.
 
 ---
 
@@ -385,7 +398,7 @@ A new "Generate seller update" button on the listing analytics page calls the sa
 
 **Current state.** `app/account/page.tsx` plus `components/account/buyer-account-view.tsx` and `components/account/buyer-side-panel.tsx` render saved listings, enquiries, sent-to-me, alerts. Buyer cannot see approved vault documents or messages.
 
-**Gap.** No vault tab; no messages tab; no broker-shared file list; no "approved data rooms" overview.
+**Gap.** No vault tab; no messages tab; no broker-shared file list; no "approved Virtual Data Rooms" overview.
 
 **Fix.**
 
@@ -401,7 +414,7 @@ Buyer routes:
 - `/account/enquiries` — enquiries.
 - `/account/sent` — sent-to-me.
 - `/account/messages` — chat (Section 3).
-- `/account/vault` — list of approved data rooms; clicking opens that listing's data-room view (Section 7), but constrained to buyer-side controls (no admin actions).
+- `/account/vault` — list of approved Virtual Data Rooms; clicking opens that listing's data-room view (Section 7), but constrained to buyer-side controls (no admin actions).
 - `/account/alerts` — alert preferences (existing).
 
 Auto-save on enquiry, auto-fill enquiry forms, and broker-sent listings remain as already specified in [feature-proposal-ai-insights-and-buyer-experience.md](feature-proposal-ai-insights-and-buyer-experience.md) §3.
@@ -410,16 +423,18 @@ The buyer experience must remain deliberately simple — no broker-style sidebar
 
 ---
 
-## 6. NDA & Virtual Data Room Workflow
+## 6. NDA & Virtual Virtual Data Room Workflow
 
 **Current state.**
+
 - `nda_documents` (and signature) tables track NDA requests and signatures.
 - `document_approval` tracks per-document approval requests.
 - `app/dashboard/listings/[id]/nda` and `app/dashboard/listings/[id]/documents` are separate screens.
-- A buyer who has not signed an NDA can already see the *list of documents* (titles + categories) on the public listing detail.
+- A buyer who has not signed an NDA can already see the _list of documents_ (titles + categories) on the public listing detail.
 
 **Gaps.**
-- NDA management and document/vault management live on two separate pages — there is no single "data room control" surface per listing.
+
+- NDA management and document/vault management live on two separate pages — there is no single "Virtual Data Room control" surface per listing.
 - Document titles, file names and folder names leak before NDA approval.
 - No per-buyer access matrix, no folder-level permissions, no time-bound access, no view/download tracking dashboard tied to NDA status.
 
@@ -429,7 +444,7 @@ The buyer experience must remain deliberately simple — no broker-style sidebar
 
 Replace the split `nda` + `documents` pages with one route: `/dashboard/listings/[id]/data-room`, with three tabs:
 
-1. **Buyers** — table of every buyer who has interacted with this listing (enquired, requested access, signed NDA). Columns: name, email, NDA status, access state, files visible, last viewed, expiry, actions. *Source query unions* `enquiries`, `nda_documents`, `document_approval` filtered to this listing, deduped by `buyer_user_id`/`broker_contacts.id`.
+1. **Buyers** — table of every buyer who has interacted with this listing (enquired, requested access, signed NDA). Columns: name, email, NDA status, access state, files visible, last viewed, expiry, actions. _Source query unions_ `enquiries`, `nda_documents`, `document_approval` filtered to this listing, deduped by `buyer_user_id`/`broker_contacts.id`.
 2. **Files & folders** — the vault (Section 7).
 3. **Settings** — NDA template, default access policy ("auto-grant access on signature" vs "manual approval"), default expiry days.
 
@@ -446,26 +461,29 @@ Routes `/dashboard/listings/[id]/nda` and `/dashboard/listings/[id]/documents` r
 ### 6.3 Pre-approval information hiding
 
 Public listing detail and buyer dashboard must, before approval, hide:
+
 - Document titles
 - File names
 - Folder names
 - File previews / thumbnails
 
 **Implementation.** A single shared helper `getVisibleVaultForBuyer(listingId, viewerUserId)` in `lib/actions/documents.ts` returns one of:
-- `{ state: 'locked', counts: { documents: number, folders: number } }` — pre-approval; UI shows a single "Sign NDA to view *N* documents in *M* folders" card.
+
+- `{ state: 'locked', counts: { documents: number, folders: number } }` — pre-approval; UI shows a single "Sign NDA to view _N_ documents in _M_ folders" card.
 - `{ state: 'open', folders: [...], documents: [...] }` — only emitted once `document_approval.status = 'approved'` for this buyer for at least one file, AND the file's per-buyer permission allows it (Section 7).
 
 All public/buyer-facing rendering paths (listing detail page, buyer vault page, mobile equivalents) call this helper. There is no fallback path that returns titles before approval.
 
 ---
 
-## 7. Vault / Data Room Improvements
+## 7. Vault / Virtual Data Room Improvements
 
 **Current state.** `components/listings/document-vault.tsx` plus `lib/actions/documents.ts` support a flat list of documents per listing with per-file approval. There is no folder structure, no per-buyer access control, no expiry, no tracking dashboard.
 
 ### 7.1 Folder structure
 
-**Schema** *(migration `20260509000001_listing_document_folders.sql`)*
+**Schema** _(migration `20260509000001_listing_document_folders.sql`)_
+
 ```sql
 create table listing_document_folders (
   id uuid primary key default gen_random_uuid(),
@@ -484,11 +502,12 @@ alter table listing_documents
   add column description text;
 ```
 
-Default folder seeds when a listing is created: *Financials*, *Lease*, *Staff*, *Equipment*, *Legal*, *Operations* — broker may delete, rename or reorder. Subfolders supported one level deep (matches client examples; deeper nesting is opt-in by removing the depth cap in the UI).
+Default folder seeds when a listing is created: _Financials_, _Lease_, _Staff_, _Equipment_, _Legal_, _Operations_ — broker may delete, rename or reorder. Subfolders supported one level deep (matches client examples; deeper nesting is opt-in by removing the depth cap in the UI).
 
 ### 7.2 Broker file management UX
 
 Upgrade `components/listings/document-vault.tsx` to:
+
 - Drag-and-drop multi-file upload using `react-dropzone` with chunked uploads via Supabase Storage's resumable endpoint.
 - Bulk upload with per-file progress bars, parallelism = 4, retry on failure, background tab support (uploads continue if user switches tabs within the same session via a small Web Worker).
 - Rename / move / delete (single + multi-select) with optimistic UI.
@@ -499,7 +518,8 @@ Upgrade `components/listings/document-vault.tsx` to:
 
 ### 7.3 Per-buyer access controls
 
-**Schema** *(migration `20260509000002_document_access_grants.sql`)*
+**Schema** _(migration `20260509000002_document_access_grants.sql`)_
+
 ```sql
 create table document_access_grants (
   id uuid primary key default gen_random_uuid(),
@@ -518,6 +538,7 @@ create table document_access_grants (
 ```
 
 Permission resolution (server-side, in `getVisibleVaultForBuyer`):
+
 1. Find the buyer's grant for this listing. If `revoked_at` set or `expires_at < now()` → `none`.
 2. `scope = 'all'` → return every approved document.
 3. `scope = 'folders'` → return all approved documents inside any folder in `folder_ids` (recursive into subfolders).
@@ -534,11 +555,12 @@ The per-buyer dropdown on the data-room **Buyers** tab presents these scopes (No
 - "Recently added" badge on files added in the last 7 days.
 - Banner if access expires within 7 days; auto-removal of cards on expiry.
 - Search and download (when permission allows) match the broker UX.
-- Buyer can access this view from `/account/vault` *or* the original listing page — the listing page reuses `getVisibleVaultForBuyer` so the experience is identical.
+- Buyer can access this view from `/account/vault` _or_ the original listing page — the listing page reuses `getVisibleVaultForBuyer` so the experience is identical.
 
 ### 7.5 Tracking & notifications
 
-**Schema additive** *(migration `20260509000003_document_view_log.sql`)*
+**Schema additive** _(migration `20260509000003_document_view_log.sql`)_
+
 ```sql
 create table document_view_log (
   id uuid primary key default gen_random_uuid(),
@@ -555,6 +577,7 @@ create index document_view_log_listing_idx
 Broker-facing: a "Document activity" panel on the data-room **Buyers** tab shows per-buyer view/download history and sortable "most viewed files".
 
 Notifications (additive `notifications.type` enum values):
+
 - Broker — `document_access_requested`, `nda_signed`, `document_viewed`, `document_downloaded`, `access_expired`.
 - Buyer — `vault_access_approved`, `vault_files_added`, `vault_access_expiring`, `vault_folders_shared`.
 
@@ -576,7 +599,7 @@ Notifications are batched (one email per buyer per listing per 30 min for view/d
 
 **Fix.**
 
-1. **Schema** *(migration `20260510000001_listing_enquiry_form.sql`)*
+1. **Schema** _(migration `20260510000001_listing_enquiry_form.sql`)_
    ```sql
    create table listing_enquiry_forms (
      listing_id uuid primary key references listings(id) on delete cascade,
@@ -590,7 +613,7 @@ Notifications are batched (one email per buyer per listing per 30 min for view/d
      updated_at timestamptz not null default now()
    );
    ```
-2. **Listing wizard.** Add a 4th step *"Enquiry form"* to the create/edit listing wizard (current 3-step form documented in [application-analysis.md §2.3](application-analysis.md)). Defaults match today's hard-coded schema so existing brokers see no behaviour change.
+2. **Listing wizard.** Add a 4th step _"Enquiry form"_ to the create/edit listing wizard (current 3-step form documented in [application-analysis.md §2.3](application-analysis.md)). Defaults match today's hard-coded schema so existing brokers see no behaviour change.
 3. **Enquiry handler.** `lib/actions/enquiries.ts` reads the per-listing config and validates incoming enquiries against it. Custom answers are stored as `enquiries.answers jsonb` (additive column). The CRM and buyer profile surfaces render the answers under "Enquiry detail".
 4. **Auto-fill into CRM.** Answers to budget / funding / timeframe / industry questions are mirrored into `broker_contacts` (Section 1.1) so the CRM column / filter set stays consistent.
 
@@ -602,7 +625,8 @@ Notifications are batched (one email per buyer per listing per 30 min for view/d
 
 **Fix.**
 
-1. **Schema** *(migration `20260510000002_listing_regions.sql`)*
+1. **Schema** _(migration `20260510000002_listing_regions.sql`)_
+
    ```sql
    create table regions (
      id uuid primary key default gen_random_uuid(),
@@ -616,7 +640,8 @@ Notifications are batched (one email per buyer per listing per 30 min for view/d
      add column region_id uuid references regions(id) on delete set null,
      add column hide_exact_location boolean not null default false;
    ```
-   Seed regions to match the client's examples: *Sydney*, *North Shore*, *Western Sydney*, *Regional NSW*, *Brisbane Region*, *Gold Coast Region* — extensible via the admin panel.
+
+   Seed regions to match the client's examples: _Sydney_, _North Shore_, _Western Sydney_, _Regional NSW_, _Brisbane Region_, _Gold Coast Region_ — extensible via the admin panel.
 
 2. **Listing wizard.** "Location" step gains a region picker and a **Hide exact suburb** toggle. When toggled on, public surfaces show only the region; the suburb stays in the database for matching against buyer alerts.
 
@@ -628,7 +653,7 @@ Notifications are batched (one email per buyer per listing per 30 min for view/d
 
 Cross-cutting work that supports Sections 1–9.
 
-- **Notification enum extension** *(single migration `20260510000003_notifications_types.sql`)* — additive only:
+- **Notification enum extension** _(single migration `20260510000003_notifications_types.sql`)_ — additive only:
   `followup_due`, `nda_request_received`, `nda_signed`, `vault_access_requested`, `vault_access_approved`, `vault_files_added`, `vault_access_expiring`, `vault_access_expired`, `document_viewed`, `document_downloaded`, `message_received`, `feedback_captured`, `crm_status_changed`.
 - **RLS audit.** Every new table above ships with an RLS policy enforcing the broker isolation rule. The audit script in `scripts/` runs as part of CI to assert no policy is missing on a new table.
 - **Mobile parity.** Every new endpoint must have a `/api/mobile/*` mirror so the existing Salebiz mobile app (Expo) keeps feature parity. Track the parity matrix in [web-vs-mobile-parity.md](web-vs-mobile-parity.md).
@@ -639,15 +664,15 @@ Cross-cutting work that supports Sections 1–9.
 
 We propose seven phases. Phases 1–2 unlock CRM value quickly; phases 3–5 deliver the data-room overhaul; phase 6 layers AI on top of the new data; phase 7 polishes the buyer side.
 
-| Phase | Scope | Sections | Estimate |
-|---|---|---|---|
-| **Phase 1 — CRM foundation** | Buyer profile schema + click-through, timeline view, status pipeline, Contacts→CRM rename, hotlinks, filters | 1.1, 1.2, 1.3, 1.5, 2 | ~1.5 weeks |
-| **Phase 2 — Comms & follow-ups** | Email/call logging, follow-up system, custom CRM fields, call-log popover, external email BCC ingest | 1.4, 1.6, 1.7 | ~1.5 weeks |
-| **Phase 3 — Messaging** | Threads/messages schema, realtime, broker + buyer UI, notifications | 3 | ~1.5 weeks |
-| **Phase 4 — Data-room control** | Unified data-room screen, NDA→approval workflow, pre-approval information hiding | 6 | ~1 week |
-| **Phase 5 — Vault overhaul** | Folders, drag-drop bulk uploads, per-buyer access matrix, expiry, view/download tracking, secure preview | 7 | ~2 weeks |
-| **Phase 6 — AI insights expansion** | Feedback capture, AI ingest of CRM/feedback/messages, new outputs, seller-update generator | 4 | ~1 week |
-| **Phase 7 — Buyer side & misc.** | Buyer vault tab, buyer messages, enquiry-form customisation, regions, location hide-exact toggle | 5, 8, 9 | ~1 week |
+| Phase                               | Scope                                                                                                        | Sections              | Estimate   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------- | ---------- |
+| **Phase 1 — CRM foundation**        | Buyer profile schema + click-through, timeline view, status pipeline, Contacts→CRM rename, hotlinks, filters | 1.1, 1.2, 1.3, 1.5, 2 | ~1.5 weeks |
+| **Phase 2 — Comms & follow-ups**    | Email/call logging, follow-up system, custom CRM fields, call-log popover, external email BCC ingest         | 1.4, 1.6, 1.7         | ~1.5 weeks |
+| **Phase 3 — Messaging**             | Threads/messages schema, realtime, broker + buyer UI, notifications                                          | 3                     | ~1.5 weeks |
+| **Phase 4 — Data-room control**     | Unified data-room screen, NDA→approval workflow, pre-approval information hiding                             | 6                     | ~1 week    |
+| **Phase 5 — Vault overhaul**        | Folders, drag-drop bulk uploads, per-buyer access matrix, expiry, view/download tracking, secure preview     | 7                     | ~2 weeks   |
+| **Phase 6 — AI insights expansion** | Feedback capture, AI ingest of CRM/feedback/messages, new outputs, seller-update generator                   | 4                     | ~1 week    |
+| **Phase 7 — Buyer side & misc.**    | Buyer vault tab, buyer messages, enquiry-form customisation, regions, location hide-exact toggle             | 5, 8, 9               | ~1 week    |
 
 **Total:** ~9–10 weeks of focused work, single full-stack dev with QA built in. Phases 1, 2, 3 and 6 can run in parallel with phases 4–5 if a second dev is available, since they touch largely independent surfaces.
 
@@ -658,13 +683,13 @@ We propose seven phases. Phases 1–2 unlock CRM value quickly; phases 3–5 del
 These need decisions before we start cutting code so we don't have to retrofit later:
 
 1. **External email logging** — are you happy with the BCC-alias approach (Section 1.4), or would you prefer a Gmail/Outlook OAuth integration that scrapes the broker's "Sent" folder for known buyer emails?
-2. **Auto-grant vault access on NDA signature** — default *on* (frictionless) or default *off* (broker reviews every buyer)?
+2. **Auto-grant vault access on NDA signature** — default _on_ (frictionless) or default _off_ (broker reviews every buyer)?
 3. **Custom CRM fields scope** — broker-level (each broker designs their own fields) or agency-level (owner sets the schema for the whole team)?
 4. **Region taxonomy** — do you want admin-managed regions (we seed the six you listed; admin can add more) or a fixed enum?
 5. **Messaging attachments** — capped at 10 MB per file? Should they auto-expire after the deal closes?
 6. **AI insights data window** — should AI ingest CRM notes / messages older than, say, 12 months, or just the recent window? (Affects token cost and recency relevance.)
-7. **Mobile parity** — every phase shipped to web *and* mobile in lockstep, or web-first then mobile in a follow-up sprint?
+7. **Mobile parity** — every phase shipped to web _and_ mobile in lockstep, or web-first then mobile in a follow-up sprint?
 
 ---
 
-*Once you sign off on this, each phase becomes a detailed task list under `/docs/sprints/` and we begin with Phase 1.*
+_Once you sign off on this, each phase becomes a detailed task list under `/docs/sprints/` and we begin with Phase 1._

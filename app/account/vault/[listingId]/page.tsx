@@ -72,7 +72,7 @@ export default async function BuyerVaultListingPage({ params }: Props) {
             <CardContent className="py-10 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 {result.reason === "expired"
-                  ? "Your access to this data room has expired. Contact the broker if you need to extend it."
+                  ? "Your access to this Virtual Data Room has expired. Contact the broker if you need to extend it."
                   : result.reason === "not_approved"
                     ? "Your access request is still being reviewed by the broker. You&apos;ll be notified once it&apos;s approved."
                     : result.error}
@@ -90,7 +90,9 @@ export default async function BuyerVaultListingPage({ params }: Props) {
                   <Clock className="h-4 w-4" />
                   Your access expires {formatDate(result.data.expiresAt)}.
                   {!result.data.downloadAllowed && (
-                    <span className="ml-2">Downloads are disabled for this data room.</span>
+                    <span className="ml-2">
+                      Downloads are disabled for this Virtual Data Room.
+                    </span>
                   )}
                 </CardContent>
               </Card>

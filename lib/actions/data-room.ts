@@ -83,7 +83,7 @@ async function verifyListingOwnership(
 // ── Buyer-side: request access ───────────────────────────────
 
 /**
- * Buyer requests access to a listing's data room. Idempotent — if a record
+ * Buyer requests access to a listing's Virtual Data Room. Idempotent — if a record
  * already exists in any state we either return the existing approval (and
  * touch nothing) or reset a denied/revoked/expired record back to pending.
  *
@@ -162,8 +162,8 @@ export async function requestDataRoomAccess(
     createNotification({
       userId: listing.broker_id,
       type: "data_room_request",
-      title: "Data room access request",
-      message: `${buyerLabel} has requested access to the data room for “${listTitle}”.`,
+      title: "Virtual Data Room access request",
+      message: `${buyerLabel} has requested access to the Virtual Data Room for “${listTitle}”.`,
       link: `/dashboard/listings/${listingId}/data-room`,
     }).catch(() => {});
 
@@ -442,7 +442,7 @@ export async function approveDataRoomAccess(
   createNotification({
     userId: access.buyer_id,
     type: "access_approved",
-    title: "Data room access approved",
+    title: "Virtual Data Room access approved",
     message: `Your access to “${listing?.title ?? "the listing"}” has been approved.`,
     link: `/account/vault`,
   }).catch(() => {});
@@ -502,7 +502,7 @@ export async function denyDataRoomAccess(
   createNotification({
     userId: access.buyer_id,
     type: "general",
-    title: "Data room access declined",
+    title: "Virtual Data Room access declined",
     message: `Your access request for “${listing?.title ?? "the listing"}” was declined.`,
     link: "/account/vault",
   }).catch(() => {});
@@ -789,7 +789,7 @@ export async function expireDataRoomAccessSweep(): Promise<{
       createNotification({
         userId: row.buyer_id,
         type: "access_expired",
-        title: "Data room access expired",
+        title: "Virtual Data Room access expired",
         message: `Your access to “${titleByLid.get(row.listing_id) ?? "the listing"}” has expired.`,
         link: "/account/vault",
       }).catch(() => {});
@@ -834,7 +834,7 @@ export async function expireDataRoomAccessSweep(): Promise<{
       createNotification({
         userId: row.buyer_id,
         type: "access_expiring",
-        title: "Data room access expiring soon",
+        title: "Virtual Data Room access expiring soon",
         message: `Your access to “${titleByLid.get(row.listing_id) ?? "the listing"}” expires soon.`,
         link: "/account/vault",
       }).catch(() => {});
@@ -1316,7 +1316,7 @@ const DEFAULT_FOLDERS: { name: string; sort_order: number }[] = [
 /**
  * Ensure the listing has the default folder set. Idempotent — only inserts
  * folders that don't already exist by name at the root level. Safe to call
- * lazily the first time a broker opens the data room for a listing.
+ * lazily the first time a broker opens the Virtual Data Room for a listing.
  */
 export async function ensureDefaultFoldersForListing(
   listingId: string,
@@ -1888,7 +1888,7 @@ async function notifyBuyersOfNewFile(
     createNotification({
       userId: access.buyer_id,
       type: "new_files_added",
-      title: "New file in data room",
+      title: "New file in Virtual Data Room",
       message: `A new file was added to “${title}”.`,
       link: "/account/vault",
     }).catch(() => {});

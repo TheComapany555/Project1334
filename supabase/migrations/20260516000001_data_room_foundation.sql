@@ -1,8 +1,8 @@
--- M2 Phase 1: Data Room foundation
+-- M2 Phase 1: Virtual Data Room foundation
 -- ============================================================
 --
--- Restructures NDA + document approval into a unified virtual data room model
--- where a buyer requests access to a listing's data room (not individual
+-- Restructures NDA + document approval into a unified virtual Virtual Data Room model
+-- where a buyer requests access to a listing's Virtual Data Room (not individual
 -- documents), the broker approves with a chosen access level + permissions +
 -- optional expiry, and document/folder visibility flows from that single
 -- access record.
@@ -48,7 +48,7 @@ ALTER TABLE public.document_folders ENABLE ROW LEVEL SECURITY;
 -- Service-role only — server actions enforce the broker/buyer boundary.
 
 COMMENT ON TABLE public.document_folders IS
-  'Folder hierarchy for a listing''s data room. Subfolders supported via parent_folder_id. NULL parent = top-level folder for the listing.';
+  'Folder hierarchy for a listing''s Virtual Data Room. Subfolders supported via parent_folder_id. NULL parent = top-level folder for the listing.';
 
 -- ── 2. Listing documents — folder + metadata ─────────────────
 
@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_listing_documents_folder
   ON public.listing_documents(folder_id);
 
 COMMENT ON COLUMN public.listing_documents.folder_id IS
-  'Optional folder this document lives in. NULL = root level of the listing data room.';
+  'Optional folder this document lives in. NULL = root level of the listing Virtual Data Room.';
 COMMENT ON COLUMN public.listing_documents.version IS
   'Increment on re-upload over the same document slot. Reserved for future versioning UI.';
 
@@ -102,9 +102,9 @@ ALTER TABLE public.buyer_data_room_access ENABLE ROW LEVEL SECURITY;
 -- Service-role only — server actions enforce the boundary.
 
 COMMENT ON TABLE public.buyer_data_room_access IS
-  'One row per (listing, buyer) describing the buyer''s access state to that listing''s data room. Replaces per-document approval as the primary gate.';
+  'One row per (listing, buyer) describing the buyer''s access state to that listing''s Virtual Data Room. Replaces per-document approval as the primary gate.';
 COMMENT ON COLUMN public.buyer_data_room_access.access_level IS
-  'all = buyer sees every approved document in the data room. selected = buyer sees only files/folders listed in buyer_data_room_permissions.';
+  'all = buyer sees every approved document in the Virtual Data Room. selected = buyer sees only files/folders listed in buyer_data_room_permissions.';
 COMMENT ON COLUMN public.buyer_data_room_access.download_allowed IS
   'When false, buyer can preview but not download files.';
 

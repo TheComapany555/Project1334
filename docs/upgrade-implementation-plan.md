@@ -67,7 +67,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
    - Enquiries: [`app/dashboard/enquiries/`](../app/dashboard/enquiries/).
    - NDAs: [`app/dashboard/ndas/`](../app/dashboard/ndas/).
    - Document access: [`app/dashboard/document-access/`](../app/dashboard/document-access/).
-   - Listing enquiry sub-list (later, in the data room "Buyers" tab in M2).
+   - Listing enquiry sub-list (later, in the Virtual Data Room "Buyers" tab in M2).
    - Messages thread row (M1.3).
    - Keep `/dashboard/buyers/[id]` working as the full-page view (re-uses the same `BuyerProfileView` plus the new fields).
 
@@ -172,7 +172,6 @@ Important rule (from spec): a broker MUST only see their own relationship with a
    Notification CHECK constraint update — add `follow_up_due`, `message_received`, `email_received`, `data_room_request`, `data_room_view`, `data_room_download`, `access_expired`, `access_expiring`, `feedback_logged` (some used in M2 too — adding all in one migration is fine).
 
 2. **Server actions** — new file [`lib/actions/crm.ts`](../lib/actions/crm.ts):
-
    - `logActivity(input)` — writes to `crm_activities`, optionally bumps `last_emailed_at` / `last_called_at` / `last_contacted_at` on `broker_contacts`, and applies status auto-advance rules:
      - `email_sent` → if status `'new_lead'`, advance to `'contacted'`.
      - `nda_signed` → status `'nda_signed'`. (Triggered from existing `signNda` action.)
@@ -187,9 +186,20 @@ Important rule (from spec): a broker MUST only see their own relationship with a
    - All scoped by `requireBroker()` + `broker_id` filter.
 
 3. **Pipeline statuses.** Constant in [`lib/types/contacts.ts`](../lib/types/contacts.ts):
+
    ```ts
-   export const CRM_STATUSES = ['new_lead','contacted','interested','meeting_scheduled','nda_signed','documents_shared','negotiating','closed'] as const;
+   export const CRM_STATUSES = [
+     "new_lead",
+     "contacted",
+     "interested",
+     "meeting_scheduled",
+     "nda_signed",
+     "documents_shared",
+     "negotiating",
+     "closed",
+   ] as const;
    ```
+
    Render as colored pill with dropdown to change. Auto-advance helpers above only push forward; never demote without manual change.
 
 4. **Email logging — both methods** (spec is explicit):
@@ -374,9 +384,9 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 
 ---
 
-## Milestone 2 — Data Room, AI Insights & Buyer-Side
+## Milestone 2 — Virtual Data Room, AI Insights & Buyer-Side
 
-### M2.1 — Unified NDA + Data Room screen
+### M2.1 — Unified NDA + Virtual Data Room screen
 
 **What's already there**
 
@@ -391,7 +401,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
    - **Files & Folders** — see M2.2.
    - **Settings** — NDA template editor (existing UI from `nda-manager.tsx`), `is_required` toggle, new `auto_approve` toggle (default off — broker must approve), `default_access_scope` (`'no_access'|'all_approved'|'selected'`).
 
-2. **Redirects**: keep `/dashboard/listings/[id]/nda` and `/dashboard/listings/[id]/documents` working but mark deprecated. In their `page.tsx` add `redirect(\`/dashboard/listings/${id}/data-room?tab=settings\`)` and `?tab=files` respectively.
+2. **Redirects**: keep `/dashboard/listings/[id]/nda` and `/dashboard/listings/[id]/documents` working but mark deprecated. In their `page.tsx` add `redirect(\`/dashboard/listings/${id}/data-room?tab=settings\`)`and`?tab=files` respectively.
 
 3. **Pre-approval metadata lockdown**. Today public buyers can read non-confidential approved doc rows. With folders, we must hide:
    - Folder names, file names, file sizes, and previews until approved.
@@ -417,7 +427,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 
 ---
 
-### M2.2 — Vault / Data Room (folders, permissions, tracking, uploads)
+### M2.2 — Vault / Virtual Data Room (folders, permissions, tracking, uploads)
 
 **What's already there**
 
@@ -429,6 +439,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 **What to add**
 
 1. **Schema** — Migration `20260615000001_data_room.sql`:
+
    ```sql
    CREATE TABLE data_room_folders (
      id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -500,7 +511,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
      - For each `data_room_buyer_access` with `expires_at <= now() AND revoked_at IS NULL` → set `revoked_at = now()`, create a `notifications` row of type `access_expired` for the buyer, log `crm_activities` of kind `status_changed` for the broker.
      - 24h before expiry: send `access_expiring` notification.
    - Add to `package.json` scripts and to whatever cron runner is already set up alongside [`buyer-alerts-cron.ts`](../scripts/buyer-alerts-cron.ts).
-   - **Real-time hide**: the buyer-side data room read query MUST also filter `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())` so even between cron runs the buyer is locked out. The cron is for notifications + cleanup, not the security boundary.
+   - **Real-time hide**: the buyer-side Virtual Data Room read query MUST also filter `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())` so even between cron runs the buyer is locked out. The cron is for notifications + cleanup, not the security boundary.
 
 4. **Broker upload UI** — rebuild at [`app/dashboard/listings/[id]/data-room/files/`](../app/dashboard/listings/%5Bid%5D/data-room/files/):
    - Component [`components/dashboard/data-room-tree.tsx`](../components/dashboard/data-room-tree.tsx): folder tree on left, file list on right, breadcrumb top.
@@ -521,11 +532,11 @@ Important rule (from spec): a broker MUST only see their own relationship with a
    - Toggle: Allow downloads (vs view-only).
    - Audit summary: views, downloads, last activity per buyer.
 
-6. **Buyer-side data room viewer**:
+6. **Buyer-side Virtual Data Room viewer**:
    - On [`/listing/[slug]`](../app/listing/%5Bslug%5D/page.tsx): replace [`document-vault.tsx`](../components/listings/document-vault.tsx) with new [`buyer-data-room.tsx`](../components/listings/buyer-data-room.tsx) — folder tree, search, recently-added badges (files added in last 7 days), expiry warning banner if `expires_at` within 72h.
    - Approved-only branch: render full tree filtered by `getDataRoomTreeForBuyer(listingId, buyerUserId)` on the server to avoid leaking metadata.
    - Expired branch: single card "Access expired — request renewal" with a button that creates a `data_room_request_renewal` notification for the broker.
-   - Buyer's [`/account`](../app/account/page.tsx) gets a **Vault** tab listing every listing they have access to, deep-linking back to the listing's data room.
+   - Buyer's [`/account`](../app/account/page.tsx) gets a **Vault** tab listing every listing they have access to, deep-linking back to the listing's Virtual Data Room.
 
 7. **In-platform document preview** — new [`components/listings/secure-document-viewer.tsx`](../components/listings/secure-document-viewer.tsx):
    - PDF: use `<iframe src={signedUrl}>` (Chrome/Safari/Firefox built-in viewer); add `?download=0&toolbar=0` hints; mostly visual, doesn't truly prevent download.
@@ -564,6 +575,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 **What to add**
 
 1. **Schema** — Migration `20260615000002_buyer_feedback.sql`:
+
    ```sql
    CREATE TABLE buyer_feedback_tags (
      id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -661,6 +673,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 **What to add**
 
 1. **Schema** — Migration `20260615000003_enquiry_form_config.sql`:
+
    ```sql
    CREATE TABLE listing_enquiry_form_configs (
      listing_id      uuid PRIMARY KEY REFERENCES listings(id) ON DELETE CASCADE,
@@ -707,6 +720,7 @@ Important rule (from spec): a broker MUST only see their own relationship with a
 **What to add**
 
 1. **Schema** — Migration `20260615000004_regions.sql`:
+
    ```sql
    CREATE TABLE regions (
      id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -770,7 +784,7 @@ M1.1 schema (buyer profile fields)
                     └── M1.4 (CRM polish: filters, hotlinks, quick actions, tab strip)
                     └── M1.3 schema (messaging)
                           └── M1.3 actions + UI on broker + buyer + SSE bell
-                                └── M2.1 (Data Room screen)
+                                └── M2.1 (Virtual Data Room screen)
                                       └── M2.2 (folders, permissions, uploads, viewer, expiry cron)
                                             └── M2.3 (feedback + AI expansion)
                                                   └── M2.4 (enquiry form customisation)

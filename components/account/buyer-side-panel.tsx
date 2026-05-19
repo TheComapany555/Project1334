@@ -5,7 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { toast } from "sonner";
-import { format, formatDistanceToNow, isThisYear, isToday, isYesterday } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  isThisYear,
+  isToday,
+  isYesterday,
+} from "date-fns";
 import {
   ArrowRight,
   Bell,
@@ -47,7 +53,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { AlertPreferenceDialog } from "@/components/account/alert-preference-dialog";
@@ -108,7 +118,11 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
     ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
     : {
         hidden: { opacity: 0, y: 10 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.25, ease: "easeOut" },
+        },
       };
   const containerVariants: Variants = reducedMotion
     ? {}
@@ -171,7 +185,11 @@ export function BuyerSidePanel({ snapshot, categories }: Props) {
       </motion.div>
 
       <motion.div variants={variants}>
-        <MyAlertsSection alerts={alerts} setAlerts={setAlerts} categories={categories} />
+        <MyAlertsSection
+          alerts={alerts}
+          setAlerts={setAlerts}
+          categories={categories}
+        />
       </motion.div>
     </motion.aside>
   );
@@ -211,7 +229,7 @@ function VaultShortcut() {
         <FolderLock className="h-4 w-4 text-primary" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Data Room Vault</p>
+        <p className="text-sm font-medium">Virtual Data Room Vault</p>
         <p className="text-xs text-muted-foreground">
           Documents brokers have shared with you.
         </p>
@@ -243,7 +261,9 @@ function PanelHeader({
           <Compass className="h-4 w-4" aria-hidden />
         </div>
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold tracking-tight">Your activity</h2>
+          <h2 className="text-sm font-semibold tracking-tight">
+            Your activity
+          </h2>
           <p className="text-[11px] text-muted-foreground">
             Saved listings, enquiries, and alerts in one place.
           </p>
@@ -394,7 +414,9 @@ function MatchedForYouSection({
           <SectionEmpty
             accent={accent}
             icon={<BellRing className="h-5 w-5" />}
-            title={hasActiveAlerts ? "No matches yet" : "Set an alert to see matches"}
+            title={
+              hasActiveAlerts ? "No matches yet" : "Set an alert to see matches"
+            }
             hint={
               hasActiveAlerts
                 ? "We'll drop new listings here the moment they match an alert you've saved."
@@ -458,7 +480,9 @@ function MatchedForYouSection({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">(Listing removed)</p>
+                  <p className="text-sm text-muted-foreground">
+                    (Listing removed)
+                  </p>
                 )}
               </li>
             ))}
@@ -489,7 +513,12 @@ function SavedListingsSection({
         badge={<CountBadge value={total} />}
         action={
           total > 0 ? (
-            <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+            >
               <Link href="/saved">
                 View all
                 <ArrowRight className="ml-1 h-3 w-3" aria-hidden />
@@ -533,7 +562,10 @@ function SavedListingsSection({
                       {item.title}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                      <PriceTag amount={item.asking_price} type={item.price_type} />
+                      <PriceTag
+                        amount={item.asking_price}
+                        type={item.price_type}
+                      />
                       {item.location_text && (
                         <span className="inline-flex items-center gap-0.5 truncate">
                           <MapPin className="h-3 w-3 shrink-0" aria-hidden />
@@ -591,7 +623,10 @@ function MyEnquiriesSection({
         ) : (
           <ul className="divide-y divide-border">
             {items.map((item) => (
-              <li key={item.id} className="px-4 py-3 transition-colors hover:bg-muted/30">
+              <li
+                key={item.id}
+                className="px-4 py-3 transition-colors hover:bg-muted/30"
+              >
                 <div className="flex items-start gap-3">
                   <ListingThumb
                     url={item.listing?.cover_image_url ?? null}
@@ -609,7 +644,9 @@ function MyEnquiriesSection({
                             {item.listing.title}
                           </Link>
                         ) : (
-                          <span className="text-muted-foreground">(Listing removed)</span>
+                          <span className="text-muted-foreground">
+                            (Listing removed)
+                          </span>
                         )}
                       </p>
                       <EnquiryStatusBadge status={item.status} />
@@ -630,7 +667,9 @@ function MyEnquiriesSection({
                       </Tooltip>
                     )}
                     <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
-                      {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(item.created_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -712,7 +751,10 @@ function SentToMeSection({
         ) : (
           <ul className="divide-y divide-border">
             {items.map((item) => (
-              <li key={item.invite_id} className="px-4 py-3 transition-colors hover:bg-muted/30">
+              <li
+                key={item.invite_id}
+                className="px-4 py-3 transition-colors hover:bg-muted/30"
+              >
                 <div className="flex items-start gap-3">
                   <ListingThumb
                     url={item.listing?.cover_image_url ?? null}
@@ -736,8 +778,12 @@ function SentToMeSection({
                       )}
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                      {item.broker_name ? `From ${item.broker_name}` : "From a broker"}
-                      {item.listing?.location_text ? ` · ${item.listing.location_text}` : ""}
+                      {item.broker_name
+                        ? `From ${item.broker_name}`
+                        : "From a broker"}
+                      {item.listing?.location_text
+                        ? ` · ${item.listing.location_text}`
+                        : ""}
                     </p>
                     {item.custom_message && (
                       <p className="mt-1 line-clamp-2 rounded-md bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground italic">
@@ -752,7 +798,9 @@ function SentToMeSection({
                         </Link>
                       </Button>
                       <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {formatDistanceToNow(new Date(item.sent_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(item.sent_at), {
+                          addSuffix: true,
+                        })}
                       </span>
                     </div>
                   </div>
@@ -782,9 +830,13 @@ function MyAlertsSection({
   const [editing, setEditing] = useState<BuyerAlertPreference | null>(null);
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const [confirmDelete, setConfirmDelete] = useState<BuyerAlertPreference | null>(null);
+  const [confirmDelete, setConfirmDelete] =
+    useState<BuyerAlertPreference | null>(null);
 
-  const activeCount = useMemo(() => alerts.filter((a) => a.is_active).length, [alerts]);
+  const activeCount = useMemo(
+    () => alerts.filter((a) => a.is_active).length,
+    [alerts],
+  );
 
   function openCreate() {
     setEditing(null);
@@ -804,7 +856,9 @@ function MyAlertsSection({
 
   function handleToggle(pref: BuyerAlertPreference, isActive: boolean) {
     setPendingTarget(pref.id);
-    setAlerts(alerts.map((a) => (a.id === pref.id ? { ...a, is_active: isActive } : a)));
+    setAlerts(
+      alerts.map((a) => (a.id === pref.id ? { ...a, is_active: isActive } : a)),
+    );
     startTransition(async () => {
       const res = await toggleAlertPreference(pref.id, isActive);
       setPendingTarget(null);
@@ -854,7 +908,11 @@ function MyAlertsSection({
           </Badge>
         }
         action={
-          <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={openCreate}>
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={openCreate}
+          >
             <Plus className="h-3 w-3" aria-hidden />
             New
           </Button>
@@ -896,9 +954,15 @@ function MyAlertsSection({
                       )}
                     >
                       {pref.is_active ? (
-                        <Bell className={cn("h-3.5 w-3.5", accent.text)} aria-hidden />
+                        <Bell
+                          className={cn("h-3.5 w-3.5", accent.text)}
+                          aria-hidden
+                        />
                       ) : (
-                        <BellOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                        <BellOff
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                          aria-hidden
+                        />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -907,7 +971,9 @@ function MyAlertsSection({
                           {pref.label?.trim() || "Listing alert"}
                         </p>
                         <Switch
-                          aria-label={pref.is_active ? "Pause alert" : "Activate alert"}
+                          aria-label={
+                            pref.is_active ? "Pause alert" : "Activate alert"
+                          }
                           checked={pref.is_active}
                           onCheckedChange={(v) => handleToggle(pref, v)}
                           disabled={isPending}
@@ -916,7 +982,8 @@ function MyAlertsSection({
                       <PreferenceFilterChips pref={pref} />
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span className="text-[10px] text-muted-foreground">
-                          {pref.is_active ? "Active" : "Paused"} · updated {compactDate(pref.updated_at)}
+                          {pref.is_active ? "Active" : "Paused"} · updated{" "}
+                          {compactDate(pref.updated_at)}
                         </span>
                         <div className="flex gap-0.5">
                           <Button
@@ -937,7 +1004,10 @@ function MyAlertsSection({
                             disabled={isPending}
                           >
                             {isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                              <Loader2
+                                className="h-3 w-3 animate-spin"
+                                aria-hidden
+                              />
                             ) : (
                               <Trash2 className="h-3 w-3" aria-hidden />
                             )}
@@ -970,7 +1040,8 @@ function MyAlertsSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this alert?</AlertDialogTitle>
             <AlertDialogDescription>
-              You won&apos;t get notifications for new listings matching these filters anymore.
+              You won&apos;t get notifications for new listings matching these
+              filters anymore.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -989,16 +1060,32 @@ function MyAlertsSection({
 }
 
 function PreferenceFilterChips({ pref }: { pref: BuyerAlertPreference }) {
-  const chips: { icon: React.ReactNode; label: string; tone: "neutral" | "category" | "location" | "price" }[] = [];
+  const chips: {
+    icon: React.ReactNode;
+    label: string;
+    tone: "neutral" | "category" | "location" | "price";
+  }[] = [];
   if (pref.business_type) {
-    chips.push({ icon: <Tag className="h-2.5 w-2.5" aria-hidden />, label: pref.business_type, tone: "category" });
+    chips.push({
+      icon: <Tag className="h-2.5 w-2.5" aria-hidden />,
+      label: pref.business_type,
+      tone: "category",
+    });
   }
   if (pref.category_name) {
-    chips.push({ icon: <Tag className="h-2.5 w-2.5" aria-hidden />, label: pref.category_name, tone: "category" });
+    chips.push({
+      icon: <Tag className="h-2.5 w-2.5" aria-hidden />,
+      label: pref.category_name,
+      tone: "category",
+    });
   }
   const locationParts = [pref.suburb, pref.state].filter(Boolean).join(", ");
   if (locationParts) {
-    chips.push({ icon: <MapPin className="h-2.5 w-2.5" aria-hidden />, label: locationParts, tone: "location" });
+    chips.push({
+      icon: <MapPin className="h-2.5 w-2.5" aria-hidden />,
+      label: locationParts,
+      tone: "location",
+    });
   }
   const priceLabel = formatPriceRange(pref.min_price, pref.max_price);
   if (priceLabel) {
@@ -1006,10 +1093,12 @@ function PreferenceFilterChips({ pref }: { pref: BuyerAlertPreference }) {
   }
   if (chips.length === 0) {
     return (
-      <p className="mt-1 text-[11px] text-muted-foreground italic">Any new listing</p>
+      <p className="mt-1 text-[11px] text-muted-foreground italic">
+        Any new listing
+      </p>
     );
   }
-  const toneClass: Record<typeof chips[number]["tone"], string> = {
+  const toneClass: Record<(typeof chips)[number]["tone"], string> = {
     neutral: "bg-muted text-muted-foreground",
     category:
       "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-500/20",
@@ -1071,13 +1160,7 @@ function ListingThumb({
   }
   return (
     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60 transition-transform group-hover:scale-[1.03]">
-      <Image
-        src={url}
-        alt={alt}
-        fill
-        sizes="56px"
-        className="object-cover"
-      />
+      <Image src={url} alt={alt} fill sizes="56px" className="object-cover" />
     </div>
   );
 }
@@ -1089,15 +1172,16 @@ function PriceTag({
   amount: number | null;
   type: "fixed" | "poa";
 }) {
-  const text = type === "poa"
-    ? "POA"
-    : amount == null
-      ? "—"
-      : new Intl.NumberFormat("en-AU", {
-          style: "currency",
-          currency: "AUD",
-          maximumFractionDigits: 0,
-        }).format(amount);
+  const text =
+    type === "poa"
+      ? "POA"
+      : amount == null
+        ? "—"
+        : new Intl.NumberFormat("en-AU", {
+            style: "currency",
+            currency: "AUD",
+            maximumFractionDigits: 0,
+          }).format(amount);
   return (
     <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground/80">
       {text}
@@ -1151,13 +1235,15 @@ function compactDate(iso: string): string {
 
 function formatPriceRange(min: number | null, max: number | null): string {
   if (min == null && max == null) return "";
-  if (min != null && max != null) return `${formatShort(min)}–${formatShort(max)}`;
+  if (min != null && max != null)
+    return `${formatShort(min)}–${formatShort(max)}`;
   if (max != null) return `up to ${formatShort(max)}`;
   return `from ${formatShort(min!)}`;
 }
 
 function formatShort(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (n >= 1_000_000)
+    return `$${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
   if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
   return `$${n}`;
 }

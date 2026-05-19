@@ -236,7 +236,7 @@ ALTER TABLE public.notifications
     -- M1.3 (messaging)
     'message_received',
     'message_sent',
-    -- M2.2 (data room)
+    -- M2.2 (Virtual Data Room)
     'data_room_request',
     'data_room_view',
     'data_room_download',
