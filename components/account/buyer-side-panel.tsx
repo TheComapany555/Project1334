@@ -229,7 +229,7 @@ function VaultShortcut() {
         <FolderLock className="h-4 w-4 text-primary" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Virtual Data Room Vault</p>
+        <p className="text-sm font-medium">Virtual Data Room</p>
         <p className="text-xs text-muted-foreground">
           Documents brokers have shared with you.
         </p>

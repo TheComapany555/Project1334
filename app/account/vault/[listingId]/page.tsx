@@ -13,7 +13,7 @@ import { BuyerVaultBrowser } from "./buyer-vault-browser";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Vault",
+  title: "Virtual Data Room",
 };
 
 type Props = {
@@ -41,7 +41,7 @@ export default async function BuyerVaultListingPage({ params }: Props) {
         <PageBreadcrumb
           items={[
             { label: "Account", href: "/account" },
-            { label: "Vault", href: "/account/vault" },
+            { label: "Virtual Data Room", href: "/account/vault" },
             { label: result.ok ? result.data.listing.title : "Listing" },
           ]}
         />
@@ -78,7 +78,7 @@ export default async function BuyerVaultListingPage({ params }: Props) {
                     : result.error}
               </p>
               <Button asChild variant="outline">
-                <Link href="/account/vault">Back to vault</Link>
+                <Link href="/account/vault">Back to Virtual Data Room</Link>
               </Button>
             </CardContent>
           </Card>

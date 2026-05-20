@@ -571,7 +571,7 @@ export default async function ListingPage({ params }: Props) {
           </CardContent>
         </Card>
 
-        {/* Document Vault */}
+        {/* Virtual Data Room */}
         {(documentData.documents.length > 0 ||
           documentData.lockedConfidentialCount > 0) && (
           <DocumentVault

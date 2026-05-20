@@ -24,7 +24,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Virtual Data Room Vault",
+  title: "Virtual Data Room",
   description: "Documents brokers have shared with you.",
 };
 
@@ -53,13 +53,16 @@ export default async function BuyerVaultPage() {
       <PublicHeader session={session} />
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <PageBreadcrumb
-          items={[{ label: "Account", href: "/account" }, { label: "Vault" }]}
+          items={[
+            { label: "Account", href: "/account" },
+            { label: "Virtual Data Room" },
+          ]}
         />
 
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <FolderLock className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-semibold">Virtual Data Room Vault</h1>
+            <h1 className="text-2xl font-semibold">Virtual Data Room</h1>
           </div>
           <p className="text-sm text-muted-foreground">
             Documents brokers have shared with you. Approved listings appear

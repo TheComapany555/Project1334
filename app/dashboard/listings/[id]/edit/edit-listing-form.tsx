@@ -719,11 +719,11 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           </CardContent>
         </Card>
 
-        {/* Document Vault & NDA */}
+        {/* Virtual Data Room & NDA */}
         <Card>
           <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium">Document Vault &amp; NDA</p>
+              <p className="text-sm font-medium">Virtual Data Room &amp; NDA</p>
               <p className="text-xs text-muted-foreground">
                 Upload confidential documents and configure NDA requirements for buyers.
               </p>

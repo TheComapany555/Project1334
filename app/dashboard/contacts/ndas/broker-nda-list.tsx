@@ -45,8 +45,8 @@ export function BrokerNdaList({ signatures }: Props) {
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
-            To set up an NDA, go to a listing → Edit → Document Vault & NDA →
-            NDA Settings.
+            To set up an NDA, go to a listing → Edit → Virtual Data Room &
+            NDA → NDA Settings.
           </p>
         </CardContent>
       </Card>

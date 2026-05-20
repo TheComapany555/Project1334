@@ -49,8 +49,8 @@ export function ActivityPanel({ listingId }: Props) {
         <CardContent className="py-10 text-center space-y-2">
           <Activity className="h-8 w-8 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            No vault activity yet. As approved buyers view or download files
-            their actions will appear here.
+            No Virtual Data Room activity yet. As approved buyers view or
+            download files their actions will appear here.
           </p>
         </CardContent>
       </Card>

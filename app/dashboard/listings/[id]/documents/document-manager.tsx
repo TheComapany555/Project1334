@@ -200,7 +200,7 @@ export function DocumentManager({
           </Link>
         </Button>
         <div>
-          <h1 className="text-xl font-semibold">Document Vault</h1>
+          <h1 className="text-xl font-semibold">Virtual Data Room</h1>
           <p className="text-sm text-muted-foreground truncate max-w-md">
             {listingTitle}
           </p>
