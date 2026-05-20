@@ -36,15 +36,12 @@ import {
   Phone,
   CalendarClock,
   Clock,
-  TrendingUp,
   Eye,
   MessageSquare,
   Heart,
   ShieldCheck,
-  ShieldQuestion,
   FileText,
   StickyNote,
-  Send,
   PhoneCall,
   ClipboardList,
   Building2,
@@ -91,57 +88,6 @@ const STATUS_TONE: Record<BuyerCrmStatus, string> = {
   negotiating:
     "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   closed: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-};
-
-// ── Activity icons (compact) ──────────────────────────────────────────────
-
-const ACTIVITY_ICON: Record<
-  BuyerActivityKind,
-  React.ComponentType<{ className?: string }>
-> = {
-  view: Eye,
-  enquiry: MessageSquare,
-  save: Heart,
-  nda_signed: ShieldCheck,
-  nda_requested: ShieldQuestion,
-  document_approved: FileText,
-  document_viewed: FileText,
-  document_downloaded: FileText,
-  call: Phone,
-  email_sent: Mail,
-  email_received: Mail,
-  call_logged: PhoneCall,
-  note_added: StickyNote,
-  follow_up_set: CalendarClock,
-  follow_up_completed: CalendarClock,
-  status_changed: TrendingUp,
-  listing_shared: Send,
-  message_sent: MessageSquare,
-  message_received: MessageSquare,
-  feedback_logged: ClipboardList,
-};
-
-const ACTIVITY_LABEL: Record<BuyerActivityKind, string> = {
-  view: "Viewed listing",
-  enquiry: "Sent enquiry",
-  save: "Saved listing",
-  nda_signed: "Signed NDA",
-  nda_requested: "Requested document access",
-  document_approved: "Document access approved",
-  document_viewed: "Viewed document",
-  document_downloaded: "Downloaded document",
-  call: "Tapped call",
-  email_sent: "Email sent",
-  email_received: "Email received",
-  call_logged: "Call logged",
-  note_added: "Note",
-  follow_up_set: "Follow-up scheduled",
-  follow_up_completed: "Follow-up completed",
-  status_changed: "Status changed",
-  listing_shared: "Listing shared",
-  message_sent: "Message sent",
-  message_received: "Message received",
-  feedback_logged: "Feedback",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -653,31 +599,14 @@ function BuyerPanelContent({
         </>
       )}
 
-      {/* Activity timeline (compact, top 12) */}
+      {/* Engagement counts (privacy-first replacement for the full timeline).
+          Brokers don't need to see every buyer click — just how engaged the
+          buyer has been overall and how their outreach is landing. */}
       {profile.activity.length > 0 && (
         <>
-          <SectionHeader
-            title="Recent activity"
-            right={
-              <Link
-                href={fullProfileHref}
-                className="text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                View all →
-              </Link>
-            }
-          />
-          <div className="px-6 pb-4 space-y-2">
-            {profile.activity.slice(0, 12).map((evt) => (
-              <ActivityRow
-                key={evt.id}
-                event={evt}
-                listingTitle={
-                  profile.listings.find((l) => l.listing_id === evt.listing_id)
-                    ?.title
-                }
-              />
-            ))}
+          <SectionHeader title="Engagement" />
+          <div className="px-6 pb-4">
+            <EngagementGrid activity={profile.activity} />
           </div>
         </>
       )}
@@ -841,39 +770,179 @@ function DetailRow({
   );
 }
 
-function ActivityRow({
-  event,
-  listingTitle,
-}: {
-  event: BuyerActivityEvent;
-  listingTitle: string | undefined;
-}) {
-  const Icon = ACTIVITY_ICON[event.kind];
+/**
+ * Aggregate engagement summary that replaces the per-event timeline.
+ *
+ * Privacy intent: brokers see *how engaged* the buyer is and *how their own
+ * outreach is landing*, not every click the buyer makes. We split buyer-side
+ * signals (views, downloads, NDA, etc.) from broker outreach (emails, calls,
+ * notes) and lead with the "Emails opened" stat since that's the highest-
+ * value read-receipt signal.
+ */
+function EngagementGrid({ activity }: { activity: BuyerActivityEvent[] }) {
+  const counts: Record<BuyerActivityKind, number> = {
+    view: 0,
+    enquiry: 0,
+    save: 0,
+    nda_signed: 0,
+    nda_requested: 0,
+    document_approved: 0,
+    document_viewed: 0,
+    document_downloaded: 0,
+    call: 0,
+    email_sent: 0,
+    email_received: 0,
+    call_logged: 0,
+    note_added: 0,
+    follow_up_set: 0,
+    follow_up_completed: 0,
+    status_changed: 0,
+    listing_shared: 0,
+    message_sent: 0,
+    message_received: 0,
+    feedback_logged: 0,
+  };
+  let emailsOpened = 0;
+  let totalEmailOpens = 0;
+  for (const e of activity) {
+    counts[e.kind] += 1;
+    if (e.kind === "email_sent") {
+      if (e.opened_at) emailsOpened += 1;
+      if (typeof e.open_count === "number") totalEmailOpens += e.open_count;
+    }
+  }
+
+  const lastEmailSent = activity.find((e) => e.kind === "email_sent");
+  const openRate =
+    counts.email_sent > 0
+      ? Math.round((emailsOpened / counts.email_sent) * 100)
+      : null;
+
+  const stats: Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string;
+    tone?: "default" | "good" | "muted";
+    sub?: string;
+  }> = [];
+
+  if (counts.email_sent > 0) {
+    stats.push({
+      icon: Mail,
+      label: "Emails opened",
+      value: `${emailsOpened} / ${counts.email_sent}`,
+      tone: emailsOpened > 0 ? "good" : "muted",
+      sub:
+        openRate != null
+          ? `${openRate}% open rate${
+              totalEmailOpens > emailsOpened
+                ? ` · ${totalEmailOpens} total opens`
+                : ""
+            }`
+          : undefined,
+    });
+  }
+  if (counts.view > 0) {
+    stats.push({ icon: Eye, label: "Listing views", value: String(counts.view) });
+  }
+  if (counts.enquiry > 0) {
+    stats.push({
+      icon: MessageSquare,
+      label: "Enquiries",
+      value: String(counts.enquiry),
+    });
+  }
+  const docTotal = counts.document_viewed + counts.document_downloaded;
+  if (docTotal > 0) {
+    stats.push({
+      icon: FileText,
+      label: "Document opens",
+      value: String(docTotal),
+      sub:
+        counts.document_downloaded > 0
+          ? `${counts.document_downloaded} downloads`
+          : undefined,
+    });
+  }
+  if (counts.nda_signed > 0 || counts.nda_requested > 0) {
+    stats.push({
+      icon: ShieldCheck,
+      label: "NDA",
+      value: counts.nda_signed > 0 ? "Signed" : "Requested",
+      tone: counts.nda_signed > 0 ? "good" : "default",
+    });
+  }
+  if (counts.call > 0 || counts.call_logged > 0) {
+    stats.push({
+      icon: PhoneCall,
+      label: "Calls",
+      value: String(counts.call + counts.call_logged),
+    });
+  }
+  if (counts.save > 0) {
+    stats.push({ icon: Heart, label: "Saves", value: String(counts.save) });
+  }
+
+  if (stats.length === 0) {
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        No engagement yet.
+      </p>
+    );
+  }
+
   return (
-    <div className="group flex items-start gap-2.5 text-xs py-1.5 px-2 -mx-2 rounded-md hover:bg-muted/40 transition-colors">
-      <div className="rounded-full bg-muted h-7 w-7 flex items-center justify-center shrink-0">
-        <Icon className="h-3 w-3" />
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {stats.map((s) => (
+          <EngagementStat key={s.label} {...s} />
+        ))}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="leading-tight">
-          <span className="font-medium">{ACTIVITY_LABEL[event.kind]}</span>
-          {listingTitle && (
+      {lastEmailSent && (
+        <p className="text-[10px] text-muted-foreground">
+          Last email sent {fmtRelative(lastEmailSent.at)}
+          {lastEmailSent.opened_at && (
             <>
               {" "}
-              <span className="text-muted-foreground">·</span>{" "}
-              <span className="text-muted-foreground">{listingTitle}</span>
+              · opened {fmtRelative(lastEmailSent.opened_at)}
             </>
           )}
         </p>
-        {event.detail && (
-          <p className="text-muted-foreground text-[11px] mt-0.5 line-clamp-2">
-            {event.detail}
-          </p>
-        )}
+      )}
+    </div>
+  );
+}
+
+function EngagementStat({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = "default",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "default" | "good" | "muted";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border bg-background/50 p-2.5",
+        tone === "good" &&
+          "border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/20",
+        tone === "muted" && "bg-muted/30",
+      )}
+    >
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3 w-3" />
+        {label}
       </div>
-      <span className="text-muted-foreground text-[10px] shrink-0 mt-0.5">
-        {fmtRelative(event.at)}
-      </span>
+      <p className="font-semibold mt-1 text-xs tabular-nums">{value}</p>
+      {sub && (
+        <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
+      )}
     </div>
   );
 }

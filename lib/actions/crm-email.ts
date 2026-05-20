@@ -14,6 +14,7 @@ import { sendViaGmail } from "@/lib/email/gmail-send";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const INBOUND_DOMAIN = process.env.SALEBIZ_INBOUND_DOMAIN ?? "mail.salebiz.com.au";
+const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -72,8 +73,14 @@ function applyMergeFields(
   });
 }
 
-/** Wrap plain text into a minimal personal-style HTML email. */
-function plainToHtml(plain: string): string {
+/**
+ * Wrap plain text into a minimal personal-style HTML email.
+ *
+ * If `trackingToken` is supplied, a 1×1 transparent pixel is appended so the
+ * /api/track/email/open route can stamp opened_at on the matching activity
+ * row when the buyer's mail client loads the image.
+ */
+function plainToHtml(plain: string, trackingToken?: string | null): string {
   const paragraphs = plain
     .split(/\n{2,}/)
     .map((p) => p.trim())
@@ -84,9 +91,15 @@ function plainToHtml(plain: string): string {
         `<p style="margin:0 0 14px 0;">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`,
     )
     .join("\n");
+  const pixel = trackingToken
+    ? `<img src="${APP_URL}/api/track/email/open?t=${encodeURIComponent(
+        trackingToken,
+      )}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;outline:none;" />`
+    : "";
   return `<!DOCTYPE html>
 <html><body style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:600px;margin:0 auto;padding:24px;">
 ${body}
+${pixel}
 </body></html>`;
 }
 
@@ -187,6 +200,11 @@ export async function sendCrmEmail(input: {
   const replyToFallback =
     brokerProfile?.email_public?.trim() || broker.email || EMAIL_FROM;
 
+  // Pre-generate a tracking token so the open-pixel URL is known before send.
+  // We use this as the lookup key on /api/track/email/open and persist it on
+  // the crm_activities row below.
+  const trackingToken = nanoid(20);
+
   // Prefer the broker's Connected Inbox (Gmail) — emails appear in their
   // own Sent folder, replies thread naturally in their inbox.
   // Fall back to Resend if not connected.
@@ -203,7 +221,7 @@ export async function sendCrmEmail(input: {
       // No Reply-To needed — `From` is the broker's actual inbox.
       subject: renderedSubject,
       text: renderedBody,
-      html: plainToHtml(renderedBody),
+      html: plainToHtml(renderedBody, trackingToken),
     });
     if (!res.ok) return { ok: false, error: res.error };
     messageId = res.messageId;
@@ -217,7 +235,7 @@ export async function sendCrmEmail(input: {
         replyTo: replyToFallback,
         subject: renderedSubject,
         text: renderedBody,
-        html: plainToHtml(renderedBody),
+        html: plainToHtml(renderedBody, trackingToken),
       });
       if (error) {
         return {
@@ -234,7 +252,9 @@ export async function sendCrmEmail(input: {
     }
   }
 
-  // Log to CRM. logActivity handles the mirror + status auto-advance.
+  // Log to CRM. logActivity handles the mirror + status auto-advance. The
+  // tracking_token persists on the row so /api/track/email/open can find it
+  // when the buyer's mail client loads the pixel.
   const log = await logActivity({
     contactId: contact.id,
     buyerUserId: contact.buyer_user_id,
@@ -242,6 +262,7 @@ export async function sendCrmEmail(input: {
     kind: "email_sent",
     subject: renderedSubject,
     body: renderedBody,
+    trackingToken,
     metadata: {
       message_id: messageId,
       direction: "outbound",

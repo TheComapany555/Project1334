@@ -43,6 +43,13 @@ export type BuyerActivityEvent = {
   listing_id: string;
   /** Optional contextual metadata (enquiry message, document name, etc). */
   detail?: string | null;
+  /**
+   * For `kind="email_sent"`: timestamp of the buyer's first open of the
+   * outbound email (null until the tracking pixel is loaded by the client).
+   */
+  opened_at?: string | null;
+  /** For `kind="email_sent"`: total pixel-loads (re-opens included). */
+  open_count?: number;
 };
 
 export type BuyerListingSummary = {
@@ -539,7 +546,9 @@ export async function getBuyerProfile(
   // scope is enforced by `requireBroker` + the broker.id filter below.
   const { data: crmRows } = await supabase
     .from("crm_activities")
-    .select("id, kind, subject, body, listing_id, occurred_at")
+    .select(
+      "id, kind, subject, body, listing_id, occurred_at, opened_at, open_count",
+    )
     .eq("broker_id", broker.id)
     .eq("buyer_user_id", buyerId)
     .order("occurred_at", { ascending: false })
@@ -554,6 +563,8 @@ export async function getBuyerProfile(
       at: row.occurred_at,
       listing_id: row.listing_id ?? "",
       detail: row.subject ?? row.body?.slice(0, 140) ?? null,
+      opened_at: row.opened_at ?? null,
+      open_count: row.open_count ?? 0,
     });
   }
 
@@ -672,7 +683,9 @@ export async function getBuyerPanelByContactId(
       .eq("contact_id", contact.id),
     supabase
       .from("crm_activities")
-      .select("id, kind, subject, body, listing_id, occurred_at")
+      .select(
+        "id, kind, subject, body, listing_id, occurred_at, opened_at, open_count",
+      )
       .eq("contact_id", contact.id)
       .order("occurred_at", { ascending: false })
       .limit(50),
@@ -688,6 +701,8 @@ export async function getBuyerPanelByContactId(
       at: row.occurred_at,
       listing_id: row.listing_id ?? "",
       detail: row.subject ?? row.body?.slice(0, 140) ?? null,
+      opened_at: row.opened_at ?? null,
+      open_count: row.open_count ?? 0,
     }),
   );
 

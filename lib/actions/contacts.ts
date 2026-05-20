@@ -271,6 +271,27 @@ export async function getContacts(): Promise<BrokerContact[]> {
   return rows;
 }
 
+/**
+ * Lightweight emails-only fetch for the current broker.
+ *
+ * Used by the bulk-import preview to label every uploaded row as either
+ * "new" or "update" — needs the broker's COMPLETE contact list, not just
+ * the currently-paginated page from `listBrokerContacts`. Cheap query:
+ * just one indexed column (the unique index covers `(broker_id, email)`).
+ */
+export async function getMyContactEmails(): Promise<string[]> {
+  const { getServerSession } = await import("next-auth");
+  const { authOptions } = await import("@/lib/auth");
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.role !== "broker") return [];
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase
+    .from("broker_contacts")
+    .select("email")
+    .eq("broker_id", session.user.id);
+  return (data ?? []).map((r) => (r.email as string).toLowerCase());
+}
+
 /** Save an enquiry as a contact, carrying through the consent the buyer gave on the form. */
 export async function saveEnquiryAsContact(enquiryId: string): Promise<{ ok: boolean; error?: string }> {
   const { userId } = await requireBroker();

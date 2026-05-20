@@ -29,9 +29,11 @@ import {
   ClipboardList,
   ExternalLink,
   Eye,
+  EyeOff,
   Inbox,
   Loader2,
   Mail,
+  MailOpen,
   MessageSquare,
   MessagesSquare,
   Phone,
@@ -330,6 +332,12 @@ function ActivityRow({
   onOpen: (a: ActivityFeedItem) => void;
 }) {
   const Icon = KIND_ICON[a.kind] ?? ActivityIcon;
+  // Read-receipt status for outbound emails. Tracked rows that haven't been
+  // opened show "Sent" so the broker knows tracking is active; opened rows
+  // show "Opened" + the relative time. Untracked rows (legacy + manually
+  // logged external emails) show nothing.
+  const showReadReceipt = a.kind === "email_sent" && !!a.tracking_token;
+  const opened = showReadReceipt && !!a.opened_at;
   return (
     <li className="py-3 flex items-start gap-3">
       <div
@@ -363,6 +371,32 @@ function ActivityRow({
                 <ExternalLink className="h-2.5 w-2.5" />
               </Link>
             </>
+          )}
+          {showReadReceipt && (
+            opened ? (
+              <span
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                title={`First opened ${fmtTime(a.opened_at!)}${
+                  a.open_count > 1 ? ` · ${a.open_count} opens` : ""
+                }`}
+              >
+                <MailOpen className="h-2.5 w-2.5" />
+                Opened
+                {a.open_count > 1 && (
+                  <span className="tabular-nums opacity-80">
+                    ×{a.open_count}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground"
+                title="Sent — not opened yet (or buyer's mail client blocks tracking pixels)"
+              >
+                <EyeOff className="h-2.5 w-2.5" />
+                Not opened
+              </span>
+            )
           )}
         </div>
         {a.subject && (

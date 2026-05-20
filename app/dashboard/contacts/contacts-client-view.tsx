@@ -77,9 +77,11 @@ import {
   PhoneCall,
   Flame,
   FileText,
+  FileSpreadsheet,
   TrendingUp,
   Clock,
 } from "lucide-react";
+import { ImportContactsDialog } from "@/components/dashboard/import-contacts-dialog";
 import {
   addContact,
   deleteContact,
@@ -320,6 +322,7 @@ export function ContactsClientView({
   const [editTarget, setEditTarget] = useState<BrokerContact | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BrokerContact | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const [sendOpen, setSendOpen] = useState<string | null>(null);
   const [selectedListing, setSelectedListing] = useState("");
@@ -511,6 +514,15 @@ export function ContactsClientView({
             >
               <TagIcon className="h-4 w-4" />
               Manage tags
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setImportOpen(true)}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Import
             </Button>
             <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -1115,6 +1127,16 @@ export function ContactsClientView({
           setTags(t);
           startTransition(() => router.refresh());
         }}
+      />
+
+      {/* Bulk import — fetches the broker's complete email list itself
+          (not derived from the paginated `contacts` prop) so preview labels
+          stay accurate regardless of how many pages of contacts the broker
+          has. */}
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => startTransition(() => router.refresh())}
       />
 
       {/* Delete confirmation */}

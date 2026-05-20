@@ -47,6 +47,14 @@ export function ConversationPane({ thread, viewerRole, onBack }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastSeenIdRef = useRef<string | null>(null);
+  // Stick-to-bottom behaviour: when the user is reading historical messages
+  // (scrolled up), a new poll-driven append should NOT yank them back to the
+  // bottom. We treat "near bottom" (≤80px from the floor) as "follow live
+  // mode" and otherwise leave the scroll position alone.
+  const stickToBottomRef = useRef(true);
+  // True until the first messages-arrived effect runs, so the initial load
+  // always anchors at the bottom regardless of stickiness state.
+  const didInitialScrollRef = useRef(false);
   const openBuyer = useBuyerPanelStore((s) => s.openBuyer);
 
   const messagesQuery = useQuery({
@@ -78,33 +86,70 @@ export function ConversationPane({ thread, viewerRole, onBack }: Props) {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    // First time we render with messages, anchor at the bottom.
+    if (!didInitialScrollRef.current) {
+      el.scrollTop = el.scrollHeight;
+      didInitialScrollRef.current = true;
+      return;
+    }
+    // Subsequent updates only auto-scroll when the user is already pinned
+    // near the bottom — preserves their reading position when scrolling up.
+    if (stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messagesQuery.data?.messages.length]);
 
+  // Reset state when the user switches threads — otherwise stickiness from
+  // the previous thread bleeds into the new one's first render.
+  useEffect(() => {
+    didInitialScrollRef.current = false;
+    stickToBottomRef.current = true;
+  }, [thread.id]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distFromBottom < 80;
+  };
+
   const handleSend = async () => {
+    // Guard against double-submit: react state lags behind the async send,
+    // so disabled={isSending} on the button isn't enough to stop a rapid
+    // second click or Enter press.
+    if (isSending) return;
     const body = draft.trim();
     if (!body && pendingAttachments.length === 0) return;
     setIsSending(true);
+    // The user expects new outbound messages to land in view, so re-engage
+    // sticky-bottom mode before the optimistic clear triggers a re-render.
+    stickToBottomRef.current = true;
     const optimisticBody = draft;
     const optimisticAttachments = pendingAttachments;
     setDraft("");
     setPendingAttachments([]);
-    const res = await sendMessage({
-      threadId: thread.id,
-      body: body || "(attachment)",
-      attachments: optimisticAttachments,
-    });
-    setIsSending(false);
-    if (res.ok) {
-      queryClient.invalidateQueries({ queryKey: ["thread-messages", thread.id] });
-      queryClient.invalidateQueries({
-        queryKey:
-          viewerRole === "broker" ? ["broker-threads"] : ["buyer-threads"],
+    try {
+      const res = await sendMessage({
+        threadId: thread.id,
+        body: body || "(attachment)",
+        attachments: optimisticAttachments,
       });
-    } else {
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["thread-messages", thread.id] });
+        queryClient.invalidateQueries({
+          queryKey:
+            viewerRole === "broker" ? ["broker-threads"] : ["buyer-threads"],
+        });
+      } else {
+        setDraft(optimisticBody);
+        setPendingAttachments(optimisticAttachments);
+        toast.error(res.error);
+      }
+    } catch (err) {
       setDraft(optimisticBody);
       setPendingAttachments(optimisticAttachments);
-      toast.error(res.error);
+      toast.error(err instanceof Error ? err.message : "Couldn't send message");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -126,6 +171,7 @@ export function ConversationPane({ thread, viewerRole, onBack }: Props) {
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Enter" || e.shiftKey) return;
     e.preventDefault();
+    if (isSending) return;
     handleSend();
   };
 
@@ -206,6 +252,7 @@ export function ConversationPane({ thread, viewerRole, onBack }: Props) {
       {/* Message stream */}
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
       >
         {messagesQuery.isLoading ? (

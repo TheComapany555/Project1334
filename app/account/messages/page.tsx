@@ -22,7 +22,7 @@ export default async function BuyerMessagesPage() {
   const threads = await listBuyerThreads();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <PublicHeader session={session} maxWidth="max-w-none" />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Suspense fallback={null}>

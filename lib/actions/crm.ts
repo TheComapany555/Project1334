@@ -33,6 +33,15 @@ export type CrmActivity = {
   metadata: Record<string, unknown>;
   occurred_at: string;
   created_at: string;
+  /**
+   * Opaque per-email open-tracking token. Set on outbound `email_sent` rows;
+   * null elsewhere.
+   */
+  tracking_token: string | null;
+  /** First-open timestamp for outbound emails (null until pixel loads). */
+  opened_at: string | null;
+  /** Total pixel-loads (re-opens included). 0 for non-email activities. */
+  open_count: number;
 };
 
 export type CrmFollowUp = {
@@ -292,6 +301,11 @@ export async function logActivity(input: {
   body?: string | null;
   metadata?: Record<string, unknown>;
   occurredAt?: string;
+  /**
+   * Opaque token persisted on the row for `kind="email_sent"` so the open
+   * pixel endpoint can look the row up by token and stamp opened_at.
+   */
+  trackingToken?: string | null;
   /** Default true. Set false for system status_changed inserts to avoid loops. */
   applySideEffects?: boolean;
 }): Promise<{ ok: true; activityId: string } | { ok: false; error: string }> {
@@ -343,6 +357,7 @@ export async function logActivity(input: {
       body: input.body ?? null,
       metadata: input.metadata ?? {},
       occurred_at: occurredAt,
+      tracking_token: input.trackingToken ?? null,
     })
     .select("id")
     .single();

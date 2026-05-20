@@ -24,31 +24,17 @@ import {
   ShieldCheck,
   ShieldQuestion,
   Heart,
-  Phone as PhoneIcon,
   CalendarClock,
   ExternalLink,
-  Activity as ActivityIcon,
-  FileText,
-  Filter,
-  Search,
   Building2,
   Sparkles,
   Loader2,
-  StickyNote,
-  PhoneOutgoing,
-  Inbox,
-  AtSign,
   ClipboardList,
-  TrendingUp,
-  MessagesSquare,
-  Share2,
   Clock,
   DollarSign,
   Target,
   MapPin,
   Tag as TagIcon,
-  Download,
-  FileSearch,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -60,13 +46,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
@@ -77,8 +58,6 @@ import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { addContact } from "@/lib/actions/contacts";
 import type {
-  BuyerActivityEvent,
-  BuyerActivityKind,
   BuyerProfile,
   BuyerListingSummary,
   BuyerCrmStatus,
@@ -88,110 +67,6 @@ import { TAG_COLOR_CLASSES } from "@/lib/types/contacts";
 type Props = {
   profile: BuyerProfile;
 };
-
-// ─── Activity kind metadata ────────────────────────────────────────────────
-
-const ACTIVITY_LABEL: Record<BuyerActivityKind, string> = {
-  view: "Viewed listing",
-  enquiry: "Sent enquiry",
-  save: "Saved listing",
-  nda_signed: "Signed NDA",
-  nda_requested: "Requested document access",
-  document_approved: "Document access approved",
-  document_viewed: "Viewed document",
-  document_downloaded: "Downloaded document",
-  call: "Clicked call button",
-  email_sent: "Email sent",
-  email_received: "Email received",
-  call_logged: "Call logged",
-  note_added: "Note added",
-  follow_up_set: "Follow-up scheduled",
-  follow_up_completed: "Follow-up completed",
-  status_changed: "Status changed",
-  listing_shared: "Listing shared",
-  message_sent: "Message sent",
-  message_received: "Message received",
-  feedback_logged: "Feedback logged",
-};
-
-const ACTIVITY_ICON: Record<BuyerActivityKind, React.ComponentType<{ className?: string }>> = {
-  view: Eye,
-  enquiry: MessageSquare,
-  save: Heart,
-  nda_signed: ShieldCheck,
-  nda_requested: ShieldQuestion,
-  document_approved: FileText,
-  document_viewed: FileSearch,
-  document_downloaded: Download,
-  call: PhoneIcon,
-  email_sent: AtSign,
-  email_received: Inbox,
-  call_logged: PhoneOutgoing,
-  note_added: StickyNote,
-  follow_up_set: CalendarClock,
-  follow_up_completed: Check,
-  status_changed: TrendingUp,
-  listing_shared: Share2,
-  message_sent: MessagesSquare,
-  message_received: MessagesSquare,
-  feedback_logged: ClipboardList,
-};
-
-const ACTIVITY_TONE: Record<BuyerActivityKind, string> = {
-  view: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-  enquiry: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  save: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
-  nda_signed:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  nda_requested:
-    "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-  document_approved:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  document_viewed:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  document_downloaded:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  call: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  email_sent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  email_received: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  call_logged:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  note_added:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  follow_up_set:
-    "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  follow_up_completed:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  status_changed:
-    "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
-  listing_shared:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
-  message_sent: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
-  message_received: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
-  feedback_logged:
-    "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300",
-};
-
-const ACTIVITY_FILTERS: { value: BuyerActivityKind; label: string }[] = [
-  { value: "view", label: "Views" },
-  { value: "enquiry", label: "Enquiries" },
-  { value: "save", label: "Saves" },
-  { value: "nda_signed", label: "NDA signed" },
-  { value: "nda_requested", label: "NDA requested" },
-  { value: "document_approved", label: "Docs viewed" },
-  { value: "call", label: "Calls" },
-  { value: "email_sent", label: "Emails sent" },
-  { value: "email_received", label: "Emails received" },
-  { value: "call_logged", label: "Calls logged" },
-  { value: "note_added", label: "Notes" },
-  { value: "follow_up_set", label: "Follow-ups" },
-  { value: "follow_up_completed", label: "Follow-ups done" },
-  { value: "status_changed", label: "Status changes" },
-  { value: "listing_shared", label: "Listings shared" },
-  { value: "message_sent", label: "Messages sent" },
-  { value: "message_received", label: "Messages received" },
-  { value: "feedback_logged", label: "Feedback" },
-];
 
 // ─── Main view ─────────────────────────────────────────────────────────────
 
@@ -499,6 +374,20 @@ function ContactPill({
 
 const KpiStrip = memo(function KpiStrip({ profile }: { profile: BuyerProfile }) {
   const m = profile.metrics;
+  // Email open-rate is derived from the activity feed (we no longer render
+  // the timeline itself for privacy, but the email-sent/opened signal is
+  // still the broker's most actionable outreach metric).
+  let emailsSent = 0;
+  let emailsOpened = 0;
+  for (const e of profile.activity) {
+    if (e.kind === "email_sent") {
+      emailsSent += 1;
+      if (e.opened_at) emailsOpened += 1;
+    }
+  }
+  const openRatePct =
+    emailsSent > 0 ? Math.round((emailsOpened / emailsSent) * 100) : null;
+
   const items: { icon: React.ReactNode; label: string; value: string; accent: string; hint: string }[] = [
     {
       icon: <Building2 className="h-4 w-4" />,
@@ -522,18 +411,24 @@ const KpiStrip = memo(function KpiStrip({ profile }: { profile: BuyerProfile }) 
       hint: "Enquiry forms this buyer has submitted to you.",
     },
     {
+      icon: <Mail className="h-4 w-4" />,
+      label: "Emails Opened",
+      value:
+        emailsSent > 0 ? `${emailsOpened}/${emailsSent}` : "—",
+      accent: "#10b981",
+      hint:
+        emailsSent === 0
+          ? "Read-receipt status will appear once you send a tracked email."
+          : openRatePct != null
+            ? `${openRatePct}% open rate. Tracking pixels can be blocked by some mail clients.`
+            : "Read-receipt status across emails you've sent through Salebiz.",
+    },
+    {
       icon: <ShieldCheck className="h-4 w-4" />,
       label: "NDAs Signed",
       value: m.nda_signed.toLocaleString("en-AU"),
       accent: "#8b5cf6",
       hint: "Non-disclosure agreements this buyer has completed.",
-    },
-    {
-      icon: <Heart className="h-4 w-4" />,
-      label: "Saves",
-      value: m.saves.toLocaleString("en-AU"),
-      accent: "#ec4899",
-      hint: "Listings this buyer has bookmarked.",
     },
     {
       icon: <CalendarClock className="h-4 w-4" />,
@@ -879,15 +774,8 @@ function DetailRow({
 
 function BuyerTabs({ profile }: { profile: BuyerProfile }) {
   return (
-    <Tabs defaultValue="activity" className="space-y-4">
+    <Tabs defaultValue="listings" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="activity" className="gap-1.5">
-          <ActivityIcon className="h-3.5 w-3.5" aria-hidden />
-          Activity
-          <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
-            {profile.activity.length}
-          </span>
-        </TabsTrigger>
         <TabsTrigger value="listings" className="gap-1.5">
           <Building2 className="h-3.5 w-3.5" aria-hidden />
           Listings
@@ -904,10 +792,6 @@ function BuyerTabs({ profile }: { profile: BuyerProfile }) {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="activity">
-        <ActivityTab activity={profile.activity} listings={profile.listings} />
-      </TabsContent>
-
       <TabsContent value="listings">
         <ListingsTab listings={profile.listings} />
       </TabsContent>
@@ -919,212 +803,9 @@ function BuyerTabs({ profile }: { profile: BuyerProfile }) {
   );
 }
 
-// ─── Activity tab ──────────────────────────────────────────────────────────
-
-const ActivityTab = memo(function ActivityTab({
-  activity,
-  listings,
-}: {
-  activity: BuyerActivityEvent[];
-  listings: BuyerListingSummary[];
-}) {
-  const [activeKinds, setActiveKinds] = useState<BuyerActivityKind[]>([]);
-  const [search, setSearch] = useState("");
-  const [, startTransition] = useTransition();
-  const [deferredSearch, setDeferredSearch] = useState("");
-
-  const counts = useMemo(() => {
-    const c: Partial<Record<BuyerActivityKind, number>> = {};
-    for (const a of activity) c[a.kind] = (c[a.kind] ?? 0) + 1;
-    return c;
-  }, [activity]);
-
-  const titleByListing = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of listings) m.set(l.listing_id, l.title);
-    return m;
-  }, [listings]);
-
-  const filtered = useMemo(() => {
-    const q = deferredSearch.trim().toLowerCase();
-    return activity.filter((a) => {
-      if (activeKinds.length > 0 && !activeKinds.includes(a.kind)) return false;
-      if (!q) return true;
-      const title = titleByListing.get(a.listing_id) ?? "";
-      const hay = `${title} ${ACTIVITY_LABEL[a.kind]} ${a.detail ?? ""}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [activity, activeKinds, deferredSearch, titleByListing]);
-
-  const handleSearch = useCallback((value: string) => {
-    setSearch(value);
-    startTransition(() => setDeferredSearch(value));
-  }, []);
-
-  // Group by date for nicer visual hierarchy
-  const grouped = useMemo(() => {
-    const map = new Map<string, BuyerActivityEvent[]>();
-    for (const a of filtered) {
-      const day = a.at.slice(0, 10);
-      if (!map.has(day)) map.set(day, []);
-      map.get(day)!.push(a);
-    }
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [filtered]);
-
-  return (
-    <Card>
-      <CardHeader className="space-y-3 pb-3">
-        <div>
-          <CardTitle className="text-sm font-semibold">Activity timeline</CardTitle>
-          <CardDescription className="text-xs">
-            Every interaction this buyer has had with your listings, newest first.
-          </CardDescription>
-        </div>
-
-        {activity.length > 0 && (
-          <div className="space-y-2">
-            <div className="relative">
-              <Search
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search by listing or activity"
-                aria-label="Search activity"
-                className="h-8 pl-8 text-xs"
-              />
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Filter className="h-3 w-3" aria-hidden />
-                Filter
-              </span>
-              <ToggleGroup
-                type="multiple"
-                value={activeKinds}
-                onValueChange={(v) => setActiveKinds(v as BuyerActivityKind[])}
-                aria-label="Filter activity by type"
-                className="flex flex-wrap gap-1.5"
-              >
-                {ACTIVITY_FILTERS.map((f) => {
-                  const count = counts[f.value] ?? 0;
-                  const disabled = count === 0;
-                  return (
-                    <ToggleGroupItem
-                      key={f.value}
-                      value={f.value}
-                      disabled={disabled}
-                      aria-label={`${f.label} (${count})`}
-                      className={cn(
-                        "h-7 px-2.5 text-[11px] rounded-full border data-[state=on]:border-transparent cursor-pointer",
-                        ACTIVITY_ACTIVE_CLASSES[f.value],
-                      )}
-                    >
-                      {f.label}
-                      <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-              {(activeKinds.length > 0 || search) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setActiveKinds([]);
-                    handleSearch("");
-                  }}
-                  className="h-7 text-[11px] px-2 cursor-pointer"
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="pt-0">
-        {activity.length === 0 ? (
-          <EmptyState
-            icon={<ActivityIcon className="h-4 w-4" />}
-            title="No activity yet"
-            description="When this buyer views, enquires, or signs an NDA on your listings, it'll appear here."
-          />
-        ) : grouped.length === 0 ? (
-          <EmptyState
-            icon={<Filter className="h-4 w-4" />}
-            title="No activity matches your filters"
-            description="Try clearing filters or searching a different listing."
-          />
-        ) : (
-          <ol className="space-y-6 max-h-[600px] overflow-y-auto -mx-1 px-1">
-            {grouped.map(([day, events]) => (
-              <li key={day}>
-                <div className="sticky top-0 z-10 -mx-3 px-3 py-1.5 bg-background/95 backdrop-blur-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {fmtDateGroup(day)}
-                  </p>
-                </div>
-                <ul className="mt-2 space-y-2.5">
-                  {events.map((event) => (
-                    <ActivityItem
-                      key={event.id}
-                      event={event}
-                      listingTitle={titleByListing.get(event.listing_id) ?? "Listing"}
-                    />
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
-        )}
-      </CardContent>
-    </Card>
-  );
-});
-
-const ActivityItem = memo(function ActivityItem({
-  event,
-  listingTitle,
-}: {
-  event: BuyerActivityEvent;
-  listingTitle: string;
-}) {
-  const Icon = ACTIVITY_ICON[event.kind];
-  return (
-    <li className="flex items-start gap-3 group rounded-md transition-colors duration-150 hover:bg-muted/40 -mx-2 px-2 py-1.5">
-      <div
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          ACTIVITY_TONE[event.kind],
-        )}
-        aria-hidden
-      >
-        <Icon className="h-3.5 w-3.5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <p className="text-sm font-medium">{ACTIVITY_LABEL[event.kind]}</p>
-          <span className="text-[11px] text-muted-foreground">
-            {fmtTime(event.at)}
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground truncate">
-          <Link
-            href={`/dashboard/listings/${event.listing_id}/insights`}
-            className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-          >
-            {listingTitle}
-          </Link>
-          {event.detail && <span className="ml-1.5">· {event.detail}</span>}
-        </p>
-      </div>
-    </li>
-  );
-});
+// (Activity timeline removed — broker dashboard now shows aggregate
+// engagement counts only, not a per-event feed of buyer actions. The
+// open-rate tile in `KpiStrip` is the surviving outreach signal.)
 
 // ─── Listings tab ──────────────────────────────────────────────────────────
 
@@ -1369,46 +1050,6 @@ function EmptyState({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const ACTIVITY_ACTIVE_CLASSES: Record<BuyerActivityKind, string> = {
-  view: "data-[state=on]:bg-sky-100 data-[state=on]:text-sky-700 dark:data-[state=on]:bg-sky-900/40 dark:data-[state=on]:text-sky-300",
-  enquiry:
-    "data-[state=on]:bg-amber-100 data-[state=on]:text-amber-700 dark:data-[state=on]:bg-amber-900/40 dark:data-[state=on]:text-amber-300",
-  save: "data-[state=on]:bg-pink-100 data-[state=on]:text-pink-700 dark:data-[state=on]:bg-pink-900/40 dark:data-[state=on]:text-pink-300",
-  nda_signed:
-    "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
-  nda_requested:
-    "data-[state=on]:bg-violet-100 data-[state=on]:text-violet-700 dark:data-[state=on]:bg-violet-900/40 dark:data-[state=on]:text-violet-300",
-  document_approved:
-    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
-  document_viewed:
-    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
-  document_downloaded:
-    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
-  call: "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
-  email_sent:
-    "data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 dark:data-[state=on]:bg-blue-900/40 dark:data-[state=on]:text-blue-300",
-  email_received:
-    "data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 dark:data-[state=on]:bg-blue-900/40 dark:data-[state=on]:text-blue-300",
-  call_logged:
-    "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
-  note_added:
-    "data-[state=on]:bg-amber-100 data-[state=on]:text-amber-700 dark:data-[state=on]:bg-amber-900/40 dark:data-[state=on]:text-amber-300",
-  follow_up_set:
-    "data-[state=on]:bg-orange-100 data-[state=on]:text-orange-700 dark:data-[state=on]:bg-orange-900/40 dark:data-[state=on]:text-orange-300",
-  follow_up_completed:
-    "data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 dark:data-[state=on]:bg-emerald-900/40 dark:data-[state=on]:text-emerald-300",
-  status_changed:
-    "data-[state=on]:bg-slate-100 data-[state=on]:text-slate-700 dark:data-[state=on]:bg-slate-900/40 dark:data-[state=on]:text-slate-300",
-  listing_shared:
-    "data-[state=on]:bg-indigo-100 data-[state=on]:text-indigo-700 dark:data-[state=on]:bg-indigo-900/40 dark:data-[state=on]:text-indigo-300",
-  message_sent:
-    "data-[state=on]:bg-cyan-100 data-[state=on]:text-cyan-700 dark:data-[state=on]:bg-cyan-900/40 dark:data-[state=on]:text-cyan-300",
-  message_received:
-    "data-[state=on]:bg-cyan-100 data-[state=on]:text-cyan-700 dark:data-[state=on]:bg-cyan-900/40 dark:data-[state=on]:text-cyan-300",
-  feedback_logged:
-    "data-[state=on]:bg-fuchsia-100 data-[state=on]:text-fuchsia-700 dark:data-[state=on]:bg-fuchsia-900/40 dark:data-[state=on]:text-fuchsia-300",
-};
-
 function getInitials(name: string | null, email: string | null): string {
   const source = (name ?? email ?? "").trim();
   if (!source) return "?";
@@ -1478,18 +1119,3 @@ function fmtTime(iso: string): string {
   });
 }
 
-function fmtDateGroup(day: string): string {
-  const d = new Date(day + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.getTime() === today.getTime()) return "Today";
-  if (d.getTime() === yesterday.getTime()) return "Yesterday";
-  return d.toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
-  });
-}

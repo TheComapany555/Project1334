@@ -9,7 +9,7 @@ export default async function BrokerMessagesPage() {
   const threads = await listBrokerThreads({});
 
   return (
-    <div className="flex min-h-0 flex-col gap-4 h-[calc(100vh-var(--header-height)-7rem)] min-h-[480px]">
+    <div className="flex min-h-0 flex-col gap-4 h-[calc(100dvh-var(--header-height)-7rem)] min-h-[480px]">
       <PageHeader
         title="Messages"
         description="In-platform chat with buyers. Replies are auto-logged to the buyer's CRM timeline."

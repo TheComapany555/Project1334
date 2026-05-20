@@ -130,7 +130,13 @@ export function MessageComposer({
         multiple
         className="hidden"
         accept={FILE_ACCEPT}
-        onChange={(e) => onFilesPicked(e.target.files)}
+        onChange={(e) => {
+          onFilesPicked(e.target.files);
+          // Reset so picking the same file again still fires onChange — without
+          // this, re-attaching the same document after removing it from the
+          // tray silently fails.
+          e.target.value = "";
+        }}
       />
 
       <TooltipProvider delayDuration={300}>
