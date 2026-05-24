@@ -1,48 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PublicHeader } from "@/components/public-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
-  ShieldCheck,
-  Database,
-  Share2,
-  Globe2,
-  Clock,
-  Lock,
-  UserCheck,
-  Baby,
-  RefreshCw,
-  Mail,
-  FileText,
-  ArrowUpRight,
-  CheckCircle2,
-  KeyRound,
-  Ban,
-  Building2,
-  MapPin,
-  ClipboardList,
-  Target,
-  Monitor,
-  ExternalLink,
-  FolderOpen,
-  PenLine,
-  Bell,
-  AlertCircle,
-  ShieldAlert,
-} from "lucide-react";
+  LegalDocument,
+  type LegalSection,
+} from "@/components/legal/legal-document";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -54,61 +17,36 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "21 April 2026";
 const EFFECTIVE_DATE = "21 April 2026";
 
-type Section = {
-  id: string;
-  number: string;
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  content: React.ReactNode;
-};
-
-const sections: Section[] = [
+const sections: LegalSection[] = [
   {
     id: "company-details",
     number: "01",
     title: "Company details",
-    icon: Building2,
     content: (
-      <div className="not-prose rounded-xl border border-border bg-muted/40 p-5">
-        <p className="text-sm font-semibold text-foreground">THE COMPANY MARKETING PTY LTD</p>
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <div className="flex items-start gap-2">
-            <Building2 className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <dt className="text-muted-foreground">Trading Name</dt>
-              <dd className="text-foreground font-medium">Salebiz</dd>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <dt className="text-muted-foreground">Address</dt>
-              <dd className="text-foreground">7/24 Hickson Rd<br />Millers Point NSW 2000<br />Australia</dd>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <Mail className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <dt className="text-muted-foreground">Privacy Contact Email</dt>
-              <dd>
-                <a
-                  href="mailto:privacy@salebiz.com.au"
-                  className="font-medium text-primary hover:underline"
-                >
-                  privacy@salebiz.com.au
-                </a>
-              </dd>
-            </div>
-          </div>
-        </dl>
-      </div>
+      <>
+        <p>
+          <strong>THE COMPANY MARKETING PTY LTD</strong>
+        </p>
+        <ul>
+          <li>
+            <strong>Trading Name:</strong> Salebiz
+          </li>
+          <li>
+            <strong>Address:</strong> 7/24 Hickson Rd, Millers Point NSW 2000,
+            Australia
+          </li>
+          <li>
+            <strong>Privacy Contact Email:</strong>{" "}
+            <a href="mailto:privacy@salebiz.com.au">privacy@salebiz.com.au</a>
+          </li>
+        </ul>
+      </>
     ),
   },
   {
     id: "information-we-collect",
     number: "02",
     title: "Types of personal information collected",
-    icon: Database,
     content: (
       <>
         <p>
@@ -145,7 +83,10 @@ const sections: Section[] = [
           <li>Business listing details</li>
           <li>Agency details</li>
           <li>Professional credentials</li>
-          <li>Listing content, uploaded documents, images, and business descriptions</li>
+          <li>
+            Listing content, uploaded documents, images, and business
+            descriptions
+          </li>
           <li>Financial summary information</li>
         </ul>
         <p>
@@ -168,21 +109,32 @@ const sections: Section[] = [
           <strong>Payment Information</strong>
         </p>
         <ul>
-          <li>Billing information, payment history, subscription details, and transaction records</li>
-          <li>Full payment card details are not stored by Salebiz — payment processing is handled through secure third-party payment systems.</li>
+          <li>
+            Billing information, payment history, subscription details, and
+            transaction records
+          </li>
+          <li>
+            Full payment card details are not stored by Salebiz — payment
+            processing is handled through secure third-party payment systems.
+          </li>
         </ul>
         <p>
           <strong>Technical and Usage Information</strong>
         </p>
         <ul>
-          <li>IP address, device information, browser type, and operating system</li>
+          <li>
+            IP address, device information, browser type, and operating system
+          </li>
           <li>Access times, platform usage activity, and session data</li>
         </ul>
         <p>
           <strong>Analytics Information</strong>
         </p>
         <ul>
-          <li>Listing views, buyer interactions, user engagement, and platform performance data</li>
+          <li>
+            Listing views, buyer interactions, user engagement, and platform
+            performance data
+          </li>
         </ul>
       </>
     ),
@@ -191,12 +143,11 @@ const sections: Section[] = [
     id: "methods-of-collection",
     number: "03",
     title: "Methods of collection",
-    icon: ClipboardList,
     content: (
       <>
         <p>
-          Personal information is collected directly and indirectly through
-          user interaction with the Platform. Information may be collected:
+          Personal information is collected directly and indirectly through user
+          interaction with the Platform. Information may be collected:
         </p>
         <ul>
           <li>When users create accounts</li>
@@ -216,10 +167,12 @@ const sections: Section[] = [
     id: "purpose-of-collection",
     number: "04",
     title: "Purpose of collection",
-    icon: Target,
     content: (
       <>
-        <p>Salebiz collects personal information to operate and maintain the Platform. Personal information is used to:</p>
+        <p>
+          Salebiz collects personal information to operate and maintain the
+          Platform. Personal information is used to:
+        </p>
         <ul>
           <li>Create and manage user accounts</li>
           <li>Verify broker identity</li>
@@ -242,7 +195,6 @@ const sections: Section[] = [
     id: "how-we-use",
     number: "05",
     title: "Use of personal information",
-    icon: UserCheck,
     content: (
       <>
         <p>Personal information may be used for:</p>
@@ -265,7 +217,6 @@ const sections: Section[] = [
     id: "disclosure",
     number: "06",
     title: "Disclosure of personal information",
-    icon: Share2,
     content: (
       <>
         <p>
@@ -293,10 +244,54 @@ const sections: Section[] = [
     ),
   },
   {
-    id: "security",
+    id: "gmail-integration",
     number: "07",
+    title: "Gmail Integration (Connected Inbox)",
+    content: (
+      <>
+        <p>
+          Salebiz offers an optional &ldquo;Connected Inbox&rdquo; feature that
+          allows brokers to authorise Salebiz to send emails on their behalf
+          through their Gmail account, using the OAuth scope{" "}
+          <code>https://www.googleapis.com/auth/gmail.send</code>. Salebiz does
+          not request or use any other Gmail permission, and we do not read,
+          modify, or delete the user&apos;s emails. We only call Gmail&apos;s
+          send endpoint to deliver emails composed by the broker inside Salebiz.
+          We retain the resulting Gmail Message ID and Thread ID for the
+          broker&apos;s CRM activity log; we do not retain inbox content or
+          message bodies. OAuth refresh tokens are encrypted at rest with
+          AES-256-GCM and are never exposed to any client. Users can revoke this
+          access at any time from within Salebiz (Dashboard → Workspace →
+          Profile → Disconnect Gmail) or at{" "}
+          <a
+            href="https://myaccount.google.com/permissions"
+            target="_blank"
+            rel="noreferrer"
+            className="break-all"
+          >
+            https://myaccount.google.com/permissions
+          </a>
+          .
+        </p>
+        <p>
+          Salebiz&apos;s use and transfer of information received from Google
+          APIs to any other app will adhere to the{" "}
+          <a
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Google API Services User Data Policy
+          </a>
+          , including the Limited Use requirements.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "security",
+    number: "08",
     title: "Storage and security",
-    icon: Lock,
     content: (
       <>
         <p>
@@ -314,34 +309,30 @@ const sections: Section[] = [
         <p>
           Personal information may be stored on secure cloud infrastructure
           located within Australia or internationally. While reasonable
-          safeguards are implemented, no data transmission or storage system
-          can be guaranteed to be completely secure.
+          safeguards are implemented, no data transmission or storage system can
+          be guaranteed to be completely secure.
         </p>
       </>
     ),
   },
   {
     id: "retention",
-    number: "08",
+    number: "09",
     title: "Data retention",
-    icon: Clock,
     content: (
-      <>
-        <p>
-          Personal information is retained only for as long as necessary to
-          fulfil operational, legal, and regulatory requirements. Salebiz may
-          retain account records, listing records, messages, NDAs, and payment
-          records even after account closure where required by law or legitimate
-          business purposes.
-        </p>
-      </>
+      <p>
+        Personal information is retained only for as long as necessary to fulfil
+        operational, legal, and regulatory requirements. Salebiz may retain
+        account records, listing records, messages, NDAs, and payment records
+        even after account closure where required by law or legitimate business
+        purposes.
+      </p>
     ),
   },
   {
     id: "cookies",
-    number: "09",
+    number: "10",
     title: "Cookies and tracking technologies",
-    icon: Monitor,
     content: (
       <>
         <p>
@@ -357,48 +348,43 @@ const sections: Section[] = [
         </ul>
         <p>
           Users may adjust browser settings to restrict cookie usage; however,
-          certain features of the Platform may not function correctly if
-          cookies are disabled.
+          certain features of the Platform may not function correctly if cookies
+          are disabled.
         </p>
       </>
     ),
   },
   {
     id: "third-party-links",
-    number: "10",
+    number: "11",
     title: "Third-party links",
-    icon: ExternalLink,
     content: (
       <p>
         The Platform may contain links to third-party websites or services.
-        Salebiz does not control third-party websites and is not responsible
-        for their privacy practices or content. Users accessing third-party
-        websites do so at their own risk.
+        Salebiz does not control third-party websites and is not responsible for
+        their privacy practices or content. Users accessing third-party websites
+        do so at their own risk.
       </p>
     ),
   },
   {
     id: "access",
-    number: "11",
+    number: "12",
     title: "Access to personal information",
-    icon: FolderOpen,
     content: (
       <p>
         Users may request access to personal information held by Salebiz.
         Requests must be submitted in writing to{" "}
-        <a href="mailto:privacy@salebiz.com.au" className="font-medium text-primary hover:underline">
-          privacy@salebiz.com.au
-        </a>
-        . Salebiz may require verification of identity before releasing
+        <a href="mailto:privacy@salebiz.com.au">privacy@salebiz.com.au</a>.
+        Salebiz may require verification of identity before releasing
         information.
       </p>
     ),
   },
   {
     id: "correction",
-    number: "12",
+    number: "13",
     title: "Correction of personal information",
-    icon: PenLine,
     content: (
       <p>
         Users may request correction of inaccurate or incomplete personal
@@ -409,9 +395,8 @@ const sections: Section[] = [
   },
   {
     id: "overseas",
-    number: "13",
+    number: "14",
     title: "Overseas disclosure",
-    icon: Globe2,
     content: (
       <p>
         Personal information may be stored or processed outside Australia where
@@ -424,9 +409,8 @@ const sections: Section[] = [
   },
   {
     id: "marketing",
-    number: "14",
+    number: "15",
     title: "Marketing communications",
-    icon: Bell,
     content: (
       <>
         <p>Salebiz may send communications relating to:</p>
@@ -444,9 +428,8 @@ const sections: Section[] = [
   },
   {
     id: "children",
-    number: "15",
-    title: "Children&apos;s privacy",
-    icon: Baby,
+    number: "16",
+    title: "Children's privacy",
     content: (
       <p>
         The Platform is not intended for individuals under the age of 18.
@@ -457,9 +440,8 @@ const sections: Section[] = [
   },
   {
     id: "data-breach",
-    number: "16",
+    number: "17",
     title: "Data breach management",
-    icon: ShieldAlert,
     content: (
       <>
         <p>If a data breach occurs, Salebiz will take reasonable steps to:</p>
@@ -475,9 +457,8 @@ const sections: Section[] = [
   },
   {
     id: "changes",
-    number: "17",
+    number: "18",
     title: "Changes to this privacy policy",
-    icon: RefreshCw,
     content: (
       <p>
         Salebiz may update this Privacy Policy from time to time. Updated
@@ -488,18 +469,15 @@ const sections: Section[] = [
   },
   {
     id: "complaints",
-    number: "18",
+    number: "19",
     title: "Complaints",
-    icon: AlertCircle,
     content: (
       <>
         <p>
           If a user believes their privacy rights have been breached, a
           complaint may be submitted to{" "}
-          <a href="mailto:privacy@salebiz.com.au" className="font-medium text-primary hover:underline">
-            privacy@salebiz.com.au
-          </a>
-          . Complaints will be reviewed and addressed in accordance with
+          <a href="mailto:privacy@salebiz.com.au">privacy@salebiz.com.au</a>.
+          Complaints will be reviewed and addressed in accordance with
           applicable privacy laws.
         </p>
         <p>
@@ -509,7 +487,6 @@ const sections: Section[] = [
             href="https://www.oaic.gov.au"
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-primary hover:underline"
           >
             oaic.gov.au
           </a>
@@ -520,60 +497,26 @@ const sections: Section[] = [
   },
   {
     id: "contact",
-    number: "19",
+    number: "20",
     title: "Contact details",
-    icon: Mail,
     content: (
       <>
         <p>Privacy enquiries:</p>
-        <div className="not-prose mt-4 rounded-xl border border-border bg-muted/40 p-5">
-          <p className="text-sm font-semibold text-foreground">THE COMPANY MARKETING PTY LTD</p>
-          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <dt className="text-muted-foreground">Address</dt>
-                <dd className="text-foreground">
-                  7/24 Hickson Rd<br />Millers Point NSW 2000<br />Australia
-                </dd>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <dt className="text-muted-foreground">Privacy enquiries</dt>
-                <dd>
-                  <a
-                    href="mailto:privacy@salebiz.com.au"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    privacy@salebiz.com.au
-                  </a>
-                </dd>
-              </div>
-            </div>
-          </dl>
-        </div>
+        <ul>
+          <li>
+            <strong>THE COMPANY MARKETING PTY LTD</strong>
+          </li>
+          <li>
+            <strong>Address:</strong> 7/24 Hickson Rd, Millers Point NSW 2000,
+            Australia
+          </li>
+          <li>
+            <strong>Email:</strong>{" "}
+            <a href="mailto:privacy@salebiz.com.au">privacy@salebiz.com.au</a>
+          </li>
+        </ul>
       </>
     ),
-  },
-];
-
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: "Privacy Act compliant",
-    body: "We follow the Australian Privacy Principles under the Privacy Act 1988 (Cth).",
-  },
-  {
-    icon: Lock,
-    title: "Encrypted end-to-end",
-    body: "TLS in transit, encrypted storage at rest, hashed passwords, and row-level security.",
-  },
-  {
-    icon: Ban,
-    title: "Never sold",
-    body: "We do not sell your personal information to third parties. Ever.",
   },
 ];
 
@@ -581,243 +524,28 @@ export default async function PrivacyPolicyPage() {
   const session = await getServerSession(authOptions);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" id="top">
       <PublicHeader session={session} variant="compact" />
-
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-primary/[0.06] via-background to-background">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,theme(colors.primary/12%),transparent_65%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-        />
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
-          <Breadcrumb className="mb-6">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/">Home</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Privacy Policy</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-
-          <div className="flex items-start gap-5">
-            <div className="hidden sm:flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-inset ring-primary/20 shadow-sm">
-              <ShieldCheck className="h-7 w-7 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <Badge
-                variant="secondary"
-                className="mb-3 rounded-full font-normal"
-              >
-                Legal
-              </Badge>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
-                Privacy Policy
-              </h1>
-              <p className="mt-3 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-                How Salebiz collects, uses, stores, and protects your personal
-                information. Written in plain English and aligned with the
-                Australian Privacy Principles.
-              </p>
-              <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Last updated {LAST_UPDATED}
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Effective {EFFECTIVE_DATE}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Highlights */}
-          <div className="mt-10 grid gap-3 sm:grid-cols-3">
-            {highlights.map((h) => {
-              const Icon = h.icon;
-              return (
-                <div
-                  key={h.title}
-                  className="rounded-xl border border-border bg-background/70 p-4 backdrop-blur-sm shadow-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold text-foreground">
-                      {h.title}
-                    </p>
-                  </div>
-                  <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                    {h.body}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Body */}
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-14">
-        <div className="grid gap-10 lg:grid-cols-[240px_1fr]">
-          {/* Table of contents */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-24">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                On this page
-              </p>
-              <nav className="flex flex-col gap-0.5 border-l border-border">
-                {sections.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`#${s.id}`}
-                    className="group -ml-px flex items-center gap-3 border-l border-transparent pl-4 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:text-foreground focus-visible:border-primary transition-colors cursor-pointer"
-                  >
-                    <span className="text-[11px] font-mono tabular-nums text-muted-foreground/70 group-hover:text-primary">
-                      {s.number}
-                    </span>
-                    <span className="leading-snug">{s.title}</span>
-                  </a>
-                ))}
-              </nav>
-
-              <Separator className="my-6" />
-
-              <div className="space-y-2 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Related
-                </p>
-                <Link
-                  href="/terms"
-                  className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Terms &amp; Conditions
-                </Link>
-              </div>
-            </div>
-          </aside>
-
-          {/* Content */}
-          <div className="min-w-0">
-            <Card className="overflow-hidden border-border shadow-sm">
-              <CardContent className="p-6 sm:p-10">
-                <p className="text-[15px] leading-relaxed text-muted-foreground">
-                  This Privacy Policy explains how{" "}
-                  <strong className="text-foreground">
-                    THE COMPANY MARKETING PTY LTD
-                  </strong>{" "}
-                  (&ldquo;Salebiz&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
-                  or &ldquo;our&rdquo;) collects, uses, stores, and protects
-                  personal information through the Salebiz platform
-                  (&ldquo;Platform&rdquo;). This Privacy Policy applies to all
-                  users of{" "}
-                  <a
-                    href="https://www.salebiz.com.au"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    salebiz.com.au
-                  </a>{" "}
-                  including brokers, buyers, and visitors.
-                </p>
-
-                <Separator className="my-8" />
-
-                <div className="space-y-12">
-                  {sections.map((s, idx) => {
-                    const Icon = s.icon;
-                    return (
-                      <section
-                        key={s.id}
-                        id={s.id}
-                        className="scroll-mt-24"
-                        aria-labelledby={`${s.id}-heading`}
-                      >
-                        <div className="mb-5 flex items-center gap-3">
-                          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
-                            <Icon className="h-[18px] w-[18px]" />
-                          </span>
-                          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                            <span className="text-[11px] font-mono tabular-nums tracking-wider text-muted-foreground">
-                              {s.number}
-                            </span>
-                            <h2
-                              id={`${s.id}-heading`}
-                              className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground"
-                            >
-                              {s.title}
-                            </h2>
-                          </div>
-                        </div>
-                        <div className="prose prose-neutral dark:prose-invert max-w-[68ch] prose-p:leading-relaxed prose-p:text-[15px] prose-li:my-1 prose-li:text-[15px] prose-li:leading-relaxed prose-strong:text-foreground prose-a:text-primary prose-a:font-medium prose-a:no-underline hover:prose-a:underline text-foreground/90">
-                          {s.content}
-                        </div>
-                        {idx < sections.length - 1 && (
-                          <Separator className="mt-10" />
-                        )}
-                      </section>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Cross-link CTA */}
-            <Card className="mt-8 border-border bg-gradient-to-br from-muted/40 via-muted/20 to-transparent">
-              <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
-                    <FileText className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-base font-semibold text-foreground">
-                      Read the Terms &amp; Conditions
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      The rules that govern how you use Salebiz.
-                    </p>
-                  </div>
-                </div>
-                <Button asChild variant="outline" className="cursor-pointer">
-                  <Link href="/terms">
-                    View Terms
-                    <ArrowUpRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <div className="mt-8 flex items-center justify-between text-xs text-muted-foreground">
-              <p>
-                You can also reach us at{" "}
-                <a
-                  href="mailto:privacy@salebiz.com.au"
-                  className="font-medium text-primary hover:underline"
-                >
-                  privacy@salebiz.com.au
-                </a>
-                .
-              </p>
-              <a
-                href="#top"
-                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Back to top
-              </a>
-            </div>
-          </div>
-        </div>
-      </main>
+      <LegalDocument
+        title="Privacy Policy"
+        subtitle="How Salebiz collects, uses, stores, and protects your personal information. Written in plain English and aligned with the Australian Privacy Principles."
+        lastUpdated={LAST_UPDATED}
+        effectiveDate={EFFECTIVE_DATE}
+        intro={
+          <p>
+            This Privacy Policy explains how{" "}
+            <strong>THE COMPANY MARKETING PTY LTD</strong> (&ldquo;Salebiz&rdquo;,
+            &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) collects,
+            uses, stores, and protects personal information through the Salebiz
+            platform (&ldquo;Platform&rdquo;). It applies to all users of{" "}
+            <a href="https://www.salebiz.com.au">salebiz.com.au</a>, including
+            brokers, buyers, and visitors.
+          </p>
+        }
+        sections={sections}
+        related={{ href: "/terms", label: "Terms & Conditions" }}
+        contactEmail="privacy@salebiz.com.au"
+      />
     </div>
   );
 }
