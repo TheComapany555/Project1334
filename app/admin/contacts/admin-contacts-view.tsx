@@ -11,12 +11,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Phone, Building2, Search, Users, MessageSquare } from "lucide-react";
-import type { AdminUser, AdminEnquiryContact } from "@/lib/actions/admin-contacts";
+import { Mail, Phone, Building2, Search, Users, MessageSquare, Send } from "lucide-react";
+import type {
+  AdminBrokerProfileContact,
+  AdminEnquiryContact,
+  AdminUser,
+} from "@/lib/actions/admin-contacts";
 
 type Props = {
   users: AdminUser[];
   enquiryContacts: AdminEnquiryContact[];
+  profileContacts: AdminBrokerProfileContact[];
 };
 
 function formatDate(iso: string) {
@@ -28,7 +33,11 @@ function formatDate(iso: string) {
   });
 }
 
-export function AdminContactsView({ users, enquiryContacts }: Props) {
+export function AdminContactsView({
+  users,
+  enquiryContacts,
+  profileContacts,
+}: Props) {
   const [search, setSearch] = useState("");
   const q = search.toLowerCase().trim();
 
@@ -48,6 +57,18 @@ export function AdminContactsView({ users, enquiryContacts }: Props) {
           c.name?.toLowerCase().includes(q)
       )
     : enquiryContacts;
+
+  const filteredProfileContacts = q
+    ? profileContacts.filter(
+        (c) =>
+          c.email.toLowerCase().includes(q) ||
+          c.name?.toLowerCase().includes(q) ||
+          c.phone?.toLowerCase().includes(q) ||
+          c.message.toLowerCase().includes(q) ||
+          c.broker_name?.toLowerCase().includes(q) ||
+          c.broker_company?.toLowerCase().includes(q)
+      )
+    : profileContacts;
 
   return (
     <div className="space-y-4">
@@ -70,6 +91,10 @@ export function AdminContactsView({ users, enquiryContacts }: Props) {
           <TabsTrigger value="enquiry" className="gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" />
             Enquiry Contacts ({filteredContacts.length})
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5">
+            <Send className="h-3.5 w-3.5" />
+            Profile Contacts ({filteredProfileContacts.length})
           </TabsTrigger>
         </TabsList>
 
@@ -167,6 +192,69 @@ export function AdminContactsView({ users, enquiryContacts }: Props) {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader className="border-b bg-muted/30 px-4 py-3 sm:px-6">
+              <CardTitle className="text-sm">Broker Profile Contacts</CardTitle>
+              <CardDescription className="text-xs">
+                Messages submitted from public broker profile pages.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {filteredProfileContacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-12">No profile contacts found.</p>
+              ) : (
+                <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
+                  {filteredProfileContacts.map((c) => {
+                    const brokerLabel =
+                      [c.broker_name, c.broker_company].filter(Boolean).join(" · ") ||
+                      "Broker";
+                    return (
+                      <div key={c.id} className="flex items-start gap-4 px-4 py-3 sm:px-6">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {(c.name ?? c.email).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium truncate">{c.name || c.email}</p>
+                            {c.consent_marketing && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                marketing consent
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {c.email}
+                            </span>
+                            {c.phone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {c.phone}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3" />
+                              {brokerLabel}
+                            </span>
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                            {c.message}
+                          </p>
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {formatDate(c.created_at)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

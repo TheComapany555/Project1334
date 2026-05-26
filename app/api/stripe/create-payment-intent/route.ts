@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   // Verify listing ownership
   let query = supabase
     .from("listings")
-    .select("id, title, broker_id, agency_id")
+    .select("id, title, broker_id, agency_id, category_id")
     .eq("id", listingId);
 
   if (agencyId && agencyRole === "owner") {
@@ -64,6 +64,26 @@ export async function POST(req: NextRequest) {
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
+
+  const featuredScope =
+    product.product_type === "featured"
+      ? (product.scope ?? "homepage")
+      : null;
+  if (
+    product.product_type === "featured" &&
+    product.category_id &&
+    product.category_id !== listing.category_id
+  ) {
+    return NextResponse.json(
+      { error: "This featured package is not available for this listing's category." },
+      { status: 400 },
+    );
+  }
+  const featuredCategoryId =
+    product.product_type === "featured" &&
+    (product.scope === "category" || product.scope === "both")
+      ? listing.category_id
+      : null;
 
   // Create payment record with resolved price
   const { data: payment, error: paymentError } = await supabase
@@ -79,6 +99,8 @@ export async function POST(req: NextRequest) {
       currency: finalCurrency,
       status: "pending",
       payment_type: paymentType,
+      featured_scope: featuredScope,
+      featured_category_id: featuredCategoryId,
     })
     .select("id")
     .single();
@@ -100,6 +122,8 @@ export async function POST(req: NextRequest) {
       package_days: String(product.duration_days ?? 0),
       payment_type: paymentType,
     };
+    if (featuredScope) metadata.featured_scope = featuredScope;
+    if (featuredCategoryId) metadata.featured_category_id = featuredCategoryId;
 
     // For listing tier payments, determine tier from the listing's current tier
     if (paymentType === "listing_tier") {

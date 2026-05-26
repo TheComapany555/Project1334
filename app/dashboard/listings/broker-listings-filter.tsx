@@ -21,9 +21,13 @@ import {
   ComboboxList,
   ComboboxItem,
 } from "@/components/ui/combobox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ListingsTable } from "@/app/dashboard/listings/listings-table";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 
 const STATUS_OPTIONS: { value: "_all" | ListingStatus; label: string }[] = [
   { value: "_all", label: "All statuses" },
@@ -75,10 +79,33 @@ export function BrokerListingsWithFilter({
   }, [result.rows, categoryFilter, highlightFilter]);
 
   const statusValue = state.filters.status ?? "_all";
+  const soldOnly = statusValue === "sold";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+        <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-transparent px-3 shadow-xs">
+          <HugeiconsIcon
+            icon={CheckmarkCircle02Icon}
+            className="size-4 text-muted-foreground"
+          />
+          <Label
+            htmlFor="sold-only-switch"
+            className="text-sm font-medium cursor-pointer select-none"
+          >
+            Sold only
+          </Label>
+          <Switch
+            id="sold-only-switch"
+            checked={soldOnly}
+            onCheckedChange={(checked) =>
+              startTransition(() =>
+                setFilter("status", checked ? "sold" : null),
+              )
+            }
+            aria-label="Show sold listings only"
+          />
+        </div>
         <Select
           value={statusValue}
           onValueChange={(v) =>

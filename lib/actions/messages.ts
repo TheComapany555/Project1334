@@ -942,7 +942,7 @@ async function notifyRecipient(args: {
   const link =
     recipientRole === "broker"
       ? `/dashboard/messages?thread=${threadId}`
-      : `/account?tab=messages&thread=${threadId}`;
+      : `/account/messages?thread=${threadId}`;
   const title = senderName
     ? `New message from ${senderName}`
     : "You have a new message";

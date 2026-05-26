@@ -14,11 +14,11 @@ import {
   UserCircle,
 } from "lucide-react";
 import {
-  getThreadMessages,
   sendMessage,
   markThreadRead,
   requestNdaInThread,
   uploadMessageAttachment,
+  type Message,
   type MessageRole,
   type ThreadSummary,
 } from "@/lib/actions/messages";
@@ -59,7 +59,7 @@ export function ConversationPane({ thread, viewerRole, onBack }: Props) {
 
   const messagesQuery = useQuery({
     queryKey: ["thread-messages", thread.id],
-    queryFn: () => getThreadMessages(thread.id, { limit: 80 }),
+    queryFn: () => fetchThreadMessages(thread.id),
     refetchInterval: POLL_INTERVAL_MS,
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -361,6 +361,25 @@ function EmptyThreadState({
       <p className="mt-1 max-w-xs text-sm text-muted-foreground">{description}</p>
     </div>
   );
+}
+
+async function fetchThreadMessages(
+  threadId: string,
+): Promise<{ messages: Message[]; hasMore: boolean }> {
+  const res = await fetch(
+    `/api/messages/threads/${encodeURIComponent(threadId)}/messages?limit=80`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(payload?.error ?? "Couldn't load messages");
+  }
+  return (await res.json()) as { messages: Message[]; hasMore: boolean };
 }
 
 function getInitials(s: string): string {

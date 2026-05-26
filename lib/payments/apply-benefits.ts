@@ -14,6 +14,8 @@ export async function applyFeaturedToListing(
   packageDays: number,
   scope: "homepage" | "category" | "both"
 ) {
+  if (!Number.isFinite(packageDays) || packageDays <= 0) return;
+
   const now = new Date();
 
   const { data: listing } = await supabase

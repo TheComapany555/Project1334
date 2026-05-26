@@ -15,6 +15,10 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import {
+  applyFeaturedToListing,
+  applyListingTierBenefits,
+} from "@/lib/payments/apply-benefits";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
@@ -249,7 +253,7 @@ export async function updatePaymentStatus(
   if (status === "paid") {
     const { data: payment } = await supabase
       .from("payments")
-      .select("listing_id, package_days, payment_type, subscription_id")
+      .select("id, listing_id, package_days, payment_type, subscription_id, featured_scope")
       .eq("id", paymentId)
       .single();
 
@@ -268,56 +272,30 @@ export async function updatePaymentStatus(
     }
 
     if (payment?.listing_id) {
-      const now = new Date();
-
       if (payment.payment_type === "listing_tier") {
         const { data: listing } = await supabase
           .from("listings")
-          .select("listing_tier, published_at")
+          .select("listing_tier")
           .eq("id", payment.listing_id)
           .single();
 
-        const tier = listing?.listing_tier ?? "standard";
-        const updatePayload: Record<string, unknown> = {
-          status: "published",
-          published_at: listing?.published_at ?? now.toISOString(),
-          tier_paid_at: now.toISOString(),
-          updated_at: now.toISOString(),
-        };
-
-        if (tier === "featured" && payment.package_days > 0) {
-          const featuredUntil = new Date(
-            now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
-          );
-          const iso = featuredUntil.toISOString();
-          updatePayload.is_featured = true;
-          updatePayload.featured_from = now.toISOString();
-          updatePayload.featured_until = iso;
-          updatePayload.featured_homepage_until = iso;
-          updatePayload.featured_scope = "homepage";
-          updatePayload.featured_package_days = payment.package_days;
-        }
-
-        await supabase
-          .from("listings")
-          .update(updatePayload)
-          .eq("id", payment.listing_id);
-      } else {
-        const featuredUntil = new Date(
-          now.getTime() + payment.package_days * 24 * 60 * 60 * 1000
+        await applyListingTierBenefits(supabase, {
+          payment_id: payment.id,
+          listing_id: payment.listing_id,
+          listing_tier: listing?.listing_tier ?? "standard",
+          package_days: String(payment.package_days ?? 0),
+          ...(payment.featured_scope
+            ? { featured_scope: String(payment.featured_scope) }
+            : {}),
+        });
+      } else if ((payment.package_days ?? 0) > 0) {
+        await applyFeaturedToListing(
+          supabase,
+          payment.listing_id,
+          payment.package_days,
+          (payment.featured_scope as "homepage" | "category" | "both" | null) ??
+            "homepage",
         );
-        const iso = featuredUntil.toISOString();
-        await supabase
-          .from("listings")
-          .update({
-            is_featured: true,
-            featured_from: now.toISOString(),
-            featured_until: iso,
-            featured_homepage_until: iso,
-            featured_scope: "homepage",
-            featured_package_days: payment.package_days,
-          })
-          .eq("id", payment.listing_id);
       }
     }
   }

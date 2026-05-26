@@ -34,6 +34,19 @@ export type AdminEnquiryContact = {
   last_enquiry_at: string;
 };
 
+export type AdminBrokerProfileContact = {
+  id: string;
+  broker_id: string;
+  broker_name: string | null;
+  broker_company: string | null;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  message: string;
+  consent_marketing: boolean;
+  created_at: string;
+};
+
 export type ListAdminUsersParams = {
   page?: number;
   pageSize?: number;
@@ -174,4 +187,47 @@ export async function listAdminEnquiryContacts(
 export async function getAdminEnquiryContacts(): Promise<AdminEnquiryContact[]> {
   const { rows } = await listAdminEnquiryContacts({ page: 1, pageSize: 100 });
   return rows;
+}
+
+export async function getAdminBrokerProfileContacts(): Promise<
+  AdminBrokerProfileContact[]
+> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase
+    .from("broker_profile_contacts")
+    .select(
+      `
+      id,
+      broker_id,
+      contact_name,
+      contact_email,
+      contact_phone,
+      message,
+      consent_marketing,
+      created_at,
+      broker:profiles!broker_id(id, name, company)
+    `,
+    )
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error || !data?.length) return [];
+
+  return data.map((row) => {
+    const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
+    return {
+      id: row.id,
+      broker_id: row.broker_id,
+      broker_name: broker?.name ?? null,
+      broker_company: broker?.company ?? null,
+      email: row.contact_email,
+      name: row.contact_name,
+      phone: row.contact_phone,
+      message: row.message,
+      consent_marketing: !!row.consent_marketing,
+      created_at: row.created_at,
+    };
+  });
 }

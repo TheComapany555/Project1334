@@ -3,7 +3,6 @@
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 
 const BRAND_PRIMARY = "#0d5c2f";
-const BRAND_SECONDARY = "#0d4a2a";
 
 /* ------------------------------------------------------------------ */
 /*  Base layout                                                        */
@@ -296,6 +295,94 @@ export function enquiryNotificationEmail(opts: {
         </td>
       </tr>
     </table>
+  `);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Broker public profile contact                                      */
+/* ------------------------------------------------------------------ */
+
+export function brokerProfileContactEmail(opts: {
+  brokerName: string;
+  contactName: string | null;
+  contactEmail: string;
+  contactPhone: string | null;
+  message: string;
+  profileUrl: string;
+  dashboardUrl: string;
+}): string {
+  const {
+    brokerName,
+    contactName,
+    contactEmail,
+    contactPhone,
+    message,
+    profileUrl,
+    dashboardUrl,
+  } = opts;
+
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      New Profile Contact
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Someone contacted you from your public broker profile.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px 0;background-color:${BRAND_PRIMARY};border-radius:8px;">
+      <tr>
+        <td style="padding:14px 20px;">
+          <p style="margin:0 0 2px 0;font-size:11px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Broker profile</p>
+          <p style="margin:0;font-size:16px;color:#ffffff;font-weight:600;">${brokerName}</p>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px 0;background-color:#f6faf7;border-radius:8px;border:1px solid #dce8df;">
+      ${infoRow("From", contactName || contactEmail)}
+      ${infoRow("Email", `<a href="mailto:${contactEmail}" style="color:${BRAND_PRIMARY};text-decoration:none;">${contactEmail}</a>`)}
+      ${contactPhone ? infoRow("Phone", `<a href="tel:${contactPhone}" style="color:${BRAND_PRIMARY};text-decoration:none;">${contactPhone}</a>`) : ""}
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px 0;">
+      <tr>
+        <td style="padding:16px 20px;background-color:#fafafa;border-radius:8px;border:1px solid #eeeeee;">
+          <p style="margin:0 0 6px 0;font-size:12px;color:#888888;text-transform:uppercase;letter-spacing:0.5px;">Message</p>
+          <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;">${message.replace(/\n/g, "<br>")}</p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(dashboardUrl, "View Contact")}
+
+    <p style="margin:0;text-align:center;font-size:13px;">
+      ${secondaryLink(profileUrl, "View public profile &rarr;")}
+    </p>
+  `);
+}
+
+export function brokerProfileContactConfirmationEmail(opts: {
+  contactName: string | null;
+  brokerName: string;
+  profileUrl: string;
+}): string {
+  const { contactName, brokerName, profileUrl } = opts;
+  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${greeting}
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      Thanks for contacting <strong>${brokerName}</strong>. Your message has been received and they will be in touch shortly.
+    </p>
+
+    ${ctaButton(profileUrl, "View Broker Profile")}
+
+    <p style="margin:0;font-size:13px;color:#888888;">
+      If you didn't submit this message, please ignore this email.
+    </p>
   `);
 }
 

@@ -26,11 +26,47 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"];
 const OPTIMIZED_MAX_WIDTH = 1600;
 const OPTIMIZED_QUALITY = 80;
 
+type HighlightJoin = { listing_highlights: ListingHighlight | null };
+type Joined<T> = T | T[] | null | undefined;
+type BrokerSummary = { name: string | null; photo_url: string | null };
+type BrokerPublicSummary = {
+  slug: string;
+  name: string | null;
+  company: string | null;
+  photo_url: string | null;
+  phone: string | null;
+};
+type AgencySummary = {
+  name: string;
+  slug: string | null;
+  logo_url: string | null;
+};
+type ListingJoinRow = Omit<Listing, "listing_highlights" | "broker" | "agency"> & {
+  listing_highlights?: HighlightJoin[] | null;
+  listing_images?: ListingImage[] | null;
+  category?: Category | null;
+  broker?: Joined<BrokerSummary>;
+  agency?: Joined<AgencySummary>;
+};
+type ListingSlugJoinRow = Omit<Listing, "listing_highlights" | "broker" | "agency"> & {
+  listing_highlights?: HighlightJoin[] | null;
+  listing_images?: ListingImage[] | null;
+  category?: Category | null;
+  broker?: Joined<BrokerPublicSummary>;
+  agency?: Joined<AgencySummary>;
+};
+
 /** Flatten highlights from the nested join table structure into a flat array. */
-function flattenHighlights(listing: any): ListingHighlight[] {
+function flattenHighlights(listing: {
+  listing_highlights?: HighlightJoin[] | null;
+}): ListingHighlight[] {
   return (listing.listing_highlights ?? [])
-    .map((m: any) => m.listing_highlights)
-    .filter(Boolean);
+    .map((m) => m.listing_highlights)
+    .filter((highlight): highlight is ListingHighlight => !!highlight);
+}
+
+function firstJoined<T>(value: Joined<T>): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
 /** Coerce form value to number | null for DB numeric columns (reject "", undefined, NaN). */
@@ -38,6 +74,25 @@ function toNumeric(v: unknown): number | null {
   if (v === "" || v === undefined || v === null) return null;
   const n = Number(v);
   return Number.isNaN(n) ? null : n;
+}
+
+function publicMarketplaceVisibilityFilter(
+  surface: "homepage" | "category",
+  nowIso: string,
+): string {
+  const scopedFeaturedColumn =
+    surface === "category"
+      ? "featured_category_until"
+      : "featured_homepage_until";
+
+  // Standard/Featured tiers are always searchable while published. Basic
+  // listings remain broker-profile/link only unless they have bought an active
+  // featured placement for the surface currently being viewed.
+  return [
+    "listing_tier.in.(standard,featured)",
+    `featured_until.gt."${nowIso}"`,
+    `${scopedFeaturedColumn}.gt."${nowIso}"`,
+  ].join(",");
 }
 
 async function requireBroker() {
@@ -148,16 +203,16 @@ export async function listBrokerListings(
   );
   if (error) return buildPaginated<BrokerListing>([], 0, page, pageSize);
 
-  const list = (listings ?? []) as any[];
+  const list = (listings ?? []) as ListingJoinRow[];
   const rows: BrokerListing[] = list.map((l) => {
-    const rawBroker = l.broker;
-    const broker = Array.isArray(rawBroker) ? rawBroker[0] ?? null : rawBroker ?? null;
+    const broker = firstJoined(l.broker);
     return {
       ...l,
       listing_images: l.listing_images ?? [],
       category: l.category ?? null,
       listing_highlights: flattenHighlights(l),
       broker: broker ?? undefined,
+      agency: firstJoined(l.agency),
     };
   });
 
@@ -193,7 +248,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
 
   const { data, error } = await query.single();
   if (error || !data) return null;
-  const row = data as any;
+  const row = data as ListingJoinRow;
   return {
     ...row,
     category: row.category ?? null,
@@ -248,22 +303,24 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
     )
     .eq("status", "published")
     .is("admin_removed_at", null)
-    .in("listing_tier", ["standard", "featured"])
-    .gt("featured_homepage_until", nowIso)
+    .or(
+      `featured_homepage_until.gt."${nowIso}",featured_until.gt."${nowIso}"`,
+    )
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(pageSize);
 
   if (error) return [];
-  const list = (data ?? []) as any[];
+  const list = (data ?? []) as ListingJoinRow[];
 
   return list.map((l) => {
-    const broker = Array.isArray(l.broker) ? l.broker[0] : l.broker;
+    const broker = firstJoined(l.broker);
     return {
       ...l,
       broker: broker ?? undefined,
       listing_images: l.listing_images ?? [],
       category: l.category ?? null,
+      agency: firstJoined(l.agency),
       listing_highlights: flattenHighlights(l),
     };
   });
@@ -290,8 +347,7 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       { count: "exact" }
     )
     .eq("status", "published")
-    .is("admin_removed_at", null)
-    .in("listing_tier", ["standard", "featured"]);
+    .is("admin_removed_at", null);
 
   if (params.keyword?.trim()) {
     const k = params.keyword.trim();
@@ -333,6 +389,14 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   if (params.profit_min != null) query = query.gte("profit", Number(params.profit_min));
   if (params.profit_max != null) query = query.lte("profit", Number(params.profit_max));
 
+  const nowIso = new Date().toISOString();
+  query = query.or(
+    publicMarketplaceVisibilityFilter(
+      categoryFilterApplied ? "category" : "homepage",
+      nowIso,
+    ),
+  );
+
   // Featured listings rank first, scoped to the surface being viewed:
   // - Category-filtered queries promote listings featured in that category.
   // - Generic browse/search promotes listings featured on the homepage.
@@ -348,16 +412,20 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   else if (sort === "price_desc") query = query.order("asking_price", { ascending: false, nullsFirst: false });
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  if (error) {
+    return { listings: [], total: 0, page, page_size: pageSize, total_pages: 0 };
+  }
   const total = count ?? 0;
-  const list = (data ?? []) as any[];
+  const list = (data ?? []) as ListingJoinRow[];
 
   const listings = list.map((l) => {
-    const broker = Array.isArray(l.broker) ? l.broker[0] : l.broker;
+    const broker = firstJoined(l.broker);
     return {
       ...l,
       broker: broker ?? undefined,
       listing_images: l.listing_images ?? [],
       category: l.category ?? null,
+      agency: firstJoined(l.agency),
       listing_highlights: flattenHighlights(l),
     };
   });
@@ -436,13 +504,14 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
     .is("admin_removed_at", null)
     .single();
   if (error || !data) return null;
-  const row = data as any;
-  const broker = Array.isArray(row.broker) ? row.broker[0] : row.broker;
+  const row = data as ListingSlugJoinRow;
+  const broker = firstJoined(row.broker);
   return {
     ...row,
     broker: broker ?? undefined,
     category: row.category ?? null,
     listing_images: row.listing_images ?? [],
+    agency: firstJoined(row.agency),
     listing_highlights: flattenHighlights(row),
   };
 }
@@ -618,7 +687,7 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   const current = listing.status as ListingStatus;
   const allowed: Record<ListingStatus, ListingStatus[]> = {
     draft: ["published", "unpublished"],
-    published: ["under_offer", "unpublished"],
+    published: ["under_offer", "sold", "unpublished"],
     under_offer: ["published", "sold"],
     sold: [],
     unpublished: ["published"],

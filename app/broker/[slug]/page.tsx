@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { PublicProfileListingRow } from "@/components/shared/public-profile-listing-row";
+import { BrokerProfileContactForm } from "./broker-profile-contact-form";
 import {
   Phone,
   Mail,
@@ -316,6 +317,11 @@ export default async function BrokerProfilePage({ params }: Props) {
                   </CardContent>
                 </Card>
               )}
+
+              <BrokerProfileContactForm
+                brokerId={profile.id}
+                brokerName={displayName}
+              />
             </div>
 
             {/* Right: Listings */}

@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
       amount: product.price,
       currency: product.currency,
       status: "pending",
+      payment_type:
+        product.product_type === "listing_tier" ? "listing_tier" : "featured",
       featured_scope: featuredScope,
       featured_category_id: featuredCategoryId,
     })
@@ -132,6 +134,8 @@ export async function POST(req: NextRequest) {
       listing_id: listingId,
       product_id: productId,
       package_days: String(product.duration_days ?? 0),
+      payment_type:
+        product.product_type === "listing_tier" ? "listing_tier" : "featured",
       ...(featuredScope ? { featured_scope: featuredScope } : {}),
       ...(featuredCategoryId
         ? { featured_category_id: featuredCategoryId }

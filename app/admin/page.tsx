@@ -89,6 +89,7 @@ export default async function AdminPage() {
               <Button asChild variant="outline" size="sm"><Link href="/admin/brokers">Agencies</Link></Button>
               <Button asChild variant="outline" size="sm"><Link href="/admin/listings">Listings</Link></Button>
               <Button asChild variant="outline" size="sm"><Link href="/admin/enquiries">Enquiries</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link href="/admin/contacts">Contacts</Link></Button>
               <Button asChild variant="outline" size="sm"><Link href="/admin/categories">Categories</Link></Button>
               <Button asChild variant="outline" size="sm"><Link href="/admin/payments">Payments</Link></Button>
             </div>

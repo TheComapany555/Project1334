@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
+  CheckmarkCircle02Icon,
   Comment01Icon,
   Delete02Icon,
   Edit02Icon,
@@ -74,7 +75,7 @@ const STATUS_OPTIONS: { value: ListingStatus; label: string }[] = [
 
 const ALLOWED_NEXT: Record<ListingStatus, ListingStatus[]> = {
   draft: ["published", "unpublished"],
-  published: ["under_offer", "unpublished"],
+  published: ["under_offer", "sold", "unpublished"],
   under_offer: ["published", "sold"],
   sold: [],
   unpublished: ["published"],
@@ -165,6 +166,10 @@ export function ListingsTable({
 }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingSold, setConfirmingSold] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const [feedbackListing, setFeedbackListing] = useState<{
     id: string;
     title: string;
@@ -176,12 +181,28 @@ export function ListingsTable({
   const listings = result.rows;
 
   async function onStatusChange(listingId: string, newStatus: ListingStatus) {
+    if (newStatus === "sold") {
+      const listing = listings.find((l) => l.id === listingId);
+      setConfirmingSold({ id: listingId, title: listing?.title ?? "this listing" });
+      return;
+    }
     const res = await updateListingStatus(listingId, newStatus);
     if (res.ok) {
       toast.success("Status updated");
       router.refresh();
     } else {
       toast.error(res.error ?? "Failed to update status");
+    }
+  }
+
+  async function onConfirmSold(listingId: string) {
+    const res = await updateListingStatus(listingId, "sold");
+    setConfirmingSold(null);
+    if (res.ok) {
+      toast.success("Listing marked as sold");
+      router.refresh();
+    } else {
+      toast.error(res.error ?? "Failed to mark as sold");
     }
   }
 
@@ -456,6 +477,21 @@ export function ListingsTable({
               <HugeiconsIcon icon={Comment01Icon} className="size-4" />
               Log buyer feedback
             </DropdownMenuItem>
+            {(listing.status === "published" ||
+              listing.status === "under_offer") && (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onStatusChange(listing.id, "sold");
+                }}
+              >
+                <HugeiconsIcon
+                  icon={CheckmarkCircle02Icon}
+                  className="size-4"
+                />
+                Mark as sold
+              </DropdownMenuItem>
+            )}
             {listing.status === "published" && brokerSlug && (
               <DropdownMenuItem asChild>
                 <Link
@@ -600,6 +636,35 @@ export function ListingsTable({
                 }}
               >
                 Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {confirmingSold && (
+        <AlertDialog
+          open={!!confirmingSold}
+          onOpenChange={(open) => !open && setConfirmingSold(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Mark &ldquo;{confirmingSold.title}&rdquo; as sold?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Sold is a final status — the listing can&apos;t be moved back to
+                published or under offer afterwards.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <Button
+                onClick={async () => {
+                  if (confirmingSold) await onConfirmSold(confirmingSold.id);
+                }}
+              >
+                Yes, mark as sold
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
