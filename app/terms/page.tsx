@@ -457,7 +457,7 @@ export default async function TermsPage() {
 
   return (
     <div className="min-h-screen bg-background" id="top">
-      <PublicHeader session={session} variant="compact" />
+      <PublicHeader session={session} variant="compact" maxWidth="max-w-5xl" />
       <LegalDocument
         title="Terms & Conditions"
         subtitle="The rules that govern your access to and use of the Salebiz platform, operated by THE COMPANY MARKETING PTY LTD."

@@ -268,7 +268,7 @@ export default async function AgencyPublicPage({ params }: Props) {
         </div>
       </main>
 
-      <footer className="border-t border-border py-6">
+      <footer className="border-t border-border py-8 sm:py-10">
         <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span suppressHydrationWarning>© {new Date().getFullYear()} Salebiz. All rights reserved.</span>
           <div className="flex items-center gap-4">

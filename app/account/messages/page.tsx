@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-client";
 import { listBuyerThreads } from "@/lib/actions/messages";
 import { PublicHeader } from "@/components/public-header";
 import { MessagesShell } from "@/components/messaging/messages-shell";
+import { MessagesShellSkeleton } from "@/components/messaging/messages-shell-skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,11 @@ export default async function BuyerMessagesPage() {
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <PublicHeader session={session} maxWidth="max-w-none" />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <MessagesShellSkeleton containerClassName="flex-1 min-h-0 rounded-none border-0 border-t shadow-none" />
+          }
+        >
           <MessagesShell
             viewerRole="buyer"
             initialThreads={threads}

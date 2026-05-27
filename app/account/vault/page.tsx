@@ -50,7 +50,7 @@ export default async function BuyerVaultPage() {
 
   return (
     <>
-      <PublicHeader session={session} />
+      <PublicHeader session={session} maxWidth="max-w-5xl" />
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <PageBreadcrumb
           items={[

@@ -71,7 +71,7 @@ export function SearchResults({
   // ── Empty state ──
   if (listings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-20 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-14 sm:py-16 text-center">
         <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
           <SearchX className="h-7 w-7 text-muted-foreground" />
         </div>
@@ -101,7 +101,7 @@ export function SearchResults({
       </div>
 
       {/* ── Grid ── */}
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {listings.map((listing) => {
           const thumb = listing.listing_images?.[0]?.url;
           const location = listing.location_text || [listing.suburb, listing.state]

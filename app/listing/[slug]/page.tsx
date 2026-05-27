@@ -332,7 +332,7 @@ export default async function ListingPage({ params }: Props) {
         {/* Broker & Agency */}
         {(broker?.slug || listing.agency?.slug) && (
           <Card>
-            <CardContent className="py-4">
+            <CardContent className="py-5">
               {broker?.slug ? (
                 <div className="flex min-w-0 items-center gap-4">
                   {broker.photo_url ? (
@@ -458,7 +458,7 @@ export default async function ListingPage({ params }: Props) {
         {/* Why This Business? — highlight selling points */}
         {highlights.length > 0 && (
           <Card className="border-primary/20 bg-primary/[0.03]">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 pt-4">
               <CardTitle className="flex items-center gap-2 text-primary">
                 <Sparkles className="h-5 w-5" />
                 Why this business?
@@ -496,7 +496,7 @@ export default async function ListingPage({ params }: Props) {
         {/* Summary */}
         {listing.summary && (
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 pt-4">
               <CardTitle>Summary</CardTitle>
             </CardHeader>
             <CardContent>
@@ -510,7 +510,7 @@ export default async function ListingPage({ params }: Props) {
         {/* Description */}
         {listing.description && (
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 pt-4">
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
@@ -521,7 +521,7 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Key details */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 pt-4">
             <CardTitle>Key details</CardTitle>
           </CardHeader>
           <CardContent>

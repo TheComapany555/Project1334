@@ -132,7 +132,7 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
       </div>
 
       {/* Body */}
-      <div className="flex flex-col flex-1 p-3.5 sm:p-4">
+      <div className="flex flex-col flex-1 p-4">
         {(listing.broker || listing.agency) && (
           <div className="flex items-center gap-2 mb-2">
             <Avatar size="sm">
@@ -550,7 +550,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── Homepage Ad Slot ──────────────────────────────────────────── */}
-        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-6 sm:py-8">
+        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-8 sm:py-12 md:py-16">
           <AdSlot placement="homepage" layout="banner" limit={1} />
         </section>
 
@@ -806,7 +806,7 @@ export default async function HomePage() {
                     asChild
                     size="lg"
                     variant="ghost"
-                    className="w-full sm:w-auto text-white h-11 sm:h-12 px-6 sm:px-8 border border-white/20 hover:bg-white/10"
+                    className="w-full sm:w-auto text-white h-10 sm:h-11 px-5 sm:px-7 border border-white/20 hover:bg-white/10"
                   >
                     <Link href="/auth/login">Sign in to existing account</Link>
                   </Button>

@@ -307,8 +307,8 @@ export default async function BrokerProfilePage({ params }: Props) {
               {/* About */}
               {profile.bio && (
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">About</CardTitle>
+                  <CardHeader className="pb-3 pt-4">
+                    <CardTitle>About</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
@@ -376,7 +376,7 @@ export default async function BrokerProfilePage({ params }: Props) {
         </div>
       </main>
 
-      <footer className="border-t border-border py-6">
+      <footer className="border-t border-border py-8 sm:py-10">
         <div className="mx-auto max-w-6xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span suppressHydrationWarning>
             © {new Date().getFullYear()} Salebiz. All rights reserved.

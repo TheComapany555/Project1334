@@ -525,7 +525,7 @@ export default async function PrivacyPolicyPage() {
 
   return (
     <div className="min-h-screen bg-background" id="top">
-      <PublicHeader session={session} variant="compact" />
+      <PublicHeader session={session} variant="compact" maxWidth="max-w-5xl" />
       <LegalDocument
         title="Privacy Policy"
         subtitle="How Salebiz collects, uses, stores, and protects your personal information. Written in plain English and aligned with the Australian Privacy Principles."
