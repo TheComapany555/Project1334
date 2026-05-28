@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/admin/page-header";
 import { Building2 } from "lucide-react";
 import { AgenciesTable } from "./agencies-table";
+import { CreateAccountDialog } from "./create-account-dialog";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
 import type { AgencyStatus } from "@/lib/types/agencies";
 
@@ -33,6 +34,7 @@ export default async function AdminBrokersPage({
       <PageHeader
         title="Agencies"
         description="Manage agency accounts. Approve new signups or disable access."
+        action={<CreateAccountDialog />}
       />
       <Card>
         <CardHeader>

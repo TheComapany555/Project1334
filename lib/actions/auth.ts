@@ -416,6 +416,89 @@ export async function resetPasswordWithToken(
   return { ok: true };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Set Password (admin-created accounts)                              */
+/* ------------------------------------------------------------------ */
+
+export type SetPasswordTokenInfo = {
+  email: string;
+  name: string | null;
+  agencyName: string | null;
+  expired: boolean;
+};
+
+/** Validate a set_password token and return display info for the page. */
+export async function validateSetPasswordToken(token: string): Promise<SetPasswordTokenInfo | null> {
+  if (!token) return null;
+  const supabase = createServiceRoleClient();
+
+  const { data: row } = await supabase
+    .from("auth_tokens")
+    .select("user_id, expires_at")
+    .eq("token", token)
+    .eq("type", "set_password")
+    .maybeSingle();
+
+  if (!row) return null;
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("email")
+    .eq("id", row.user_id)
+    .single();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, agency_id")
+    .eq("id", row.user_id)
+    .maybeSingle();
+
+  let agencyName: string | null = null;
+  if (profile?.agency_id) {
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("name")
+      .eq("id", profile.agency_id)
+      .maybeSingle();
+    agencyName = agency?.name ?? null;
+  }
+
+  return {
+    email: user.email,
+    name: profile?.name ?? null,
+    agencyName,
+    expired: new Date(row.expires_at) < new Date(),
+  };
+}
+
+/** Consume a set_password token: hash the password, save, delete token. */
+export async function setPasswordWithToken(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!token || !newPassword || newPassword.length < 8) {
+    return { ok: false, error: "Invalid link or password too short." };
+  }
+  const supabase = createServiceRoleClient();
+  const { data: row } = await supabase
+    .from("auth_tokens")
+    .select("user_id, expires_at")
+    .eq("token", token)
+    .eq("type", "set_password")
+    .maybeSingle();
+  if (!row || new Date(row.expires_at) < new Date()) {
+    return { ok: false, error: "Link expired or invalid." };
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await supabase.from("users").update({
+    password_hash: passwordHash,
+    updated_at: new Date().toISOString(),
+  }).eq("id", row.user_id);
+  await supabase.from("auth_tokens").delete().eq("token", token);
+  return { ok: true };
+}
+
 // ── Buyer (user) registration for web ──
 
 export async function registerBuyer(formData: FormData): Promise<RegisterResult> {

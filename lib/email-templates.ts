@@ -231,6 +231,57 @@ export function adminBrokerSignupEmail(brokerEmail: string, adminDashboardUrl: s
 }
 
 /* ------------------------------------------------------------------ */
+/*  Email: Account Created by Admin (Set Password)                     */
+/* ------------------------------------------------------------------ */
+
+export function accountCreatedByAdminEmail(opts: {
+  name: string | null;
+  setPasswordUrl: string;
+  agencyName: string | null;
+  /** Who created the account — "Salebiz admin" or the agency owner's name. */
+  createdByLabel: string;
+  /** Whether the recipient is the new owner of a freshly-created agency (vs a member joining one). */
+  isAgencyOwner: boolean;
+  expiresInDays: number;
+}): string {
+  const { name, setPasswordUrl, agencyName, createdByLabel, isAgencyOwner, expiresInDays } = opts;
+  const greeting = name ? `Hi ${name},` : "Hi,";
+
+  const intro = isAgencyOwner
+    ? agencyName
+      ? `An account for <strong>${agencyName}</strong> has been created for you on Salebiz by ${createdByLabel}.`
+      : `An account has been created for you on Salebiz by ${createdByLabel}.`
+    : agencyName
+      ? `You&#8217;ve been added as a broker for <strong>${agencyName}</strong> on Salebiz by ${createdByLabel}.`
+      : `An account has been created for you on Salebiz by ${createdByLabel}.`;
+
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      Welcome to Salebiz
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Your account is ready &mdash; just set a password to sign in.
+    </p>
+
+    <p style="margin:0 0 12px 0;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">${intro}</p>
+    <p style="margin:0 0 4px 0;">
+      Click the button below to choose your password. You can then sign in with your email address and start using Salebiz right away.
+    </p>
+
+    ${ctaButton(setPasswordUrl, "Set My Password")}
+
+    <p style="margin:0 0 4px 0;font-size:13px;color:#888888;">
+      This link will expire in <strong>${expiresInDays} days</strong>. If you weren&#8217;t expecting this, you can safely ignore this email.
+    </p>
+
+    <p style="margin:16px 0 0 0;font-size:12px;color:#aaaaaa;word-break:break-all;">
+      Or copy this link: ${setPasswordUrl}
+    </p>
+  `);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Email: Enquiry Notification (to Broker)                            */
 /* ------------------------------------------------------------------ */
 
