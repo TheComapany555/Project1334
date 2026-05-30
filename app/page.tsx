@@ -2,9 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
 import {
-  searchListings,
   getListingHighlights,
   getHomepageFeaturedListings,
+  getHomepageRecentListings,
 } from "@/lib/actions/listings";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
@@ -215,14 +215,17 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
 
 // ─── Page (Server Component) ───────────────────────────────────────────────────
 export default async function HomePage() {
-  const [session, featuredListings, searchResult, highlights] = await Promise.all([
+  // Featured first so we can exclude its IDs from the recent fetch before
+  // diversifying — that way the visible Recent grid is always a full 12 items
+  // of distinct brokers/agencies, not a leftover after filtering.
+  const [session, featuredListings, highlights] = await Promise.all([
     getSession(),
     getHomepageFeaturedListings(12),
-    searchListings({ sort: "newest", page: 1, page_size: 12 }),
     getListingHighlights(),
   ]);
-  const featuredIds = new Set(featuredListings.map((l) => l.id));
-  const recentListings = searchResult.listings.filter((l) => !featuredIds.has(l.id));
+  const recentListings = await getHomepageRecentListings(12, {
+    excludeIds: featuredListings.map((l) => l.id),
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

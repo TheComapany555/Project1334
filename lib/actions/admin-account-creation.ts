@@ -2,16 +2,14 @@
 
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
-import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateSlugFromName } from "@/lib/slug";
 import { checkSlugAvailable } from "@/lib/actions/profile";
-import { accountCreatedByAdminEmail } from "@/lib/email-templates";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const WELCOME_EMAIL_FROM = "welcome@salebiz.com.au";
-const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-const SET_PASSWORD_EXPIRY_DAYS = 7;
+import {
+  createSetPasswordToken,
+  sendSetPasswordEmail,
+  buildSetPasswordUrl,
+} from "@/lib/account-provisioning";
 
 export type AdminCreateResult =
   | { ok: true; userId: string; agencyId: string | null }
@@ -27,13 +25,12 @@ async function getAdminSession() {
 
 async function generateUniqueProfileSlug(name: string): Promise<string> {
   const base = generateSlugFromName(name);
-  let candidate = base;
-  let n = 0;
-  while (!(await checkSlugAvailable(candidate))) {
-    n += 1;
-    candidate = `${base}-${n}`;
+  // Cap iterations so a stuck DB or pathological data can't spin forever.
+  for (let n = 0; n < 1000; n += 1) {
+    const candidate = n === 0 ? base : `${base}-${n}`;
+    if (await checkSlugAvailable(candidate)) return candidate;
   }
-  return candidate;
+  return `${base}-${nanoid(6)}`;
 }
 
 async function generateUniqueAgencySlug(name: string): Promise<string> {
@@ -61,61 +58,21 @@ async function writeAuditLog(opts: {
   metadata?: Record<string, unknown> | null;
 }) {
   const supabase = createServiceRoleClient();
-  await supabase.from("admin_audit_log").insert({
+  const { error } = await supabase.from("admin_audit_log").insert({
     admin_id: opts.adminId,
     action: opts.action,
     target_user_id: opts.targetUserId ?? null,
     target_agency_id: opts.targetAgencyId ?? null,
     metadata: opts.metadata ?? null,
-  }).then(() => {}, () => {});
-}
-
-async function sendSetPasswordEmail(opts: {
-  email: string;
-  name: string | null;
-  setPasswordUrl: string;
-  agencyName: string | null;
-  createdByLabel: string;
-  isAgencyOwner: boolean;
-}) {
-  await resend.emails.send({
-    from: WELCOME_EMAIL_FROM,
-    to: opts.email,
-    subject: "Your Salebiz account is ready — set your password",
-    html: accountCreatedByAdminEmail({
-      name: opts.name,
-      setPasswordUrl: opts.setPasswordUrl,
-      agencyName: opts.agencyName,
-      createdByLabel: opts.createdByLabel,
-      isAgencyOwner: opts.isAgencyOwner,
-      expiresInDays: SET_PASSWORD_EXPIRY_DAYS,
-    }),
-  }).catch(() => {});
-}
-
-async function createSetPasswordToken(
-  userId: string,
-): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
-  const supabase = createServiceRoleClient();
-  // Invalidate any existing set_password token for this user
-  await supabase.from("auth_tokens").delete().eq("user_id", userId).eq("type", "set_password");
-  const token = nanoid(32);
-  const expiresAt = new Date(Date.now() + SET_PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-  const { error } = await supabase.from("auth_tokens").insert({
-    user_id: userId,
-    type: "set_password",
-    token,
-    expires_at: expiresAt.toISOString(),
   });
   if (error) {
-    // Most likely cause: the 'set_password' type has not been added to the
-    // auth_tokens.type CHECK constraint yet (migration 20260528000001 not applied).
-    return {
-      ok: false,
-      error: `Could not create set-password token: ${error.message}. Make sure migration 20260528000001_admin_account_creation.sql is applied to your database.`,
-    };
+    // Don't fail the parent action — the user/agency already exist — but
+    // surface the lost audit row so ops can investigate (e.g. missing
+    // migration, RLS misconfig).
+    console.error(
+      `[admin-audit-log] Failed to write '${opts.action}' for admin=${opts.adminId}: ${error.message}`,
+    );
   }
-  return { ok: true, token };
 }
 
 /**
@@ -161,6 +118,12 @@ export async function createAgencyByAdmin(opts: {
     .select("id")
     .single();
   if (userError || !newUser) {
+    // Postgres `23505` = unique violation; surfaces when two concurrent
+    // requests race past the existence check above. Map to a clearer
+    // message so the admin sees what actually happened.
+    if (userError && (userError as { code?: string }).code === "23505") {
+      return { ok: false, error: "An account with this email already exists." };
+    }
     return { ok: false, error: "Failed to create account. Please try again." };
   }
 
@@ -183,7 +146,7 @@ export async function createAgencyByAdmin(opts: {
 
   // 3. Create owner profile
   const profileSlug = await generateUniqueProfileSlug(ownerName);
-  await supabase.from("profiles").insert({
+  const { error: profileError } = await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
     status: "active",
@@ -194,18 +157,22 @@ export async function createAgencyByAdmin(opts: {
     agency_role: "owner",
     updated_at: new Date().toISOString(),
   });
+  if (profileError) {
+    await supabase.from("agencies").delete().eq("id", agency.id);
+    await supabase.from("users").delete().eq("id", newUser.id);
+    return { ok: false, error: "Failed to create owner profile. Please try again." };
+  }
 
   // 4. Set-password token + welcome email
   const tokenResult = await createSetPasswordToken(newUser.id);
   if (!tokenResult.ok) {
     // Roll back everything we created — better to fail loudly than to leave
     // the user a half-provisioned account they can't sign in to.
-    await supabase.from("profiles").delete().eq("id", newUser.id);
     await supabase.from("agencies").delete().eq("id", agency.id);
     await supabase.from("users").delete().eq("id", newUser.id);
     return { ok: false, error: tokenResult.error };
   }
-  const setPasswordUrl = `${APP_URL}/auth/set-password?token=${tokenResult.token}`;
+  const setPasswordUrl = buildSetPasswordUrl(tokenResult.token);
   await sendSetPasswordEmail({
     email,
     name: ownerName,
@@ -282,12 +249,18 @@ export async function createBrokerByAdmin(opts: {
     .select("id")
     .single();
   if (userError || !newUser) {
+    // Postgres `23505` = unique violation; surfaces when two concurrent
+    // requests race past the existence check above. Map to a clearer
+    // message so the admin sees what actually happened.
+    if (userError && (userError as { code?: string }).code === "23505") {
+      return { ok: false, error: "An account with this email already exists." };
+    }
     return { ok: false, error: "Failed to create account. Please try again." };
   }
 
   // 2. Create profile linked to the agency
   const profileSlug = await generateUniqueProfileSlug(name);
-  await supabase.from("profiles").insert({
+  const { error: profileError } = await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
     status: "active",
@@ -298,16 +271,19 @@ export async function createBrokerByAdmin(opts: {
     agency_role: agencyRole,
     updated_at: new Date().toISOString(),
   });
+  if (profileError) {
+    await supabase.from("users").delete().eq("id", newUser.id);
+    return { ok: false, error: "Failed to create broker profile. Please try again." };
+  }
 
   // 3. Set-password token + welcome email
   const tokenResult = await createSetPasswordToken(newUser.id);
   if (!tokenResult.ok) {
     // Roll back — broker is unusable without a way to set their password.
-    await supabase.from("profiles").delete().eq("id", newUser.id);
     await supabase.from("users").delete().eq("id", newUser.id);
     return { ok: false, error: tokenResult.error };
   }
-  const setPasswordUrl = `${APP_URL}/auth/set-password?token=${tokenResult.token}`;
+  const setPasswordUrl = buildSetPasswordUrl(tokenResult.token);
   await sendSetPasswordEmail({
     email,
     name,

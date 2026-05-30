@@ -8,6 +8,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/actions/crm";
 import { getValidGmailAccessToken } from "@/lib/email/gmail-oauth";
 import { sendViaGmail } from "@/lib/email/gmail-send";
+import {
+  getBrokerSignature,
+  appendSignatureToHtml,
+  appendSignatureToText,
+} from "@/lib/email-signatures";
 
 // ── Config ────────────────────────────────────────────────────────────────
 
@@ -205,6 +210,11 @@ export async function sendCrmEmail(input: {
   // the crm_activities row below.
   const trackingToken = nanoid(20);
 
+  // Resolve the broker's signature once; it's appended below to both the HTML
+  // and plain-text bodies. `null` means signatures are disabled for this broker.
+  const signature = await getBrokerSignature(broker.id);
+  const finalText = appendSignatureToText(renderedBody, signature?.text ?? null);
+
   // Prefer the broker's Connected Inbox (Gmail) — emails appear in their
   // own Sent folder, replies thread naturally in their inbox.
   // Fall back to Resend if not connected.
@@ -220,8 +230,11 @@ export async function sendCrmEmail(input: {
       to: contact.email,
       // No Reply-To needed — `From` is the broker's actual inbox.
       subject: renderedSubject,
-      text: renderedBody,
-      html: plainToHtml(renderedBody, trackingToken),
+      text: finalText,
+      html: appendSignatureToHtml(
+        plainToHtml(renderedBody, trackingToken),
+        signature?.html ?? null,
+      ),
     });
     if (!res.ok) return { ok: false, error: res.error };
     messageId = res.messageId;
@@ -234,8 +247,11 @@ export async function sendCrmEmail(input: {
         to: contact.email,
         replyTo: replyToFallback,
         subject: renderedSubject,
-        text: renderedBody,
-        html: plainToHtml(renderedBody, trackingToken),
+        text: finalText,
+        html: appendSignatureToHtml(
+          plainToHtml(renderedBody, trackingToken),
+          signature?.html ?? null,
+        ),
       });
       if (error) {
         return {

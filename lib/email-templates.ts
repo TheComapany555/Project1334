@@ -4,6 +4,23 @@ import { SALEBIZ_LOGO_URL } from "@/lib/branding";
 
 const BRAND_PRIMARY = "#0d5c2f";
 
+/**
+ * Escape user-controlled strings before interpolating into HTML email
+ * bodies. Real email clients sanitize aggressively but treating these
+ * strings as trusted lets an admin or agency owner inject structural
+ * markup (or `<img src=x onerror=…>` in some webmail UIs) into a name
+ * or listing title. Defense-in-depth.
+ */
+function esc(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* ------------------------------------------------------------------ */
 /*  Base layout                                                        */
 /* ------------------------------------------------------------------ */
@@ -245,15 +262,18 @@ export function accountCreatedByAdminEmail(opts: {
   expiresInDays: number;
 }): string {
   const { name, setPasswordUrl, agencyName, createdByLabel, isAgencyOwner, expiresInDays } = opts;
-  const greeting = name ? `Hi ${name},` : "Hi,";
+  const safeName = esc(name);
+  const safeAgency = esc(agencyName);
+  const safeCreatedBy = esc(createdByLabel);
+  const greeting = safeName ? `Hi ${safeName},` : "Hi,";
 
   const intro = isAgencyOwner
-    ? agencyName
-      ? `An account for <strong>${agencyName}</strong> has been created for you on Salebiz by ${createdByLabel}.`
-      : `An account has been created for you on Salebiz by ${createdByLabel}.`
-    : agencyName
-      ? `You&#8217;ve been added as a broker for <strong>${agencyName}</strong> on Salebiz by ${createdByLabel}.`
-      : `An account has been created for you on Salebiz by ${createdByLabel}.`;
+    ? safeAgency
+      ? `An account for <strong>${safeAgency}</strong> has been created for you on Salebiz by ${safeCreatedBy}.`
+      : `An account has been created for you on Salebiz by ${safeCreatedBy}.`
+    : safeAgency
+      ? `You&#8217;ve been added as a broker for <strong>${safeAgency}</strong> on Salebiz by ${safeCreatedBy}.`
+      : `An account has been created for you on Salebiz by ${safeCreatedBy}.`;
 
   return baseLayout(`
     <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
@@ -448,18 +468,20 @@ export function brokerInvitationEmail(opts: {
   expiresInDays: number;
 }): string {
   const { agencyName, inviterName, joinUrl, expiresInDays } = opts;
-  const invitedBy = inviterName ? `<strong>${inviterName}</strong> has` : "You have been";
+  const safeAgency = esc(agencyName);
+  const safeInviter = esc(inviterName);
+  const invitedBy = safeInviter ? `<strong>${safeInviter}</strong> has` : "You have been";
 
   return baseLayout(`
     <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
       You&#8217;re Invited!
     </p>
     <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
-      Join <strong>${agencyName}</strong> on Salebiz.com.au
+      Join <strong>${safeAgency}</strong> on Salebiz.com.au
     </p>
 
     <p style="margin:0 0 8px 0;">
-      ${invitedBy} invited you to join <strong>${agencyName}</strong> as a broker on Salebiz.
+      ${invitedBy} invited you to join <strong>${safeAgency}</strong> as a broker on Salebiz.
     </p>
     <p style="margin:0 0 4px 0;">
       Click the button below to create your account and start managing listings.
@@ -628,6 +650,7 @@ export function externalShareInviteEmail({
   customMessage,
   ndaRequired,
   expiresInDays,
+  signatureHtml,
 }: {
   recipientName: string | null;
   brokerName: string;
@@ -641,19 +664,25 @@ export function externalShareInviteEmail({
   customMessage: string | null;
   ndaRequired: boolean;
   expiresInDays: number;
+  /** Optional broker signature HTML appended before the expiry footer. */
+  signatureHtml?: string | null;
 }): string {
-  const greeting = recipientName ? `Hi ${recipientName},` : "Hi,";
-  const details = [price, location].filter(Boolean).join(" &middot; ");
-  const senderLabel = brokerCompany
-    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
-    : `<strong>${brokerName}</strong>`;
+  const safeRecipient = esc(recipientName);
+  const safeBrokerName = esc(brokerName);
+  const safeBrokerCompany = esc(brokerCompany);
+  const safeListingTitle = esc(listingTitle);
+  const safeDetails = esc([price, location].filter(Boolean).join(" · "));
+  const greeting = safeRecipient ? `Hi ${safeRecipient},` : "Hi,";
+  const senderLabel = safeBrokerCompany
+    ? `<strong>${safeBrokerName}</strong> from ${safeBrokerCompany}`
+    : `<strong>${safeBrokerName}</strong>`;
 
   const messageBlock = customMessage?.trim()
     ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
         <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
-          Message from ${brokerName}
+          Message from ${safeBrokerName}
         </p>
-        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${esc(customMessage.trim()).replace(/\n/g, "<br>")}</p>
       </div>`
     : "";
 
@@ -665,13 +694,13 @@ export function externalShareInviteEmail({
             <tr>
               ${brokerPhotoUrl
                 ? `<td style="padding-right:14px;vertical-align:middle;">
-                    <img src="${brokerPhotoUrl}" alt="${brokerName}" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #dce8df;" />
+                    <img src="${esc(brokerPhotoUrl)}" alt="${safeBrokerName}" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid #dce8df;" />
                   </td>`
                 : ""}
               <td style="vertical-align:middle;">
-                <p style="margin:0;font-size:14px;font-weight:600;color:#0a0a0a;">${brokerName}</p>
-                ${brokerCompany ? `<p style="margin:2px 0 0;font-size:12px;color:#6b7280;">${brokerCompany}</p>` : ""}
-                ${brokerProfileUrl ? `<p style="margin:6px 0 0;font-size:12px;"><a href="${brokerProfileUrl}" style="color:${BRAND_PRIMARY};text-decoration:underline;">View broker profile</a></p>` : ""}
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0a0a0a;">${safeBrokerName}</p>
+                ${safeBrokerCompany ? `<p style="margin:2px 0 0;font-size:12px;color:#6b7280;">${safeBrokerCompany}</p>` : ""}
+                ${brokerProfileUrl ? `<p style="margin:6px 0 0;font-size:12px;"><a href="${esc(brokerProfileUrl)}" style="color:${BRAND_PRIMARY};text-decoration:underline;">View broker profile</a></p>` : ""}
               </td>
             </tr>
           </table>
@@ -707,14 +736,16 @@ export function externalShareInviteEmail({
 
     <div style="margin:0 0 20px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
       <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">
-        ${listingTitle}
+        ${safeListingTitle}
       </p>
-      ${details ? `<p style="margin:0;font-size:14px;color:#6b7280;">${details}</p>` : ""}
+      ${safeDetails ? `<p style="margin:0;font-size:14px;color:#6b7280;">${safeDetails}</p>` : ""}
     </div>
 
     ${ndaNotice}
 
     ${ctaButton(inviteUrl, "View Listing")}
+
+    ${signatureHtml ?? ""}
 
     <p style="margin:8px 0 4px 0;font-size:13px;color:#888888;text-align:center;">
       This link will create a free buyer account and lasts for ${expiresInDays} days.
@@ -733,6 +764,7 @@ export function shareMultipleListingsEmail({
   listings,
   customMessage,
   unsubscribeUrl,
+  signatureHtml,
 }: {
   contactName: string | null;
   brokerName: string;
@@ -740,29 +772,36 @@ export function shareMultipleListingsEmail({
   listings: { title: string; url: string; price: string | null; location: string | null }[];
   customMessage?: string | null;
   unsubscribeUrl?: string | null;
+  /** Optional broker signature HTML appended before the unsubscribe footer. */
+  signatureHtml?: string | null;
 }): string {
-  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
-  const senderLabel = brokerCompany
-    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
-    : `<strong>${brokerName}</strong>`;
+  const safeContact = esc(contactName);
+  const safeBrokerName = esc(brokerName);
+  const safeBrokerCompany = esc(brokerCompany);
+  const greeting = safeContact ? `Hi ${safeContact},` : "Hi,";
+  const senderLabel = safeBrokerCompany
+    ? `<strong>${safeBrokerName}</strong> from ${safeBrokerCompany}`
+    : `<strong>${safeBrokerName}</strong>`;
 
   const messageBlock = customMessage?.trim()
     ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
         <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
-          Message from ${brokerName}
+          Message from ${safeBrokerName}
         </p>
-        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${esc(customMessage.trim()).replace(/\n/g, "<br>")}</p>
       </div>`
     : "";
 
   const listingCards = listings
     .map((l) => {
-      const details = [l.price, l.location].filter(Boolean).join(" &middot; ");
+      const safeTitle = esc(l.title);
+      const safeDetails = esc([l.price, l.location].filter(Boolean).join(" · "));
+      const safeUrl = esc(l.url);
       return `
     <div style="margin:0 0 16px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
-      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">${l.title}</p>
-      ${details ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${details}</p>` : ""}
-      <a href="${l.url}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
+      <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">${safeTitle}</p>
+      ${safeDetails ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${safeDetails}</p>` : ""}
+      <a href="${safeUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
         View Listing
       </a>
     </div>`;
@@ -785,13 +824,15 @@ export function shareMultipleListingsEmail({
 
     ${listingCards}
 
+    ${signatureHtml ?? ""}
+
     <p style="margin:0 0 8px;font-size:13px;color:#888888;">
       This email was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
     </p>
     ${
       unsubscribeUrl
         ? `<p style="margin:0;font-size:12px;color:#aaaaaa;">
-        <a href="${unsubscribeUrl}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
+        <a href="${esc(unsubscribeUrl)}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
       </p>`
         : ""
     }
@@ -808,6 +849,7 @@ export function shareListingEmail({
   location,
   customMessage,
   unsubscribeUrl,
+  signatureHtml,
 }: {
   contactName: string | null;
   brokerName: string;
@@ -818,19 +860,26 @@ export function shareListingEmail({
   location: string | null;
   customMessage?: string | null;
   unsubscribeUrl?: string | null;
+  /** Optional broker signature HTML appended before the unsubscribe footer. */
+  signatureHtml?: string | null;
 }): string {
-  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
-  const details = [price, location].filter(Boolean).join(" &middot; ");
-  const senderLabel = brokerCompany
-    ? `<strong>${brokerName}</strong> from ${brokerCompany}`
-    : `<strong>${brokerName}</strong>`;
+  const safeContact = esc(contactName);
+  const safeBrokerName = esc(brokerName);
+  const safeBrokerCompany = esc(brokerCompany);
+  const safeListingTitle = esc(listingTitle);
+  const safeListingUrl = esc(listingUrl);
+  const safeDetails = esc([price, location].filter(Boolean).join(" · "));
+  const greeting = safeContact ? `Hi ${safeContact},` : "Hi,";
+  const senderLabel = safeBrokerCompany
+    ? `<strong>${safeBrokerName}</strong> from ${safeBrokerCompany}`
+    : `<strong>${safeBrokerName}</strong>`;
 
   const messageBlock = customMessage?.trim()
     ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
         <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
-          Message from ${brokerName}
+          Message from ${safeBrokerName}
         </p>
-        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${customMessage.trim().replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${esc(customMessage.trim()).replace(/\n/g, "<br>")}</p>
       </div>`
     : "";
 
@@ -847,20 +896,22 @@ export function shareListingEmail({
 
     <div style="margin:0 0 24px;padding:20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
       <p style="margin:0 0 8px;font-size:17px;font-weight:600;color:#0a0a0a;">
-        ${listingTitle}
+        ${safeListingTitle}
       </p>
-      ${details ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${details}</p>` : ""}
-      <a href="${listingUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
+      ${safeDetails ? `<p style="margin:0 0 12px;font-size:14px;color:#6b7280;">${safeDetails}</p>` : ""}
+      <a href="${safeListingUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 24px;border-radius:8px;">
         View Listing
       </a>
     </div>
+
+    ${signatureHtml ?? ""}
 
     <p style="margin:0 0 8px;font-size:13px;color:#888888;">
       This email was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
     </p>
     ${unsubscribeUrl
       ? `<p style="margin:0;font-size:12px;color:#aaaaaa;">
-        <a href="${unsubscribeUrl}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
+        <a href="${esc(unsubscribeUrl)}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe from listing emails</a>
       </p>`
       : ""}
   `);

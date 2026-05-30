@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import type { AnalyticsOverview } from "@/lib/actions/analytics";
 import { BrokerAccountAiInsights } from "@/components/analytics/broker-account-ai-insights";
+import { BrokerAnalyticsExportButton } from "@/components/analytics/broker-analytics-export-button";
 
 const C_PRIMARY = "#008F2F";
 const C_MOBILE = "#16a34a";
@@ -212,9 +213,11 @@ const PERIODS = [
 
 interface Props {
   initialData: AnalyticsOverview;
+  ownerLabel: string;
+  ownerSubLabel?: string;
 }
 
-export function AnalyticsDashboard({ initialData }: Props) {
+export function AnalyticsDashboard({ initialData, ownerLabel, ownerSubLabel }: Props) {
   const [period, setPeriod] = useState<7 | 30 | 90>(
     initialData.period_days as 7 | 30 | 90
   );
@@ -263,22 +266,29 @@ export function AnalyticsDashboard({ initialData }: Props) {
             Analytics+
           </Button>
         </div>
-        <div className="flex gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
-          {PERIODS.map((p) => (
-            <Button
-              key={p.value}
-              variant="ghost"
-              size="sm"
-              onClick={() => changePeriod(p.value as 7 | 30 | 90)}
-              className={`h-7 px-3 text-xs rounded-md transition-all ${
-                period === p.value
-                  ? "bg-background shadow-sm font-semibold text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </Button>
-          ))}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
+            {PERIODS.map((p) => (
+              <Button
+                key={p.value}
+                variant="ghost"
+                size="sm"
+                onClick={() => changePeriod(p.value as 7 | 30 | 90)}
+                className={`h-7 px-3 text-xs rounded-md transition-all ${
+                  period === p.value
+                    ? "bg-background shadow-sm font-semibold text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+          <BrokerAnalyticsExportButton
+            defaultPeriodDays={period}
+            ownerLabel={ownerLabel}
+            ownerSubLabel={ownerSubLabel}
+          />
         </div>
       </div>
 

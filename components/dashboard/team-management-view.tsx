@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/admin/page-header";
 import { Users, Clock, Mail } from "lucide-react";
-import { InviteForm } from "@/app/dashboard/team/invite-form";
+import { AddBrokerCard } from "@/app/dashboard/team/add-broker-card";
 import { ResendButton, RevokeButton } from "@/app/dashboard/team/invitation-actions";
 import { BrokersTable } from "@/app/dashboard/team/brokers-table";
 import { SeatStatusBanner } from "@/components/dashboard/seat-status-banner";
@@ -52,19 +52,8 @@ export function TeamManagementView({
       {/* Seat / billing impact preview */}
       <SeatStatusBanner brokerCount={brokers.length} />
 
-      {/* Invite broker */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite a broker</CardTitle>
-          <CardDescription>
-            Send an invitation email to add a new broker to your agency. They&apos;ll
-            create an account and join automatically.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <InviteForm />
-        </CardContent>
-      </Card>
+      {/* Add broker */}
+      <AddBrokerCard />
 
       {/* Pending invitations */}
       {invitations.length > 0 && (
@@ -145,7 +134,7 @@ export function TeamManagementView({
                 <Users className="h-6 w-6 text-muted-foreground" />
               </div>
               <p className="font-medium">No brokers yet</p>
-              <p className="text-sm text-muted-foreground">Use the form above to invite brokers to your agency.</p>
+              <p className="text-sm text-muted-foreground">Use the form above to add brokers to your agency.</p>
             </div>
           ) : (
             <BrokersTable brokers={brokers} />

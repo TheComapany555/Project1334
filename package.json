@@ -24,6 +24,7 @@
     "@lexical/react": "^0.41.0",
     "@lexical/rich-text": "^0.41.0",
     "@radix-ui/react-scroll-area": "^1.2.10",
+    "@react-pdf/renderer": "^4.5.1",
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.8.0",
     "@supabase/ssr": "^0.8.0",

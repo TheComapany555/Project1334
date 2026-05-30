@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { ListingInsightsExportButton } from "@/components/analytics/listing-insights-export-button";
 import type {
   HotBuyer,
   HotBuyerSignal,
@@ -208,6 +209,7 @@ export function AIInsightsPanel({ listingId }: Props) {
           refreshing={refreshing}
           loading={loading}
           generatedAt={generatedAt}
+          listingId={listingId}
         />
 
         {/* ── Loading ── */}
@@ -285,6 +287,7 @@ function StickyToolbar({
   refreshing,
   loading,
   generatedAt,
+  listingId,
 }: {
   period: Period;
   onPeriodChange: (p: Period) => void;
@@ -292,6 +295,7 @@ function StickyToolbar({
   refreshing: boolean;
   loading: boolean;
   generatedAt: Date | null;
+  listingId: string;
 }) {
   const status = generatedAt
     ? `Updated ${fmtRelative(generatedAt)}`
@@ -346,6 +350,10 @@ function StickyToolbar({
           )}
           Refresh
         </Button>
+        <ListingInsightsExportButton
+          listingId={listingId}
+          defaultPeriodDays={period}
+        />
       </div>
     </div>
   );

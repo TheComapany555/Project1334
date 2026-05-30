@@ -1,5 +1,6 @@
 "use server";
 
+import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -7,6 +8,11 @@ import { generateSlugFromName } from "@/lib/slug";
 import { nanoid } from "nanoid";
 import { Resend } from "resend";
 import { brokerInvitationEmail } from "@/lib/email-templates";
+import {
+  createSetPasswordToken,
+  sendSetPasswordEmail,
+  buildSetPasswordUrl,
+} from "@/lib/account-provisioning";
 import type { Agency, AgencyBroker, AgencyInvitation } from "@/lib/types/agencies";
 import {
   buildPaginated,
@@ -428,6 +434,151 @@ export async function inviteBroker(email: string): Promise<{ ok: boolean; error?
   return { ok: true };
 }
 
+/**
+ * Agency owner: create a broker account directly under the agency, skipping the
+ * invite-email + self-signup + OTP loop. The broker is provisioned immediately
+ * and receives a "Set Password" email instead.
+ *
+ * The agency_role is always "member" today. Per-broker permission templates
+ * (Listing Manager, Buyer Manager, etc.) land in Feature #10 and will extend
+ * this action.
+ */
+export async function addBrokerDirectly(opts: {
+  email: string;
+  name: string;
+  phone?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { agencyId, userId } = await requireAgencyOwner();
+
+  const email = opts.email?.toLowerCase().trim();
+  const name = opts.name?.trim();
+  const phone = opts.phone?.trim() || null;
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Please enter a valid email address." };
+  }
+  if (!name) {
+    return { ok: false, error: "Broker name is required." };
+  }
+
+  const supabase = createServiceRoleClient();
+
+  // 1. Refuse if the email already belongs to a user (any agency).
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  if (existingUser) {
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("agency_id")
+      .eq("id", existingUser.id)
+      .maybeSingle();
+    if (existingProfile?.agency_id === agencyId) {
+      return { ok: false, error: "This person is already a member of your agency." };
+    }
+    if (existingProfile?.agency_id) {
+      return { ok: false, error: "This person already belongs to another agency." };
+    }
+    return { ok: false, error: "An account with this email already exists." };
+  }
+
+  // 2. If there's a pending invite for this email in this agency, clear it —
+  //    direct creation supersedes the slower invite flow.
+  await supabase
+    .from("agency_invitations")
+    .delete()
+    .eq("agency_id", agencyId)
+    .eq("email", email)
+    .eq("status", "pending");
+
+  // 3. Create the user (pre-verified, placeholder unusable password).
+  const placeholderHash = await bcrypt.hash(nanoid(48), 12);
+  const { data: newUser, error: userError } = await supabase
+    .from("users")
+    .insert({
+      email,
+      password_hash: placeholderHash,
+      email_verified_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (userError || !newUser) {
+    if (userError && (userError as { code?: string }).code === "23505") {
+      return { ok: false, error: "An account with this email already exists." };
+    }
+    return { ok: false, error: "Failed to create account. Please try again." };
+  }
+
+  // 4. Create the profile linked to this agency as a member.
+  const { checkSlugAvailable } = await import("@/lib/actions/profile");
+  const slugBase = generateSlugFromName(name);
+  let profileSlug = `${slugBase}-${nanoid(6)}`;
+  for (let n = 0; n < 1000; n += 1) {
+    const candidate = n === 0 ? slugBase : `${slugBase}-${n}`;
+    if (await checkSlugAvailable(candidate)) {
+      profileSlug = candidate;
+      break;
+    }
+  }
+
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("name")
+    .eq("id", agencyId)
+    .single();
+
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: newUser.id,
+    role: "broker",
+    status: "active",
+    name,
+    company: agency?.name ?? null,
+    phone,
+    slug: profileSlug,
+    agency_id: agencyId,
+    agency_role: "member",
+    updated_at: new Date().toISOString(),
+  });
+  if (profileError) {
+    // Roll back the user row so we don't leave an orphan that could log in
+    // without a profile and trigger NextAuth's pending-profile fallback.
+    await supabase.from("users").delete().eq("id", newUser.id);
+    return { ok: false, error: "Failed to create broker profile. Please try again." };
+  }
+
+  // 5. Set-password token + welcome email. Roll back on token failure so the
+  //    user can't be left with an account they can't sign in to.
+  const tokenResult = await createSetPasswordToken(newUser.id);
+  if (!tokenResult.ok) {
+    await supabase.from("profiles").delete().eq("id", newUser.id);
+    await supabase.from("users").delete().eq("id", newUser.id);
+    return { ok: false, error: tokenResult.error };
+  }
+
+  const { data: inviterProfile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", userId)
+    .single();
+  const createdByLabel = inviterProfile?.name
+    ? inviterProfile.name
+    : (agency?.name ?? "your agency");
+
+  await sendSetPasswordEmail({
+    email,
+    name,
+    setPasswordUrl: buildSetPasswordUrl(tokenResult.token),
+    agencyName: agency?.name ?? null,
+    createdByLabel,
+    isAgencyOwner: false,
+  });
+
+  return { ok: true };
+}
+
 export type ListPendingInvitationsParams = {
   page?: number;
   pageSize?: number;
@@ -526,6 +677,40 @@ export async function revokeInvitation(invitationId: string): Promise<{ ok: bool
     .eq("agency_id", agencyId)
     .eq("status", "pending");
 
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Email signature disclaimer (Feature #4)                            */
+/* ------------------------------------------------------------------ */
+
+/** Agency owner: read the agency-wide email signature disclaimer. */
+export async function getAgencySignatureDisclaimer(): Promise<string | null> {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase
+    .from("agencies")
+    .select("signature_disclaimer")
+    .eq("id", agencyId)
+    .maybeSingle();
+  return (data?.signature_disclaimer as string | null) ?? null;
+}
+
+/** Agency owner: update the agency-wide email signature disclaimer. */
+export async function updateAgencySignatureDisclaimer(
+  disclaimer: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const { agencyId } = await requireAgencyOwner();
+  const trimmed = disclaimer?.trim() || null;
+  if (trimmed && trimmed.length > 1000) {
+    return { ok: false, error: "Disclaimer is too long (max 1,000 characters)." };
+  }
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase
+    .from("agencies")
+    .update({ signature_disclaimer: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", agencyId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

@@ -7,6 +7,7 @@ import { ListingsTab } from "./_tabs/listings-tab";
 import { EngagementTab } from "./_tabs/engagement-tab";
 import { UsersTab } from "./_tabs/users-tab";
 import { MarketingTab } from "./_tabs/marketing-tab";
+import { AdminAnalyticsExportButton } from "@/components/analytics/admin-analytics-export-button";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,12 @@ export default async function AdminAnalyticsPage() {
         title="Platform analytics"
         description="A live view of revenue, listings, engagement and user growth across Salebiz."
         action={
-          <p className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">
-            Updated {new Date(analytics.generatedAt).toLocaleString("en-AU")}
-          </p>
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <p className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">
+              Updated {new Date(analytics.generatedAt).toLocaleString("en-AU")}
+            </p>
+            <AdminAnalyticsExportButton />
+          </div>
         }
       />
 

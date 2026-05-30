@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { externalShareInviteEmail } from "@/lib/email-templates";
+import { getBrokerSignature } from "@/lib/email-signatures";
 import { generateSlugFromName } from "@/lib/slug";
 import { checkSlugAvailable } from "@/lib/actions/profile";
 import { createNotification } from "@/lib/actions/notifications";
@@ -159,6 +160,8 @@ export async function createExternalShareInvite(input: {
           }).format(Number(listing.asking_price))
         : null;
 
+  const signature = await getBrokerSignature(userId);
+
   await resend.emails
     .send({
       from: EMAIL_FROM,
@@ -177,6 +180,7 @@ export async function createExternalShareInvite(input: {
         customMessage,
         ndaRequired: !!nda?.is_required,
         expiresInDays: INVITE_EXPIRES_DAYS,
+        signatureHtml: signature?.html ?? null,
       }),
     })
     .catch(() => {});

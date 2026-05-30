@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import { shareListingEmail, shareMultipleListingsEmail } from "@/lib/email-templates";
+import { getBrokerSignature } from "@/lib/email-signatures";
 import { setContactTags } from "@/lib/actions/contact-tags";
 import type {
   BrokerContact,
@@ -715,6 +716,9 @@ export async function sendListingToContacts(
   const location = listing.location_text;
   const subject = `${brokerName} shared a listing: ${listing.title}`;
 
+  const signature = await getBrokerSignature(userId);
+  const signatureHtml = signature?.html ?? null;
+
   const failed: ShareSendResult["failed"] = [];
 
   // Resend batch API: up to 100 emails per call.
@@ -734,6 +738,7 @@ export async function sendListingToContacts(
         price,
         location,
         customMessage: customMessage ?? null,
+        signatureHtml,
       }),
     }));
 
@@ -756,6 +761,7 @@ export async function sendListingToContacts(
               price,
               location,
               customMessage: customMessage ?? null,
+              signatureHtml,
             }),
           });
         } catch (err) {
@@ -902,6 +908,9 @@ export async function sendMultipleListingsToContacts(
     location: listing.location_text,
   }));
 
+  const signature = await getBrokerSignature(userId);
+  const signatureHtml = signature?.html ?? null;
+
   const failed: MultiBulkSendResult["failed"] = [];
 
   // Resend batch API: up to 100 per call.
@@ -925,6 +934,7 @@ export async function sendMultipleListingsToContacts(
         brokerCompany: brokerData.company,
         listings: listingPayloads,
         customMessage: customMessage ?? null,
+        signatureHtml,
       }),
     }));
 
@@ -944,6 +954,7 @@ export async function sendMultipleListingsToContacts(
               brokerCompany: brokerData.company,
               listings: listingPayloads,
               customMessage: customMessage ?? null,
+              signatureHtml,
             }),
           });
         } catch (err) {

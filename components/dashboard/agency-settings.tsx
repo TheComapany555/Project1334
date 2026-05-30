@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { FieldError } from "@/components/ui/field-error";
 import { AITextActions } from "@/components/ai/ai-text-actions";
+import { AgencySignatureDisclaimerCard } from "@/components/dashboard/agency-signature-disclaimer-card";
 
 const schema = z.object({
   name: z.string().min(1, "Agency name is required").max(200),
@@ -274,6 +275,9 @@ export function AgencySettings({ embedded = false }: { embedded?: boolean }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Agency-wide email signature disclaimer (Feature #4). */}
+      <AgencySignatureDisclaimerCard />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Logo */}

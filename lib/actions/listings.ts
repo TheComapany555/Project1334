@@ -13,11 +13,19 @@ import type {
 } from "@/lib/types/listings";
 import { notifyAdmins } from "@/lib/actions/notifications";
 import { optimizeImage } from "@/lib/image-optimizer";
+import { diversifyByOwner, listingOwnerKey } from "@/lib/listings/diversify";
 import {
   buildPaginated,
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+
+// Homepage feeds over-fetch by this factor before diversifying, so a few
+// dominant brokers can't lock out the visible window. Capped at the
+// underlying query's internal max (50) regardless.
+const HOMEPAGE_OVERFETCH_MULTIPLIER = 3;
+// Sliding window for anti-clustering — matches the 4-column homepage grid.
+const HOMEPAGE_DIVERSIFY_WINDOW = 4;
 
 const LISTING_IMAGES_BUCKET = "listing-images";
 const MAX_IMAGES_PER_LISTING = 10;
@@ -283,10 +291,12 @@ export type SearchListingsResult = {
   total_pages: number;
 };
 
-/** Public: active featured listings for the homepage. */
+/** Public: active featured listings for the homepage. Anti-clustered across brokers/agencies (Feature #3). */
 export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]> {
   const supabase = createServiceRoleClient();
-  const pageSize = Math.min(50, Math.max(1, limit));
+  const targetSize = Math.min(50, Math.max(1, limit));
+  // Over-fetch so the diversifier has room to spread owners across the window.
+  const fetchSize = Math.min(50, targetSize * HOMEPAGE_OVERFETCH_MULTIPLIER);
   const nowIso = new Date().toISOString();
 
   const { data, error } = await supabase
@@ -308,12 +318,12 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
     )
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })
-    .limit(pageSize);
+    .limit(fetchSize);
 
   if (error) return [];
   const list = (data ?? []) as ListingJoinRow[];
 
-  return list.map((l) => {
+  const mapped = list.map((l) => {
     const broker = firstJoined(l.broker);
     return {
       ...l,
@@ -324,6 +334,44 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
       listing_highlights: flattenHighlights(l),
     };
   });
+
+  const diversified = diversifyByOwner(mapped, {
+    ownerKey: listingOwnerKey,
+    windowSize: HOMEPAGE_DIVERSIFY_WINDOW,
+  });
+  return diversified.slice(0, targetSize);
+}
+
+/**
+ * Public: recently-published listings for the homepage, anti-clustered across
+ * brokers/agencies (Feature #3). Pass `excludeIds` to skip listings already
+ * shown elsewhere on the page (typically the featured section's IDs).
+ */
+export async function getHomepageRecentListings(
+  limit = 12,
+  opts: { excludeIds?: string[] } = {},
+): Promise<Listing[]> {
+  const targetSize = Math.min(50, Math.max(1, limit));
+  const excludeIds = new Set(opts.excludeIds ?? []);
+
+  // searchListings caps page_size at 50, so even at 3x the homepage fetches
+  // enough headroom for both diversification AND removing the excluded IDs.
+  const fetchSize = Math.min(50, targetSize * HOMEPAGE_OVERFETCH_MULTIPLIER);
+  const result = await searchListings({
+    sort: "newest",
+    page: 1,
+    page_size: fetchSize,
+  });
+
+  const filtered = excludeIds.size
+    ? result.listings.filter((l) => !excludeIds.has(l.id))
+    : result.listings;
+
+  const diversified = diversifyByOwner(filtered, {
+    ownerKey: listingOwnerKey,
+    windowSize: HOMEPAGE_DIVERSIFY_WINDOW,
+  });
+  return diversified.slice(0, targetSize);
 }
 
 /** Public: search published listings with filters, sort, and pagination. */

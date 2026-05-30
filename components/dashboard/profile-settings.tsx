@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { FieldError } from "@/components/ui/field-error";
 import { ConnectedInboxCard } from "@/components/dashboard/connected-inbox-card";
+import { EmailSignatureCard } from "@/components/dashboard/email-signature-card";
 
 const schema = z.object({
   name: z.string().max(200).optional().or(z.literal("")),
@@ -352,6 +353,9 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
       {/* Connected Inbox (Gmail) — sits above the profile form so brokers
           set it up before composing emails. */}
       <ConnectedInboxCard />
+
+      {/* Email signature — auto-appended to broker-composed outbound emails. */}
+      <EmailSignatureCard />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* ── Photo & logo ── */}

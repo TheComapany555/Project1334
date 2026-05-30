@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -441,6 +440,15 @@ export async function validateSetPasswordToken(token: string): Promise<SetPasswo
 
   if (!row) return null;
 
+  // Expired tokens are still recognized (so the page can show a tailored
+  // "request a fresh link" view) but we don't echo back the owner's email,
+  // name, or agency name. Combined with the 7-day TTL, this limits PII
+  // exposure if a stale link ends up in logs / screenshots / shared chats.
+  const expired = new Date(row.expires_at) < new Date();
+  if (expired) {
+    return { email: "", name: null, agencyName: null, expired: true };
+  }
+
   const { data: user } = await supabase
     .from("users")
     .select("email")
@@ -468,7 +476,7 @@ export async function validateSetPasswordToken(token: string): Promise<SetPasswo
     email: user.email,
     name: profile?.name ?? null,
     agencyName,
-    expired: new Date(row.expires_at) < new Date(),
+    expired: false,
   };
 }
 

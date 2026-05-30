@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateSlugFromName } from "@/lib/slug";
 import { optimizeLogo } from "@/lib/image-optimizer";
+import {
+  buildAutoSignatureHtml,
+  loadBrokerSignatureContext,
+  type BrokerSignatureContext,
+} from "@/lib/email-signatures";
 
 export type ProfileFormData = {
   name: string | null;
@@ -161,7 +166,7 @@ export async function updateProfile(formData: FormData): Promise<{ ok: boolean; 
     const available = await checkSlugAvailable(slug.trim(), userId);
     if (!available) return { ok: false, error: "This profile URL is already taken." };
   } else if (name) {
-    let base = generateSlugFromName(name);
+    const base = generateSlugFromName(name);
     let candidate = base;
     let n = 0;
     while (!(await checkSlugAvailable(candidate, userId))) {
@@ -277,4 +282,107 @@ export async function uploadProfileLogo(formData: FormData): Promise<{ ok: boole
   if (updateError) return { ok: false, error: updateError.message, url };
 
   return { ok: true, url };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Email signature (Feature #4)                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Editor settings — the broker's current saved choices, plus the full
+ * signature context (profile + agency data) so the editor can render its
+ * live preview client-side without round-tripping the server on every
+ * keystroke. The context never changes during an editing session.
+ */
+export type EmailSignatureSettings = {
+  signature_title: string | null;
+  signature_html: string | null;
+  signature_enabled: boolean;
+  /** Agency disclaimer (read-only here — owned by agency settings). */
+  agency_disclaimer: string | null;
+  /** Snapshot of profile + agency fields used by the auto-built preview. */
+  context: BrokerSignatureContext;
+};
+
+/** Load the broker's current signature settings + the full preview context. */
+export async function getEmailSignatureSettings(): Promise<EmailSignatureSettings | null> {
+  const { userId } = await requireBroker();
+  const ctx = await loadBrokerSignatureContext(userId);
+  if (!ctx) return null;
+  return {
+    signature_title: ctx.signatureTitle,
+    signature_html: ctx.signatureHtml,
+    signature_enabled: ctx.signatureEnabled,
+    agency_disclaimer: ctx.agencyDisclaimer,
+    context: ctx,
+  };
+}
+
+/** Save the broker's signature settings. */
+export async function updateEmailSignatureSettings(input: {
+  signature_title?: string | null;
+  signature_html?: string | null;
+  signature_enabled?: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  const title = input.signature_title?.trim() || null;
+  const html = input.signature_html?.trim() || null;
+  if (title && title.length > 120) {
+    return { ok: false, error: "Title is too long (max 120 characters)." };
+  }
+  if (html && html.length > 20_000) {
+    return { ok: false, error: "Custom signature is too long (max 20,000 characters)." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      signature_title: title,
+      signature_html: html,
+      signature_enabled: input.signature_enabled !== false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Render a preview of the broker's signature using the supplied draft fields,
+ * without persisting them. Used by the editor's live preview so brokers can
+ * see what their signature will look like before saving.
+ */
+export async function previewEmailSignature(input: {
+  signature_title?: string | null;
+  signature_html?: string | null;
+  signature_enabled?: boolean;
+}): Promise<{ html: string | null }> {
+  const { userId } = await requireBroker();
+
+  if (input.signature_enabled === false) return { html: null };
+
+  // Custom HTML override wins regardless of profile/agency data.
+  if (input.signature_html?.trim()) {
+    return { html: input.signature_html };
+  }
+
+  const ctx = await loadBrokerSignatureContext(userId);
+  if (!ctx) return { html: null };
+
+  const html = buildAutoSignatureHtml({
+    brokerName: ctx.brokerName,
+    brokerTitle: input.signature_title?.trim() || null,
+    brokerPhone: ctx.brokerPhone,
+    brokerEmail: ctx.brokerEmail,
+    brokerProfileUrl: ctx.brokerProfileUrl,
+    brokerPhotoUrl: ctx.brokerPhotoUrl,
+    agencyName: ctx.agencyName,
+    agencyLogoUrl: ctx.agencyLogoUrl,
+    agencyWebsite: ctx.agencyWebsite,
+    agencyDisclaimer: ctx.agencyDisclaimer,
+    social: ctx.social,
+  });
+  return { html };
 }
