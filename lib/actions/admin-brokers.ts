@@ -26,6 +26,7 @@ export type AgencyForAdmin = {
   status: AgencyStatus;
   broker_count: number;
   listing_count: number;
+  owner_id: string | null;
   owner_name: string | null;
   owner_email: string;
   created_at: string;
@@ -105,6 +106,7 @@ export async function listAdminAgencies(
       status: a.status as AgencyStatus,
       broker_count: agencyProfiles.length,
       listing_count: (listings ?? []).filter((l) => l.agency_id === a.id).length,
+      owner_id: owner?.id ?? null,
       owner_name: owner?.name ?? null,
       owner_email: owner ? (ownerEmailMap.get(owner.id) ?? "") : "",
       created_at: a.created_at,
@@ -161,6 +163,7 @@ export async function getAgenciesForAdmin(): Promise<AgencyForAdmin[]> {
       status: a.status as AgencyStatus,
       broker_count: agencyProfiles.length,
       listing_count: (listings ?? []).filter((l) => l.agency_id === a.id).length,
+      owner_id: owner?.id ?? null,
       owner_name: owner?.name ?? null,
       owner_email: owner ? (ownerEmailMap.get(owner.id) ?? "") : "",
       created_at: a.created_at,

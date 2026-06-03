@@ -53,6 +53,11 @@ function formatPrice(cents: number, currency: string): string {
   }).format(cents / 100);
 }
 
+// Where "Contact sales" emails go. Configurable via env so it's easy to point
+// at the client's own sales address without a code change.
+const SALES_EMAIL =
+  process.env.NEXT_PUBLIC_SALES_EMAIL || "ghufran@cirqley.com";
+
 const PLAN_FEATURES = [
   { icon: ListChecks, text: "Unlimited listings" },
   { icon: Mail, text: "Buyer enquiry management" },
@@ -313,6 +318,10 @@ function NoSubscriptionView({
   const flatPlans = plans.filter((p) => p.pricing_model === "flat");
   const recommendedIndex = tieredPlans.length >= 3 ? 1 : 0;
 
+  // Single-plan mode (the SaleBiz model: one agency fee + per-seat add-ons).
+  // Adapt the copy and layout so one plan doesn't read like a tier picker.
+  const isSinglePlan = tieredPlans.length === 1 && flatPlans.length === 0;
+
   const currentBrokers = quotes[0]?.current_seats ?? 0;
 
   return (
@@ -320,23 +329,25 @@ function NoSubscriptionView({
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
           <Sparkles className="h-3.5 w-3.5" />
-          Choose your plan
+          {isSinglePlan ? "Agency subscription" : "Choose your plan"}
         </div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Pick the plan that fits your team
+          {isSinglePlan ? "Activate your agency subscription" : "Pick the plan that fits your team"}
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
           You have <strong>{currentBrokers}</strong> broker
-          {currentBrokers === 1 ? "" : "s"} right now. Pick a tier that covers
-          your team — extra seats are billed monthly as an add-on.
+          {currentBrokers === 1 ? "" : "s"} right now.{" "}
+          {isSinglePlan
+            ? "Your subscription covers your first broker — each additional broker is billed monthly as an extra seat."
+            : "Pick a tier that covers your team — extra seats are billed monthly as an add-on."}
         </p>
       </div>
 
       {tieredPlans.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={cn("grid gap-4", isSinglePlan ? "max-w-md mx-auto" : "md:grid-cols-3")}>
           {tieredPlans.map((plan, i) => {
             const q = quoteById.get(plan.id);
-            const isRecommended = i === recommendedIndex;
+            const isRecommended = !isSinglePlan && i === recommendedIndex;
             const isCoveredByIncluded =
               q && currentBrokers <= (q.included_seats ?? 0);
             return (
@@ -489,6 +500,21 @@ function NoSubscriptionView({
         </details>
       )}
 
+      <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm">
+        <p className="font-medium">Want a custom deal or have a large team?</p>
+        <p className="text-muted-foreground mt-0.5">
+          Talk to us about volume pricing or a discount code.{" "}
+          <a
+            href={`mailto:${SALES_EMAIL}?subject=${encodeURIComponent(
+              "SaleBiz subscription enquiry",
+            )}`}
+            className="font-medium text-primary hover:underline"
+          >
+            Contact sales
+          </a>
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Shield className="h-3.5 w-3.5" />
@@ -550,7 +576,7 @@ function CheckoutView({
         </p>
       </div>
 
-      <SubscriptionCheckout product={plan} />
+      <SubscriptionCheckout product={plan} quote={quote} />
     </div>
   );
 }

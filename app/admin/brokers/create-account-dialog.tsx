@@ -82,7 +82,11 @@ export function CreateAccountDialog() {
       agencyName: data.agencyName,
     });
     if (result.ok) {
-      toast.success("Agency created. A Set Password email has been sent to the owner.");
+      if (result.emailSent) {
+        toast.success("Agency created. A Set Password email has been sent to the owner.");
+      } else {
+        toast.warning(result.warning ?? "Agency created, but the Set Password email failed to send.");
+      }
       agencyForm.reset();
       setOpen(false);
       router.refresh();
@@ -99,7 +103,11 @@ export function CreateAccountDialog() {
       agencyRole: data.agencyRole,
     });
     if (result.ok) {
-      toast.success("Broker created. A Set Password email has been sent.");
+      if (result.emailSent) {
+        toast.success("Broker created. A Set Password email has been sent.");
+      } else {
+        toast.warning(result.warning ?? "Broker created, but the Set Password email failed to send.");
+      }
       brokerForm.reset();
       setOpen(false);
       router.refresh();

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -15,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { resendInvitation, revokeInvitation } from "@/lib/actions/agencies";
-import { Loader2, RotateCw, X, UserMinus } from "lucide-react";
+import { Loader2, RotateCw, X, UserMinus, KeyRound } from "lucide-react";
 
 export function ResendButton({ invitationId }: { invitationId: string }) {
   const [loading, setLoading] = useState(false);
@@ -52,6 +51,55 @@ export function ResendButton({ invitationId }: { invitationId: string }) {
         <>
           <RotateCw className="h-3.5 w-3.5 mr-1" />
           Resend
+        </>
+      )}
+    </Button>
+  );
+}
+
+export function ResendSetPasswordButton({
+  brokerId,
+  brokerName,
+}: {
+  brokerId: string;
+  brokerName: string | null;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleResend() {
+    setLoading(true);
+    try {
+      const { resendSetPasswordLink } = await import("@/lib/actions/agencies");
+      const result = await resendSetPasswordLink(brokerId);
+      if (result.ok) {
+        toast.success(
+          `Set-password link sent to ${brokerName ?? "the broker"}.`,
+        );
+      } else {
+        toast.error(result.error ?? "Failed to resend the link.");
+      }
+    } catch {
+      toast.error("Failed to resend the link.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleResend}
+      disabled={loading}
+      className="h-8 px-2 text-xs"
+      title="Email this broker a fresh link to set their password"
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <>
+          <KeyRound className="h-3.5 w-3.5 mr-1" />
+          Resend password
         </>
       )}
     </Button>

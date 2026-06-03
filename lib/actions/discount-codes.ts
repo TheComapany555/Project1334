@@ -4,10 +4,29 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveProductPrice } from "@/lib/actions/products";
+import { quoteAgencyPlan } from "@/lib/actions/subscription-pricing";
 import type {
   DiscountCode,
   DiscountValidationResult,
 } from "@/lib/types/discount-codes";
+
+/** Common active/date/usage checks for a discount row. Returns an error string, or null when usable. */
+function checkDiscountRowUsable(row: {
+  active: boolean;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_uses: number | null;
+  used_count: number;
+}): string | null {
+  if (!row.active) return "This code is no longer active.";
+  const now = new Date();
+  if (row.valid_from && new Date(row.valid_from) > now) return "This code is not yet valid.";
+  if (row.valid_until && new Date(row.valid_until) < now) return "This code has expired.";
+  if (row.max_uses != null && row.used_count >= row.max_uses) {
+    return "This code has reached its usage limit.";
+  }
+  return null;
+}
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -232,18 +251,8 @@ export async function validateDiscountCode(params: {
     .single();
 
   if (!row) return { ok: false, error: "Invalid code." };
-  if (!row.active) return { ok: false, error: "This code is no longer active." };
-
-  const now = new Date();
-  if (row.valid_from && new Date(row.valid_from) > now) {
-    return { ok: false, error: "This code is not yet valid." };
-  }
-  if (row.valid_until && new Date(row.valid_until) < now) {
-    return { ok: false, error: "This code has expired." };
-  }
-  if (row.max_uses != null && row.used_count >= row.max_uses) {
-    return { ok: false, error: "This code has reached its usage limit." };
-  }
+  const usableError = checkDiscountRowUsable(row);
+  if (usableError) return { ok: false, error: usableError };
 
   const resolved = await resolveProductPrice(params.productId, params.agencyId);
   if (!resolved) return { ok: false, error: "Product not found." };
@@ -263,6 +272,62 @@ export async function validateDiscountCode(params: {
     discount_amount: discount,
     final_amount: final,
     currency: resolved.currency,
+    is_free: final <= 0,
+  };
+}
+
+/**
+ * Validate a discount code against the caller's agency SUBSCRIPTION price.
+ *
+ * Unlike validateDiscountCode (which prices a single product), this resolves
+ * the seat-aware monthly total (base + extra brokers) via quoteAgencyPlan so
+ * the discount reflects what the agency would actually be charged at signup.
+ * The discount applies to the first month's agency fee; ongoing bespoke deals
+ * are handled by per-agency pricing overrides, not codes.
+ */
+export async function validateSubscriptionDiscount(params: {
+  code: string;
+  productId: string;
+}): Promise<DiscountValidationResult> {
+  const session = await getServerSession(authOptions);
+  if (
+    !session?.user?.id ||
+    session.user.role !== "broker" ||
+    session.user.agencyRole !== "owner"
+  ) {
+    return { ok: false, error: "Only agency owners can apply discount codes." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "No agency found on your account." };
+
+  const code = normalizeCode(params.code);
+  if (!code) return { ok: false, error: "Enter a code." };
+
+  const supabase = createServiceRoleClient();
+  const { data: row } = await supabase
+    .from("discount_codes")
+    .select("*")
+    .eq("code", code)
+    .single();
+
+  if (!row) return { ok: false, error: "Invalid code." };
+  const usableError = checkDiscountRowUsable(row);
+  if (usableError) return { ok: false, error: usableError };
+
+  const quote = await quoteAgencyPlan(agencyId, params.productId);
+  if (!quote) return { ok: false, error: "Could not price your subscription." };
+
+  const original = quote.monthly_total_cents;
+  const discount = Math.min(original, Math.round((original * row.percent_off) / 100));
+  const final = original - discount;
+
+  return {
+    ok: true,
+    code: { id: row.id, code: row.code, percent_off: row.percent_off },
+    original_amount: original,
+    discount_amount: discount,
+    final_amount: final,
+    currency: quote.currency,
     is_free: final <= 0,
   };
 }

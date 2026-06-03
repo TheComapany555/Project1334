@@ -10,6 +10,7 @@ import {
 } from "@stripe/react-stripe-js";
 import stripePromise from "@/lib/stripe-client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
@@ -22,8 +23,13 @@ import {
   Users,
   CreditCard,
   FileText,
+  TicketPercent,
+  X,
 } from "lucide-react";
+import { validateSubscriptionDiscount } from "@/lib/actions/discount-codes";
 import type { Product } from "@/lib/types/products";
+import type { ResolvedPlanQuote } from "@/lib/actions/subscription-pricing";
+import type { DiscountValidationResult } from "@/lib/types/discount-codes";
 
 function formatPrice(cents: number, currency: string): string {
   const formatted = new Intl.NumberFormat("en-AU", {
@@ -37,10 +43,12 @@ function formatPrice(cents: number, currency: string): string {
 // ─── Payment Form ────────────────────────────────────────────────────────────
 
 function SubscriptionPaymentForm({
-  product,
+  totalCents,
+  currency,
   onSuccess,
 }: {
-  product: Product;
+  totalCents: number;
+  currency: string;
   onSuccess: () => void;
 }) {
   const stripe = useStripe();
@@ -106,7 +114,7 @@ function SubscriptionPaymentForm({
         ) : (
           <>
             <Lock className="h-4 w-4" />
-            Subscribe for {formatPrice(product.price, product.currency)}/month
+            Subscribe for {formatPrice(totalCents, currency)}/month
           </>
         )}
       </Button>
@@ -158,9 +166,18 @@ function SuccessView() {
 
 type Props = {
   product: Product;
+  /** Seat-aware quote for this agency. When present, the true monthly total
+   *  (base + extra seats) is shown instead of just the base plan price. */
+  quote?: ResolvedPlanQuote | null;
 };
 
-export function SubscriptionCheckout({ product }: Props) {
+export function SubscriptionCheckout({ product, quote }: Props) {
+  // Prefer the seat-aware quote; fall back to the flat base price.
+  const currency = quote?.currency ?? product.currency;
+  const baseCents = quote?.base_price_cents ?? product.price;
+  const extraSeats = quote?.extra_seats ?? 0;
+  const extraSeatCents = quote?.extra_seat_price_cents ?? 0;
+  const totalCents = quote?.monthly_total_cents ?? product.price;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
@@ -170,36 +187,86 @@ export function SubscriptionCheckout({ product }: Props) {
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
   const [invoiceSubmitted, setInvoiceSubmitted] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  // Discount code (applies to the first month's agency fee only).
+  const [discountInput, setDiscountInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountValidationResult | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [validatingDiscount, setValidatingDiscount] = useState(false);
   const initCalledRef = useRef(false);
 
-  const initializePayment = useCallback(async () => {
-    if (initCalledRef.current) return;
-    initCalledRef.current = true;
-    setIsInitializing(true);
-    setInitError(null);
+  const hasDiscount = !!(appliedDiscount && appliedDiscount.ok);
+  // What the agency pays for the FIRST month (after any discount). The recurring
+  // monthly price stays at the full seat-aware total.
+  const firstMonthCents = hasDiscount ? appliedDiscount!.final_amount : totalCents;
+
+  // Re-create the PaymentIntent. `manual` lets apply/remove re-init even though
+  // the initial mount is guarded against StrictMode double-calls.
+  const initializePayment = useCallback(
+    async (code: string | null, manual = false) => {
+      if (!manual && initCalledRef.current) return;
+      initCalledRef.current = true;
+      setIsInitializing(true);
+      setInitError(null);
+      setClientSecret(null);
+      try {
+        const res = await fetch("/api/stripe/create-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: product.id, discountCode: code ?? undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setInitError(data.error ?? "Failed to initialize checkout");
+          if (!manual) initCalledRef.current = false;
+          return;
+        }
+        setClientSecret(data.clientSecret);
+      } catch {
+        setInitError("Network error. Please try again.");
+        if (!manual) initCalledRef.current = false;
+      } finally {
+        setIsInitializing(false);
+      }
+    },
+    [product.id],
+  );
+
+  async function handleApplyDiscount() {
+    const code = discountInput.trim();
+    if (!code) return;
+    setValidatingDiscount(true);
+    setDiscountError(null);
     try {
-      const res = await fetch("/api/stripe/create-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setInitError(data.error ?? "Failed to initialize checkout");
-        initCalledRef.current = false;
+      const result = await validateSubscriptionDiscount({ code, productId: product.id });
+      if (!result.ok) {
+        setDiscountError(result.error ?? "Invalid code.");
         return;
       }
-      setClientSecret(data.clientSecret);
+      if (result.is_free) {
+        setDiscountError(
+          "This code makes the subscription free — please use “Request invoice” or contact sales.",
+        );
+        return;
+      }
+      setAppliedDiscount(result);
+      // Re-price the first-month PaymentIntent with the code applied.
+      await initializePayment(code, true);
     } catch {
-      setInitError("Network error. Please try again.");
-      initCalledRef.current = false;
+      setDiscountError("Could not validate the code. Please try again.");
     } finally {
-      setIsInitializing(false);
+      setValidatingDiscount(false);
     }
-  }, [product.id]);
+  }
+
+  function handleRemoveDiscount() {
+    setAppliedDiscount(null);
+    setDiscountInput("");
+    setDiscountError(null);
+    void initializePayment(null, true);
+  }
 
   useEffect(() => {
-    initializePayment();
+    initializePayment(null);
   }, [initializePayment]);
 
   if (showSuccess) {
@@ -216,22 +283,63 @@ export function SubscriptionCheckout({ product }: Props) {
             <Separator />
             <div className="space-y-2.5">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{product.name}</span>
+                <span className="text-muted-foreground">
+                  {product.name}
+                  {quote ? (
+                    <span className="text-xs">
+                      {" "}({quote.included_seats} broker
+                      {quote.included_seats === 1 ? "" : "s"} included)
+                    </span>
+                  ) : null}
+                </span>
                 <span className="font-medium">
-                  {formatPrice(product.price, product.currency)}
+                  {formatPrice(baseCents, currency)}
                 </span>
               </div>
+              {extraSeats > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    + {extraSeats} extra seat{extraSeats === 1 ? "" : "s"} ×{" "}
+                    {formatPrice(extraSeatCents, currency)}
+                  </span>
+                  <span className="font-medium">
+                    {formatPrice(extraSeats * extraSeatCents, currency)}
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 Billed monthly · Cancel anytime
               </p>
             </div>
+            {hasDiscount && (
+              <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-400">
+                <span>
+                  Discount ({appliedDiscount!.code?.percent_off}% off first month)
+                </span>
+                <span>−{formatPrice(appliedDiscount!.discount_amount, currency)}</span>
+              </div>
+            )}
             <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total</span>
-              <span className="text-xl font-bold">
-                {formatPrice(product.price, product.currency)}/mo
-              </span>
-            </div>
+            {hasDiscount ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Due today</span>
+                  <span className="text-xl font-bold">
+                    {formatPrice(firstMonthCents, currency)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">
+                  then {formatPrice(totalCents, currency)}/mo
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Total</span>
+                <span className="text-xl font-bold">
+                  {formatPrice(totalCents, currency)}/mo
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border bg-primary/[0.02] dark:bg-primary/[0.04] p-5 space-y-3">
@@ -369,7 +477,7 @@ export function SubscriptionCheckout({ product }: Props) {
 
                   <Button type="submit" variant="outline" className="w-full h-11 gap-2" disabled={invoiceSubmitting}>
                     {invoiceSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                    {invoiceSubmitting ? "Submitting…" : `Request invoice (${formatPrice(product.price, product.currency)}/mo)`}
+                    {invoiceSubmitting ? "Submitting…" : `Request invoice (${formatPrice(totalCents, currency)}/mo)`}
                   </Button>
 
                   <p className="text-center text-[11px] text-muted-foreground">
@@ -377,14 +485,82 @@ export function SubscriptionCheckout({ product }: Props) {
                   </p>
                 </form>
               )
-            ) : isInitializing ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Preparing secure checkout…
-                </p>
-              </div>
-            ) : initError ? (
+            ) : (
+              <div className="space-y-5">
+                {/* Discount code — applies to the first month's agency fee */}
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  {hasDiscount ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
+                        <TicketPercent className="h-4 w-4 shrink-0" />
+                        <span>
+                          <strong>{appliedDiscount!.code?.code}</strong> applied —{" "}
+                          {appliedDiscount!.code?.percent_off}% off first month
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveDiscount}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Remove discount code"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="sub-discount"
+                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+                      >
+                        <TicketPercent className="h-3.5 w-3.5" />
+                        Have a discount code?
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="sub-discount"
+                          value={discountInput}
+                          onChange={(e) => setDiscountInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleApplyDiscount();
+                            }
+                          }}
+                          placeholder="Enter code"
+                          className="h-9 uppercase"
+                          autoComplete="off"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9"
+                          onClick={handleApplyDiscount}
+                          disabled={validatingDiscount || !discountInput.trim()}
+                        >
+                          {validatingDiscount ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Apply"
+                          )}
+                        </Button>
+                      </div>
+                      {discountError && (
+                        <p className="text-xs text-destructive">{discountError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {isInitializing ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">
+                      Preparing secure checkout…
+                    </p>
+                  </div>
+                ) : initError ? (
               <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
                 <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
                   <AlertCircle className="h-6 w-6 text-destructive" />
@@ -395,7 +571,16 @@ export function SubscriptionCheckout({ product }: Props) {
                     {initError}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={initializePayment}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    initializePayment(
+                      hasDiscount ? appliedDiscount!.code?.code ?? null : null,
+                      true,
+                    )
+                  }
+                >
                   Try again
                 </Button>
               </div>
@@ -453,11 +638,14 @@ export function SubscriptionCheckout({ product }: Props) {
                 }}
               >
                 <SubscriptionPaymentForm
-                  product={product}
+                  totalCents={firstMonthCents}
+                  currency={currency}
                   onSuccess={() => setShowSuccess(true)}
                 />
               </Elements>
-            ) : null}
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
       </div>

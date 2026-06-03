@@ -37,13 +37,24 @@ export async function loadBrokerSignatureContext(
 ): Promise<BrokerSignatureContext | null> {
   const supabase = createServiceRoleClient();
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(
       "name, phone, email_public, slug, photo_url, social_links, agency_id, signature_title, signature_html, signature_enabled",
     )
     .eq("id", brokerId)
     .maybeSingle();
+  if (profileError) {
+    // Don't fail the email send over a missing signature — but log loudly.
+    // The most common cause is the signature columns not existing yet
+    // (signature_title / signature_html / signature_enabled), i.e. migration
+    // 20260530000001_email_signatures.sql has not been applied to this DB.
+    console.error(
+      `[email-signature] Failed to load profile ${brokerId}: ${profileError.message}. ` +
+        "If a signature_* column is missing, apply migration 20260530000001_email_signatures.sql.",
+    );
+    return null;
+  }
   if (!profile) return null;
 
   const { data: user } = await supabase

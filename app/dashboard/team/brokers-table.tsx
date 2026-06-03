@@ -9,7 +9,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Pencil } from "lucide-react";
-import { RemoveBrokerButton } from "./invitation-actions";
+import { RemoveBrokerButton, ResendSetPasswordButton } from "./invitation-actions";
+import { ImpersonateButton } from "@/components/shared/impersonate-button";
 
 type Broker = {
   id: string;
@@ -123,10 +124,20 @@ export function BrokersTable({ brokers }: { brokers: Broker[] }) {
               </Link>
             </Button>
             {row.original.agency_role !== "owner" && (
-              <RemoveBrokerButton
-                brokerId={row.original.id}
-                brokerName={row.original.name}
-              />
+              <>
+                <ImpersonateButton
+                  brokerId={row.original.id}
+                  brokerName={row.original.name}
+                />
+                <ResendSetPasswordButton
+                  brokerId={row.original.id}
+                  brokerName={row.original.name}
+                />
+                <RemoveBrokerButton
+                  brokerId={row.original.id}
+                  brokerName={row.original.name}
+                />
+              </>
             )}
           </div>
         ),

@@ -41,7 +41,13 @@ export function AddBrokerForm() {
         phone: data.phone?.trim() || null,
       });
       if (result.ok) {
-        toast.success(`${data.name} added. A Set Password email has been sent.`);
+        if (result.emailSent === false) {
+          toast.warning(
+            result.warning ?? `${data.name} added, but the Set Password email failed to send.`,
+          );
+        } else {
+          toast.success(`${data.name} added. A Set Password email has been sent.`);
+        }
         reset();
         router.refresh();
       } else {

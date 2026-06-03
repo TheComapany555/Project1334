@@ -133,6 +133,21 @@ function infoRow(label: string, value: string): string {
 /*  Email: Verification                                                */
 /* ------------------------------------------------------------------ */
 
+/** Plain-text mirror of {@link verificationEmail}. Sending multipart improves deliverability. */
+export function verificationEmailText(verifyUrl: string, name: string): string {
+  return [
+    `Hi ${name},`,
+    "",
+    "Welcome to Salebiz! Confirm your email address to activate your account:",
+    "",
+    verifyUrl,
+    "",
+    "If you didn't sign up, you can safely ignore this email.",
+    "",
+    "— The Salebiz team",
+  ].join("\n");
+}
+
 export function verificationEmail(verifyUrl: string, name: string): string {
   return baseLayout(`
     <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
@@ -187,6 +202,21 @@ export function mobileUserOtpEmail(code: string, name: string): string {
 /* ------------------------------------------------------------------ */
 /*  Email: Password Reset                                              */
 /* ------------------------------------------------------------------ */
+
+/** Plain-text mirror of {@link passwordResetEmail}. */
+export function passwordResetEmailText(resetUrl: string): string {
+  return [
+    "Hi,",
+    "",
+    "We received a request to reset your Salebiz password. Use the link below to choose a new one:",
+    "",
+    resetUrl,
+    "",
+    "This link expires in 1 hour. If you didn't request this, you can ignore this email.",
+    "",
+    "— The Salebiz team",
+  ].join("\n");
+}
 
 export function passwordResetEmail(resetUrl: string): string {
   return baseLayout(`

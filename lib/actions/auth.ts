@@ -5,7 +5,13 @@ import { nanoid } from "nanoid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateSlugFromName } from "@/lib/slug";
 import { Resend } from "resend";
-import { verificationEmail, passwordResetEmail, adminBrokerSignupEmail } from "@/lib/email-templates";
+import {
+  verificationEmail,
+  verificationEmailText,
+  passwordResetEmail,
+  passwordResetEmailText,
+  adminBrokerSignupEmail,
+} from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import { checkSlugAvailable } from "@/lib/actions/profile";
@@ -117,6 +123,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
     to: email,
     subject: "Verify your Salebiz account",
     html: verificationEmail(verifyUrl, name ?? "there"),
+    text: verificationEmailText(verifyUrl, name ?? "there"),
   }).catch(() => {}); // don't block registration if email fails
 
   return { ok: true };
@@ -384,6 +391,7 @@ export async function requestPasswordReset(formData: FormData): Promise<{ ok: bo
     to: email,
     subject: "Reset your Salebiz password",
     html: passwordResetEmail(resetUrl),
+    text: passwordResetEmailText(resetUrl),
   }).catch(() => {});
 
   return { ok: true };
@@ -577,6 +585,7 @@ export async function registerBuyer(formData: FormData): Promise<RegisterResult>
       to: email,
       subject: "Verify your Salebiz account",
       html: verificationEmail(verifyUrl, name || "there"),
+      text: verificationEmailText(verifyUrl, name || "there"),
     })
     .catch(() => {});
 

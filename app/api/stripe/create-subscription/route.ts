@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { quoteAgencyPlan } from "@/lib/actions/subscription-pricing";
+import { validateSubscriptionDiscount } from "@/lib/actions/discount-codes";
+
+/** Stripe's minimum chargeable amount (~$0.50 in AUD/USD), in cents. */
+const STRIPE_MIN_CHARGE_CENTS = 50;
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -21,7 +25,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { productId } = body as { productId: string };
+  const { productId, discountCode } = body as {
+    productId: string;
+    discountCode?: string;
+  };
   if (!productId) {
     return NextResponse.json({ error: "Product ID required" }, { status: 400 });
   }
@@ -122,7 +129,37 @@ export async function POST(req: NextRequest) {
     }
 
     // First-month charge = base + any extra-seat overage at sign-up time.
-    const firstChargeCents = quote.monthly_total_cents;
+    // A discount code (if supplied + valid) reduces this first month's agency
+    // fee. Ongoing/bespoke deals are handled via per-agency pricing overrides,
+    // so the recurring Stripe sub created in the webhook stays at full price.
+    let firstChargeCents = quote.monthly_total_cents;
+    let discountCodeId: string | null = null;
+    let discountAmountCents = 0;
+
+    if (discountCode?.trim()) {
+      const result = await validateSubscriptionDiscount({
+        code: discountCode.trim(),
+        productId,
+      });
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      if (result.is_free || result.final_amount < STRIPE_MIN_CHARGE_CENTS) {
+        // Can't charge $0 (or sub-minimum) on a card. Route fully-comped /
+        // near-free deals through admin activation or invoicing instead.
+        return NextResponse.json(
+          {
+            error:
+              "This code brings the first month below the minimum card charge. " +
+              "Use “Request invoice” or contact sales — an admin will activate your account.",
+          },
+          { status: 400 },
+        );
+      }
+      firstChargeCents = result.final_amount;
+      discountCodeId = result.code?.id ?? null;
+      discountAmountCents = result.discount_amount;
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: firstChargeCents,
@@ -142,6 +179,14 @@ export async function POST(req: NextRequest) {
         extra_seat_price: String(quote.extra_seat_price_cents ?? 0),
         seat_quantity: String(quote.current_seats),
         base_price_cents: String(quote.base_price_cents),
+        // Discount applied to this first month (webhook increments usage).
+        ...(discountCodeId
+          ? {
+              discount_code_id: discountCodeId,
+              discount_amount: String(discountAmountCents),
+              original_amount: String(quote.monthly_total_cents),
+            }
+          : {}),
       },
     });
 

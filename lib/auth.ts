@@ -1,7 +1,26 @@
 import type { NextAuthOptions } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  canActorImpersonate,
+  getUserDisplayName,
+  loadSessionFieldsForUser,
+  type SessionUserFields,
+} from "@/lib/auth-session-fields";
+
+/** Copy a user's identity fields onto the JWT (used by login + impersonation swap). */
+function applySessionFields(token: JWT, fields: SessionUserFields) {
+  token.id = fields.id;
+  token.role = fields.role;
+  token.emailVerified = fields.emailVerified;
+  token.agencyId = fields.agencyId;
+  token.agencyRole = fields.agencyRole;
+  token.agencyName = fields.agencyName;
+  token.subscriptionStatus = fields.subscriptionStatus;
+  token.subscriptionCheckedAt = Date.now();
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -117,7 +136,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -127,6 +146,36 @@ export const authOptions: NextAuthOptions = {
         token.agencyName = user.agencyName;
         token.subscriptionStatus = user.subscriptionStatus;
         token.subscriptionCheckedAt = Date.now();
+      }
+
+      // ── "Manage as broker" (impersonation) identity swap ──
+      // Triggered by useSession().update({ impersonate } | { stopImpersonating }).
+      // Authorization is re-checked here against the REAL actor (token.impersonator
+      // when already managing someone, else token.id) so a forged update payload
+      // can never widen privileges.
+      if (trigger === "update" && session && typeof session === "object") {
+        const update = session as { impersonate?: string; stopImpersonating?: boolean };
+
+        if (update.impersonate) {
+          const realActorId = token.impersonator?.id ?? (token.id as string | undefined);
+          if (realActorId && (await canActorImpersonate(realActorId, update.impersonate))) {
+            const fields = await loadSessionFieldsForUser(update.impersonate);
+            if (fields) {
+              if (!token.impersonator) {
+                token.impersonator = {
+                  id: realActorId,
+                  role: (token.role as "broker" | "admin" | "user") ?? "broker",
+                  name: await getUserDisplayName(realActorId),
+                };
+              }
+              applySessionFields(token, fields);
+            }
+          }
+        } else if (update.stopImpersonating && token.impersonator) {
+          const fields = await loadSessionFieldsForUser(token.impersonator.id);
+          if (fields) applySessionFields(token, fields);
+          token.impersonator = null;
+        }
       }
 
       // Refresh subscription status from DB periodically
@@ -180,6 +229,7 @@ export const authOptions: NextAuthOptions = {
             | "cancelled"
             | "expired"
             | "trialing") ?? null;
+        session.user.impersonator = token.impersonator ?? null;
       }
       return session;
     },

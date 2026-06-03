@@ -110,7 +110,12 @@ export function AgenciesTable({ result }: { result: Paginated<AgencyForAdmin> })
         header: () => <span className="sr-only">Actions</span>,
         enableHiding: false,
         cell: ({ row }) => (
-          <AgencyActions agencyId={row.original.id} status={row.original.status} />
+          <AgencyActions
+            agencyId={row.original.id}
+            status={row.original.status}
+            ownerId={row.original.owner_id}
+            ownerName={row.original.owner_name}
+          />
         ),
       },
     ],

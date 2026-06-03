@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 import { SubscriptionGate } from "@/components/subscription/subscription-gate";
 import { BuyerProfilePanelMount } from "@/components/dashboard/buyer-profile-panel";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import type { SubscriptionStatus } from "@/lib/types/subscriptions";
 
 export default async function DashboardLayout({
@@ -70,6 +71,7 @@ export default async function DashboardLayout({
       >
         <AppSidebar user={user} />
         <SidebarInset>
+          <ImpersonationBanner />
           <SiteHeader user={user} />
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">

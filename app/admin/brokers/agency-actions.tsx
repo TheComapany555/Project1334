@@ -19,18 +19,47 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useSession } from "next-auth/react";
 import { setAgencyStatus } from "@/lib/actions/admin-brokers";
-import { Loader2, DollarSign } from "lucide-react";
+import { startImpersonation } from "@/lib/actions/impersonation";
+import { Loader2, DollarSign, UserCog } from "lucide-react";
 import Link from "next/link";
 
-type Props = { agencyId: string; status: string };
+type Props = {
+  agencyId: string;
+  status: string;
+  ownerId?: string | null;
+  ownerName?: string | null;
+};
 
-export function AgencyActions({ agencyId, status }: Props) {
+export function AgencyActions({ agencyId, status, ownerId, ownerName }: Props) {
   const router = useRouter();
+  const { update } = useSession();
   const isActive = status === "active";
   const isPending = status === "pending";
   const [confirmDisable, setConfirmDisable] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [managing, setManaging] = useState(false);
+
+  async function handleManageAsOwner() {
+    if (!ownerId) return;
+    setManaging(true);
+    try {
+      const result = await startImpersonation(ownerId);
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not start managing this owner.");
+        return;
+      }
+      await update({ impersonate: ownerId });
+      toast.success(`You are now managing ${result.brokerName ?? ownerName ?? "the agency owner"}.`);
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      toast.error("Could not start managing this owner.");
+    } finally {
+      setManaging(false);
+    }
+  }
 
   async function handleSetStatus(newStatus: "active" | "disabled") {
     setLoading(true);
@@ -66,6 +95,20 @@ export function AgencyActions({ agencyId, status }: Props) {
               Custom pricing
             </Link>
           </DropdownMenuItem>
+          {isActive && ownerId && (
+            <DropdownMenuItem
+              onClick={handleManageAsOwner}
+              disabled={managing}
+              className="flex items-center gap-2"
+            >
+              {managing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <UserCog className="h-3.5 w-3.5" />
+              )}
+              Manage as owner
+            </DropdownMenuItem>
+          )}
           {isPending && (
             <DropdownMenuItem onClick={() => handleSetStatus("active")}>
               Approve agency

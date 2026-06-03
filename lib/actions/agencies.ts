@@ -447,7 +447,7 @@ export async function addBrokerDirectly(opts: {
   email: string;
   name: string;
   phone?: string | null;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; emailSent?: boolean; warning?: string }> {
   const { agencyId, userId } = await requireAgencyOwner();
 
   const email = opts.email?.toLowerCase().trim();
@@ -567,7 +567,7 @@ export async function addBrokerDirectly(opts: {
     ? inviterProfile.name
     : (agency?.name ?? "your agency");
 
-  await sendSetPasswordEmail({
+  const emailResult = await sendSetPasswordEmail({
     email,
     name,
     setPasswordUrl: buildSetPasswordUrl(tokenResult.token),
@@ -575,6 +575,70 @@ export async function addBrokerDirectly(opts: {
     createdByLabel,
     isAgencyOwner: false,
   });
+
+  return {
+    ok: true,
+    emailSent: emailResult.ok,
+    warning: emailResult.ok
+      ? undefined
+      : 'The broker account was created, but the set-password email could not be sent. Use the "Resend" action on the broker to try again.',
+  };
+}
+
+/**
+ * Re-issue a fresh "set your password" link to a broker in the caller's agency
+ * and email it. Used when the original welcome email was missed, bounced, or the
+ * 7-day token expired before the broker set their password.
+ *
+ * Issuing a new token invalidates any prior one (see createSetPasswordToken),
+ * and the link only ever lands in the broker's own verified inbox, so this is
+ * safe to expose to agency owners for their own team.
+ */
+export async function resendSetPasswordLink(
+  brokerId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+
+  // Confirm the target broker belongs to the caller's agency before touching them.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, name, agency_id")
+    .eq("id", brokerId)
+    .maybeSingle();
+  if (!profile || profile.agency_id !== agencyId) {
+    return { ok: false, error: "Broker not found in your agency." };
+  }
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("email")
+    .eq("id", brokerId)
+    .maybeSingle();
+  if (!user?.email) {
+    return { ok: false, error: "This broker has no email on file." };
+  }
+
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("name")
+    .eq("id", agencyId)
+    .maybeSingle();
+
+  const tokenResult = await createSetPasswordToken(brokerId);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error };
+
+  const emailResult = await sendSetPasswordEmail({
+    email: user.email,
+    name: profile.name ?? null,
+    setPasswordUrl: buildSetPasswordUrl(tokenResult.token),
+    agencyName: agency?.name ?? null,
+    createdByLabel: agency?.name ?? "your agency",
+    isAgencyOwner: false,
+  });
+  if (!emailResult.ok) {
+    return { ok: false, error: `Could not send the email: ${emailResult.error}` };
+  }
 
   return { ok: true };
 }

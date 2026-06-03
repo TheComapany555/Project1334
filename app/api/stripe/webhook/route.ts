@@ -424,6 +424,14 @@ async function handleSubscriptionPayment(
     })
     .eq("id", subscriptionDbId);
 
+  // If a discount code was applied to this first-month signup, count the use.
+  const discountCodeId = paymentIntent.metadata?.discount_code_id;
+  if (discountCodeId) {
+    await incrementDiscountCodeUsage(discountCodeId).catch((e) =>
+      console.error("[webhook] Failed to increment discount usage:", e),
+    );
+  }
+
   // Set up Stripe recurring subscription for future auto-billing.
   //
   // The metadata stamped by create-subscription/route.ts gives us the

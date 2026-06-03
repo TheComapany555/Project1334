@@ -12,8 +12,21 @@ import {
 } from "@/lib/account-provisioning";
 
 export type AdminCreateResult =
-  | { ok: true; userId: string; agencyId: string | null }
+  | {
+      ok: true;
+      userId: string;
+      agencyId: string | null;
+      /** Whether the "set your password" email actually went out. */
+      emailSent: boolean;
+      /** Present when the account was created but the email failed to send. */
+      warning?: string;
+    }
   | { ok: false; error: string };
+
+/** Shown when the account exists but the set-password email could not be delivered. */
+const EMAIL_FAILED_WARNING =
+  "The account was created, but the set-password email could not be sent. " +
+  'Double-check the email address and email setup — the user can get a fresh link via "Forgot password" on the login page.';
 
 async function getAdminSession() {
   const { getServerSession } = await import("next-auth");
@@ -173,7 +186,7 @@ export async function createAgencyByAdmin(opts: {
     return { ok: false, error: tokenResult.error };
   }
   const setPasswordUrl = buildSetPasswordUrl(tokenResult.token);
-  await sendSetPasswordEmail({
+  const emailResult = await sendSetPasswordEmail({
     email,
     name: ownerName,
     setPasswordUrl,
@@ -188,10 +201,16 @@ export async function createAgencyByAdmin(opts: {
     action: "create_agency",
     targetUserId: newUser.id,
     targetAgencyId: agency.id,
-    metadata: { email, ownerName, agencyName },
+    metadata: { email, ownerName, agencyName, emailSent: emailResult.ok },
   });
 
-  return { ok: true, userId: newUser.id, agencyId: agency.id };
+  return {
+    ok: true,
+    userId: newUser.id,
+    agencyId: agency.id,
+    emailSent: emailResult.ok,
+    warning: emailResult.ok ? undefined : EMAIL_FAILED_WARNING,
+  };
 }
 
 /**
@@ -284,7 +303,7 @@ export async function createBrokerByAdmin(opts: {
     return { ok: false, error: tokenResult.error };
   }
   const setPasswordUrl = buildSetPasswordUrl(tokenResult.token);
-  await sendSetPasswordEmail({
+  const emailResult = await sendSetPasswordEmail({
     email,
     name,
     setPasswordUrl,
@@ -299,10 +318,16 @@ export async function createBrokerByAdmin(opts: {
     action: "create_broker",
     targetUserId: newUser.id,
     targetAgencyId: agency.id,
-    metadata: { email, name, agencyRole },
+    metadata: { email, name, agencyRole, emailSent: emailResult.ok },
   });
 
-  return { ok: true, userId: newUser.id, agencyId: agency.id };
+  return {
+    ok: true,
+    userId: newUser.id,
+    agencyId: agency.id,
+    emailSent: emailResult.ok,
+    warning: emailResult.ok ? undefined : EMAIL_FAILED_WARNING,
+  };
 }
 
 /** Lightweight agency list for the "Create Broker" agency-picker (no admin gate inside — caller already gates). */
