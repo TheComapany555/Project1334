@@ -10,20 +10,25 @@ const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
 /** Cookie that marks a visitor as having passed the site gate. */
 export const SITE_GATE_COOKIE = "salebiz_site_access";
 
-/** How long a successful unlock lasts before the visitor must re-enter it. */
-export const SITE_GATE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+/**
+ * Hard ceiling on how long one unlock can stay valid even if the browser is
+ * left open. The cookie itself is SESSION-scoped (no Max-Age) so it clears when
+ * the browser closes — so visitors re-enter the password every time they come
+ * back to the site, not just the first time ever.
+ */
+const SITE_GATE_TOKEN_TTL = "12h";
 
 /** True when the gate should be enforced. Off by default to avoid lockouts. */
 export function isSiteGateEnabled(): boolean {
   return process.env.SITE_GATE_ENABLED === "true";
 }
 
-/** Issue a signed access token to drop in the gate cookie. */
+/** Issue a signed access token to drop in the (session-scoped) gate cookie. */
 export async function signSiteAccessToken(): Promise<string> {
   return new SignJWT({ gate: "site" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("30d")
+    .setExpirationTime(SITE_GATE_TOKEN_TTL)
     .sign(secret);
 }
 

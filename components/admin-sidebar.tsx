@@ -27,6 +27,7 @@ import {
   Tag01Icon,
   Megaphone01Icon,
   Analytics02Icon,
+  CustomerSupportIcon,
 } from "@hugeicons/core-free-icons"
 
 export type AdminSidebarUser = {
@@ -43,6 +44,7 @@ const adminNav = [
   { title: "Listings", url: "/admin/listings", icon: <HugeiconsIcon icon={FileIcon} strokeWidth={2} /> },
   { title: "Categories", url: "/admin/categories", icon: <HugeiconsIcon icon={FolderIcon} strokeWidth={2} /> },
   { title: "Enquiries", url: "/admin/enquiries", icon: <HugeiconsIcon icon={MailIcon} strokeWidth={2} /> },
+  { title: "Support", url: "/admin/support", icon: <HugeiconsIcon icon={CustomerSupportIcon} strokeWidth={2} /> },
   { title: "Contacts", url: "/admin/contacts", icon: <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={2} /> },
   { title: "Pricing & Plans", url: "/admin/products", icon: <HugeiconsIcon icon={Tag01Icon} strokeWidth={2} /> },
   { title: "Payments & Subscriptions", url: "/admin/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },

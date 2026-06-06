@@ -992,3 +992,75 @@ export function buyerAlertMatchEmail(opts: {
     </p>
   `);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Support tickets (Feature #8)                                       */
+/* ------------------------------------------------------------------ */
+
+/** Sent ONCE to the broker who submitted a ticket, confirming receipt. */
+export function supportTicketConfirmationEmail(opts: {
+  brokerName: string | null;
+  ticketNo: number;
+  subject: string;
+  ticketUrl: string;
+}): string {
+  const greeting = opts.brokerName
+    ? `Hi ${esc(opts.brokerName.split(/\s+/)[0])},`
+    : "Hi,";
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      We&apos;ve received your request
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Ticket #${opts.ticketNo} has been logged with our support team.
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">${greeting}</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      Thanks for reaching out. Your support ticket has been created and our team
+      will get back to you as soon as possible. You can track its progress and
+      reply from your dashboard.
+    </p>
+
+    <div style="margin:0 0 8px;padding:16px 20px;background:#f8f9fa;border-radius:12px;border:1px solid #e5e7eb;">
+      <p style="margin:0 0 2px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Subject</p>
+      <p style="margin:0;font-size:16px;color:#0a0a0a;font-weight:600;">${esc(opts.subject)}</p>
+    </div>
+
+    ${ctaButton(opts.ticketUrl, "View ticket")}
+  `);
+}
+
+/** Sent to admins when a broker submits a new ticket. */
+export function supportTicketAdminNotificationEmail(opts: {
+  ticketNo: number;
+  subject: string;
+  brokerName: string | null;
+  brokerEmail: string | null;
+  categoryLabel: string;
+  priorityLabel: string;
+  messageExcerpt: string;
+  ticketUrl: string;
+}): string {
+  return baseLayout(`
+    <p style="margin:0 0 4px 0;font-size:20px;font-weight:700;color:${BRAND_PRIMARY};">
+      New Support Ticket
+    </p>
+    <p style="margin:0 0 20px 0;color:#666666;font-size:14px;">
+      Ticket #${opts.ticketNo} was submitted by a broker.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px 0;background-color:#f8f9fa;border:1px solid #e8ebe9;border-radius:8px;">
+      ${infoRow("Subject", esc(opts.subject))}
+      ${infoRow("From", esc(opts.brokerName ?? opts.brokerEmail ?? "Broker"))}
+      ${opts.brokerEmail ? infoRow("Email", esc(opts.brokerEmail)) : ""}
+      ${infoRow("Category", esc(opts.categoryLabel))}
+      ${infoRow("Priority", esc(opts.priorityLabel))}
+    </table>
+
+    <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Message</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#333333;line-height:1.6;white-space:pre-line;">${esc(opts.messageExcerpt)}</p>
+
+    ${ctaButton(opts.ticketUrl, "Open in admin")}
+  `);
+}

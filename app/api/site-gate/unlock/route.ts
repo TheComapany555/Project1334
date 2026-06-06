@@ -3,7 +3,6 @@ import * as bcrypt from "bcryptjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   SITE_GATE_COOKIE,
-  SITE_GATE_MAX_AGE_SECONDS,
   isSiteGateEnabled,
   signSiteAccessToken,
 } from "@/lib/site-gate";
@@ -52,12 +51,14 @@ export async function POST(request: Request) {
 
     const token = await signSiteAccessToken();
     const res = NextResponse.json({ ok: true });
+    // No maxAge/expires → a SESSION cookie: it's dropped when the browser
+    // closes, so the visitor must re-enter the password next time they land on
+    // the site (not just the first time). The signed token also self-expires.
     res.cookies.set(SITE_GATE_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: SITE_GATE_MAX_AGE_SECONDS,
     });
     return res;
   } catch (err) {

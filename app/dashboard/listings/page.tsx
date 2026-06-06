@@ -4,6 +4,7 @@ import {
   getCategories,
   getListingHighlights,
 } from "@/lib/actions/listings";
+import { getAgencyBrokers } from "@/lib/actions/agencies";
 import { getBrokerSlug } from "@/lib/actions/profile";
 import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/admin/page-header";
 import { BrokerListingsWithFilter } from "@/app/dashboard/listings/broker-listings-filter";
+import { ImportListingsButton } from "@/components/dashboard/import-listings-button";
 import { PlusIcon, Building2Icon } from "lucide-react";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
 
@@ -39,9 +41,14 @@ export default async function ListingsPage({
   const pageSize = Math.max(1, Number(pickStr(sp.pageSize) ?? DEFAULT_PAGE_SIZE));
   const q = pickStr(sp.q);
   const status = pickStr(sp.status);
+  const ownershipParam = pickStr(sp.ownership);
+  const ownership =
+    ownershipParam === "created" || ownershipParam === "assigned"
+      ? ownershipParam
+      : undefined;
 
   const [result, brokerSlug, categories, highlights, session] = await Promise.all([
-    listBrokerListings({ page, pageSize, q, status }),
+    listBrokerListings({ page, pageSize, q, status, ownership }),
     getBrokerSlug(),
     getCategories(),
     getListingHighlights(),
@@ -49,7 +56,11 @@ export default async function ListingsPage({
   ]);
 
   const isAgencyOwner = session?.user?.agencyRole === "owner";
+  const isAgencyMember = !!session?.user?.agencyId && !isAgencyOwner;
   const canFeature = !session?.user?.agencyId || isAgencyOwner;
+
+  // Agency owners can assign listings to their brokers — load the team for the picker.
+  const agencyBrokers = isAgencyOwner ? await getAgencyBrokers() : [];
 
   // Stats use the page's count from server (`total`) for accurate total.
   // Per-status counts are computed from the visible page only — for accurate
@@ -58,7 +69,7 @@ export default async function ListingsPage({
   const published = result.rows.filter((l) => l.status === "published").length;
   const drafts = result.rows.filter((l) => l.status === "draft").length;
 
-  const hasFilters = !!(q || status);
+  const hasFilters = !!(q || status || ownership);
   const isEmpty = total === 0 && !hasFilters;
 
   return (
@@ -67,12 +78,15 @@ export default async function ListingsPage({
         title="Listings"
         description="Create, publish, and manage your business listings."
         action={
-          <Button asChild className="w-full sm:w-auto gap-1.5">
-            <Link href="/dashboard/listings/new">
-              <PlusIcon className="h-4 w-4" />
-              Add listing
-            </Link>
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <ImportListingsButton />
+            <Button asChild className="w-full sm:w-auto gap-1.5">
+              <Link href="/dashboard/listings/new">
+                <PlusIcon className="h-4 w-4" />
+                Add listing
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -147,6 +161,8 @@ export default async function ListingsPage({
                   brokerSlug={brokerSlug ?? undefined}
                   isAgencyOwner={isAgencyOwner}
                   canFeature={canFeature}
+                  agencyBrokers={agencyBrokers}
+                  showOwnershipTabs={isAgencyMember}
                 />
               </div>
             </div>

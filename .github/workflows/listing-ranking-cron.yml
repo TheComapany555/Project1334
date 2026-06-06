@@ -1,0 +1,59 @@
+# Feature #7: Engagement-Based Listing Ranking — recompute the trending score
+# every few hours, entirely on GitHub Actions. The job talks to Supabase with
+# the service-role key and calls the recompute_listing_engagement_scores() SQL
+# function (no Vercel/Next.js webhook involved).
+#
+# Required GitHub repository secrets (Settings → Secrets and variables → Actions):
+#   NEXT_PUBLIC_SUPABASE_URL    Supabase project URL
+#   SUPABASE_SERVICE_ROLE_KEY   Service-role key (RLS bypass — keep tight)
+#
+# You can also trigger it manually from the Actions tab → Run workflow.
+name: Listing ranking cron
+
+on:
+  schedule:
+    # Every 6 hours. Trending freshness within a few hours is plenty, and the
+    # recompute is set-based + idempotent, so missed runs simply catch up.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      halfLifeDays:
+        description: "Days for an event's weight to halve (default 14)"
+        required: false
+        default: "14"
+      windowDays:
+        description: "Ignore engagement older than this many days (default 60)"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listing-ranking-cron
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --prefer-offline
+
+      - name: Recompute listing engagement scores
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HALF_LIFE_DAYS: ${{ github.event.inputs.halfLifeDays || '14' }}
+          WINDOW_DAYS: ${{ github.event.inputs.windowDays || '60' }}
+        run: npm run cron:listing-ranking

@@ -25,6 +25,13 @@ export type NotificationType =
   // M1.3 (messaging)
   | "message_received"
   | "message_sent"
+  // Tier B / Feature #6 (listing assignment)
+  | "listing_assigned"
+  // Tier B / Feature #8 (support tickets)
+  | "ticket_created"
+  | "ticket_reply"
+  | "ticket_status_changed"
+  | "ticket_assigned"
   // M2.2 (Virtual Data Room)
   | "data_room_request"
   | "data_room_view"

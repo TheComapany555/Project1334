@@ -7,6 +7,7 @@ import type {
   ListingHighlight,
   ListingStatus,
 } from "@/lib/types/listings";
+import type { AgencyBroker } from "@/lib/types/agencies";
 import {
   Select,
   SelectContent,
@@ -26,8 +27,15 @@ import { Label } from "@/components/ui/label";
 import { ListingsTable } from "@/app/dashboard/listings/listings-table";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
+import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+
+const OWNERSHIP_TABS: { value: "all" | "created" | "assigned"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "created", label: "Created by me" },
+  { value: "assigned", label: "Assigned to me" },
+];
 
 const STATUS_OPTIONS: { value: "_all" | ListingStatus; label: string }[] = [
   { value: "_all", label: "All statuses" },
@@ -45,6 +53,9 @@ type Props = {
   brokerSlug?: string;
   isAgencyOwner?: boolean;
   canFeature?: boolean;
+  agencyBrokers?: AgencyBroker[];
+  /** Show the "Created by me / Assigned to me" scope switch (agency members). */
+  showOwnershipTabs?: boolean;
 };
 
 /**
@@ -59,8 +70,13 @@ export function BrokerListingsWithFilter({
   brokerSlug,
   isAgencyOwner,
   canFeature,
+  agencyBrokers,
+  showOwnershipTabs,
 }: Props) {
-  const { state, setFilter } = useTableUrlState({ filterKeys: ["status"] });
+  const { state, setFilter } = useTableUrlState({
+    filterKeys: ["status", "ownership"],
+  });
+  const ownership = state.filters.ownership ?? "all";
   const [categoryFilter, setCategoryFilter] = React.useState("");
   const [highlightFilter, setHighlightFilter] = React.useState("");
   const [categoryQuery, setCategoryQuery] = React.useState("");
@@ -83,6 +99,38 @@ export function BrokerListingsWithFilter({
 
   return (
     <div className="space-y-4">
+      {showOwnershipTabs && (
+        <div
+          role="tablist"
+          aria-label="Listing scope"
+          className="inline-flex items-center rounded-lg border bg-muted/40 p-0.5 text-sm"
+        >
+          {OWNERSHIP_TABS.map((tab) => {
+            const active = ownership === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() =>
+                  startTransition(() =>
+                    setFilter("ownership", tab.value === "all" ? null : tab.value),
+                  )
+                }
+                className={cn(
+                  "rounded-md px-3 py-1.5 font-medium transition-colors",
+                  active
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
         <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-transparent px-3 shadow-xs">
           <HugeiconsIcon
@@ -205,6 +253,7 @@ export function BrokerListingsWithFilter({
         brokerSlug={brokerSlug}
         isAgencyOwner={isAgencyOwner}
         canFeature={canFeature}
+        agencyBrokers={agencyBrokers}
       />
     </div>
   );

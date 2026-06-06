@@ -27,6 +27,8 @@ export type ListingImage = {
 export type Listing = {
   id: string;
   broker_id: string;
+  /** Original creator (profiles.id). broker_id is the current owner/assignee and moves on reassignment; created_by is fixed. */
+  created_by: string | null;
   agency_id: string | null;
   slug: string;
   title: string;
@@ -54,6 +56,9 @@ export type Listing = {
   featured_scope: "homepage" | "category" | "both" | null;
   featured_homepage_until: string | null;
   featured_category_until: string | null;
+  /** Recency-decayed engagement ranking score (Feature #7). Refreshed by cron. */
+  engagement_score?: number;
+  engagement_updated_at?: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;

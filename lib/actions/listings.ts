@@ -11,7 +11,7 @@ import type {
   ListingImage,
   ListingStatus,
 } from "@/lib/types/listings";
-import { notifyAdmins } from "@/lib/actions/notifications";
+import { notifyAdmins, createNotification } from "@/lib/actions/notifications";
 import { optimizeImage } from "@/lib/image-optimizer";
 import { diversifyByOwner, listingOwnerKey } from "@/lib/listings/diversify";
 import {
@@ -165,6 +165,13 @@ export type ListBrokerListingsParams = {
   pageSize?: number;
   q?: string | null;
   status?: string | null;
+  /**
+   * Scope relative to the current broker:
+   * - "all" (default): everything they can see (owner = whole agency, member = own)
+   * - "created": listings they originally created
+   * - "assigned": listings assigned to them by someone else
+   */
+  ownership?: "all" | "created" | "assigned";
 };
 
 /**
@@ -195,6 +202,16 @@ export async function listBrokerListings(
 
   if (isOwner) query = query.eq("agency_id", agencyId);
   else query = query.eq("broker_id", userId);
+
+  // "Created by me" vs "Assigned to me" (relative to the current broker).
+  const ownership = params.ownership ?? "all";
+  if (ownership === "created") {
+    query = query.eq("created_by", userId);
+  } else if (ownership === "assigned") {
+    query = query
+      .eq("broker_id", userId)
+      .or(`created_by.neq.${userId},created_by.is.null`);
+  }
 
   if (params.status?.trim() && params.status !== "all") {
     query = query.eq("status", params.status.trim());
@@ -278,7 +295,7 @@ export type SearchListingsParams = {
   revenue_max?: number | null;
   profit_min?: number | null;
   profit_max?: number | null;
-  sort?: "newest" | "price_asc" | "price_desc";
+  sort?: "newest" | "price_asc" | "price_desc" | "trending";
   page?: number;
   page_size?: number;
 };
@@ -458,6 +475,12 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   if (sort === "newest") query = query.order("published_at", { ascending: false, nullsFirst: false });
   else if (sort === "price_asc") query = query.order("asking_price", { ascending: true, nullsFirst: false });
   else if (sort === "price_desc") query = query.order("asking_price", { ascending: false, nullsFirst: false });
+  else if (sort === "trending") {
+    // Most engagement first (recency-decayed score), newest as the tie-break.
+    query = query
+      .order("engagement_score", { ascending: false, nullsFirst: false })
+      .order("published_at", { ascending: false, nullsFirst: false });
+  }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   if (error) {
@@ -604,6 +627,7 @@ export async function createListing(form: {
     .from("listings")
     .insert({
       broker_id: userId,
+      created_by: userId,
       agency_id: agencyId,
       slug,
       title: form.title.trim(),
@@ -799,6 +823,67 @@ export async function deleteListing(id: string): Promise<{ ok: boolean; error?: 
   const { error } = await supabase.from("listings").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * Agency owner: assign (or reassign) one or more of the agency's listings to a
+ * broker in the agency. "Assign" transfers ownership — broker_id becomes the
+ * assignee, so enquiries, edit rights, and the public contact all follow.
+ * `created_by` is preserved so the dashboard can still show who created it.
+ * Only listings within the owner's own agency are ever touched.
+ */
+export async function assignListings(
+  listingIds: string[],
+  brokerId: string,
+): Promise<{ ok: boolean; error?: string; assigned?: number }> {
+  const { userId, agencyId, agencyRole } = await requireBroker();
+  if (!agencyId || agencyRole !== "owner") {
+    return { ok: false, error: "Only agency owners can assign listings." };
+  }
+  const ids = Array.from(new Set((listingIds ?? []).filter(Boolean)));
+  if (ids.length === 0) return { ok: false, error: "Select at least one listing." };
+  if (!brokerId) return { ok: false, error: "Choose a broker to assign to." };
+
+  const supabase = createServiceRoleClient();
+
+  // Target must be a broker in this agency (owner may also reassign to self).
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, name")
+    .eq("id", brokerId)
+    .eq("agency_id", agencyId)
+    .eq("role", "broker")
+    .single();
+  if (!target) return { ok: false, error: "That broker isn't part of your agency." };
+
+  // Reassign only listings that belong to this agency (defense-in-depth).
+  const { data: updated, error } = await supabase
+    .from("listings")
+    .update({ broker_id: brokerId, updated_at: new Date().toISOString() })
+    .eq("agency_id", agencyId)
+    .in("id", ids)
+    .select("id, title");
+  if (error) return { ok: false, error: error.message };
+
+  const rows = updated ?? [];
+  if (rows.length === 0) return { ok: false, error: "No matching listings to assign." };
+
+  // Notify the assignee — unless the owner assigned listings to themselves.
+  if (brokerId !== userId) {
+    const title =
+      rows.length === 1
+        ? `A listing was assigned to you: "${rows[0].title}"`
+        : `${rows.length} listings were assigned to you`;
+    await createNotification({
+      userId: brokerId,
+      type: "listing_assigned",
+      title,
+      message: "Open your listings to start managing them.",
+      link: "/dashboard/listings?ownership=assigned",
+    }).catch(() => {});
+  }
+
+  return { ok: true, assigned: rows.length };
 }
 
 export async function uploadListingImage(listingId: string, formData: FormData): Promise<{ ok: boolean; url?: string; id?: string; error?: string }> {

@@ -29,12 +29,14 @@ import {
   CornerUpLeft,
   DollarSign,
   FileSignature,
+  LifeBuoy,
   Megaphone,
   MessageSquare,
   Receipt,
   Send,
   Share2,
   Sparkles,
+  UserCheck,
   UserMinus,
   UserPlus,
   XCircle,
@@ -73,6 +75,26 @@ const NOTIFICATION_ICON_MAP: Record<string, IconStyle> = {
   listing_alert_match: {
     Icon: BellRing,
     tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",
+  },
+  listing_assigned: {
+    Icon: UserCheck,
+    tone: "bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-400",
+  },
+  ticket_created: {
+    Icon: LifeBuoy,
+    tone: "bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-400",
+  },
+  ticket_reply: {
+    Icon: MessageSquare,
+    tone: "bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/20 dark:text-sky-400",
+  },
+  ticket_status_changed: {
+    Icon: LifeBuoy,
+    tone: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400",
+  },
+  ticket_assigned: {
+    Icon: UserCheck,
+    tone: "bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-400",
   },
   payment_received: {
     Icon: DollarSign,

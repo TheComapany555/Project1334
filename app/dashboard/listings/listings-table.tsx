@@ -8,12 +8,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Listing, ListingStatus, ListingTier } from "@/lib/types/listings";
+import type { AgencyBroker } from "@/lib/types/agencies";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
 import { TierBadge } from "@/components/shared/tier-badge";
 import { updateListingStatus, deleteListing } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import {
@@ -62,8 +64,9 @@ import {
   SentIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
-import { Plus } from "lucide-react";
+import { Plus, UserCheck } from "lucide-react";
 import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
+import { AssignListingsDialog } from "@/components/dashboard/assign-listings-dialog";
 
 const STATUS_OPTIONS: { value: ListingStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -104,6 +107,8 @@ type Props = {
   brokerSlug?: string;
   isAgencyOwner?: boolean;
   canFeature?: boolean;
+  /** Brokers in the agency — enables the owner's "assign to broker" UI. */
+  agencyBrokers?: AgencyBroker[];
 };
 
 /**
@@ -163,6 +168,7 @@ export function ListingsTable({
   brokerSlug,
   isAgencyOwner,
   canFeature,
+  agencyBrokers = [],
 }: Props) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -179,6 +185,42 @@ export function ListingsTable({
   const [isPending, startTransition] = React.useTransition();
   React.useEffect(() => setSearchInput(state.q), [state.q]);
   const listings = result.rows;
+
+  // Agency owners can multi-select listings and assign them to a broker.
+  // Selection is parent-owned (not TanStack's) so the toolbar can read it.
+  const canAssign = !!isAgencyOwner;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [assignOpen, setAssignOpen] = useState(false);
+  // Latest visible rows, read by the "select all" header without forcing the
+  // column memo to depend on the (per-render) rows array.
+  const listingsRef = React.useRef(listings);
+  listingsRef.current = listings;
+  // Clear selection when the page/size changes (rows the user can't see anymore).
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [result.page, result.pageSize]);
+
+  const toggleOne = React.useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const toggleAll = React.useCallback((checked: boolean) => {
+    const ids = listingsRef.current.map((l) => l.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) ids.forEach((id) => next.add(id));
+      else ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+  const openAssignFor = React.useCallback((ids: string[]) => {
+    setSelectedIds(new Set(ids));
+    setAssignOpen(true);
+  }, []);
 
   async function onStatusChange(listingId: string, newStatus: ListingStatus) {
     if (newStatus === "sold") {
@@ -442,6 +484,17 @@ export function ListingsTable({
         const listing = row.original;
         return (
           <ListingActionsMenu>
+            {canAssign && (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openAssignFor([listing.id]);
+                }}
+              >
+                <UserCheck className="size-4" />
+                Assign to broker
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/listings/${listing.id}/edit`}>
                 <HugeiconsIcon icon={Edit02Icon} className="size-4" />
@@ -545,9 +598,43 @@ export function ListingsTable({
       },
     });
 
+    // Leading selection checkbox column for agency owners (sits first).
+    if (canAssign) {
+      cols.unshift({
+        id: "select",
+        enableHiding: false,
+        enableSorting: false,
+        size: 36,
+        header: () => {
+          const ids = listingsRef.current.map((l) => l.id);
+          const selected = ids.filter((id) => selectedIds.has(id)).length;
+          const checked: boolean | "indeterminate" =
+            ids.length > 0 && selected === ids.length
+              ? true
+              : selected > 0
+                ? "indeterminate"
+                : false;
+          return (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={(v) => toggleAll(v === true)}
+              aria-label="Select all listings on this page"
+            />
+          );
+        },
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selectedIds.has(row.original.id)}
+            onCheckedChange={(v) => toggleOne(row.original.id, v === true)}
+            aria-label="Select listing"
+          />
+        ),
+      });
+    }
+
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAgencyOwner, brokerSlug, canFeature]);
+  }, [isAgencyOwner, brokerSlug, canFeature, canAssign, selectedIds, toggleOne, toggleAll, openAssignFor]);
 
   if (result.total === 0 && !state.q && !state.filters.status) {
     return (
@@ -589,6 +676,19 @@ export function ListingsTable({
           setSearchInput(v);
           startTransition(() => setSearch(v));
         }}
+        getRowId={(row) => row.id}
+        toolbarRight={
+          canAssign && selectedIds.size > 0 ? (
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setAssignOpen(true)}
+            >
+              <UserCheck className="size-4" />
+              Assign {selectedIds.size}
+            </Button>
+          ) : undefined
+        }
         serverPagination={{
           pageIndex: result.page - 1,
           pageSize: result.pageSize,
@@ -613,6 +713,19 @@ export function ListingsTable({
         listingTitle={feedbackListing?.title ?? null}
         lockListing
       />
+
+      {canAssign && (
+        <AssignListingsDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          listingIds={[...selectedIds]}
+          brokers={agencyBrokers}
+          onAssigned={() => {
+            setSelectedIds(new Set());
+            router.refresh();
+          }}
+        />
+      )}
 
       {deletingId && (
         <AlertDialog

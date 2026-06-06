@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 
 const PAGE_SIZE = 12;
 export const SORT_OPTIONS = [
+  { value: "trending", label: "Trending" },
   { value: "newest", label: "Newest first" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
@@ -86,8 +87,11 @@ export default async function SearchPage({ searchParams }: Props) {
   const profit_min = parseNum(params.profit_min);
   const profit_max = parseNum(params.profit_max);
   const sort =
-    (parseStr(params.sort) as "newest" | "price_asc" | "price_desc") ??
-    "newest";
+    (parseStr(params.sort) as
+      | "newest"
+      | "price_asc"
+      | "price_desc"
+      | "trending") ?? "newest";
   const page = Math.max(1, parseNum(params.page) ?? 1);
 
   const [result, categories, highlights] = await Promise.all([
