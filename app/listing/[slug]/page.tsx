@@ -281,14 +281,29 @@ export default async function ListingPage({ params }: Props) {
 
         {/* Title block */}
         <div className="min-w-0 space-y-1.5">
-          {listing.category && (
-            <Link
-              href={`/search?category=${listing.category.slug}`}
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              {listing.category.name}
-            </Link>
-          )}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {listing.category && (
+              <Link
+                href={`/search?category=${listing.category.slug}`}
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                {listing.category.name}
+              </Link>
+            )}
+            {listing.subcategory && (
+              <>
+                <span className="text-muted-foreground/40 text-sm">·</span>
+                <span className="text-sm text-muted-foreground">
+                  {listing.subcategory.name}
+                </span>
+              </>
+            )}
+            {listing.exclusivity && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {listing.exclusivity === "exclusive" ? "Exclusive" : "Open listing"}
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="min-w-0 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
               {listing.title}

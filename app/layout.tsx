@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -72,6 +73,7 @@ export default function RootLayout({
       <body className={`${geistMono.variable} antialiased`}>
         <TopLoader />
         <Providers>{children}</Providers>
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -11,6 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   getCategories,
+  getSubcategories,
   getListingHighlights,
   updateListing,
   updateListingStatus,
@@ -19,7 +20,7 @@ import {
   reorderListingImages,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
-import { SUGGESTED_REGIONS, type Category, type Listing, type ListingHighlight, type ListingTier } from "@/lib/types/listings";
+import { SUGGESTED_REGIONS, type Category, type Subcategory, type Listing, type ListingHighlight, type ListingTier } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import { TierBadge } from "@/components/shared/tier-badge";
@@ -66,6 +67,8 @@ import {
 const schema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   category_id: z.string().uuid().nullable().optional(),
+  subcategory_id: z.string().uuid().nullable().optional(),
+  exclusivity: z.enum(["exclusive", "open"]).nullable().optional(),
   location_text: z.string().max(200).optional(),
   state: z.string().max(100).optional(),
   suburb: z.string().max(100).optional(),
@@ -92,6 +95,7 @@ type Props = {
 export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
   const [images, setImages] = useState<{ id: string; url: string; sort_order: number }[]>(
     (listing.listing_images ?? []).map((img) => ({
@@ -132,6 +136,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     defaultValues: {
       title: listing.title,
       category_id: listing.category_id ?? null,
+      subcategory_id: listing.subcategory_id ?? null,
+      exclusivity: listing.exclusivity ?? null,
       location_text: listing.location_text ?? "",
       state: listing.state ?? "",
       suburb: listing.suburb ?? "",
@@ -162,6 +168,10 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       if (products) setTierProducts(products as Product[]);
     });
   }, [canChangeTier]);
+
+  useEffect(() => {
+    getSubcategories().then(setSubcategories);
+  }, []);
 
   // Auto-fill postcode whenever the user has a suburb but no postcode (covers
   // both manual typing and city-level autocomplete picks that omit postcode).
@@ -201,6 +211,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     const updatePayload: Parameters<typeof updateListing>[1] = {
       title: data.title,
       category_id: data.category_id || null,
+      subcategory_id: data.subcategory_id || null,
+      exclusivity: data.exclusivity ?? null,
       location_text: data.location_text || null,
       state: data.state || null,
       suburb: data.suburb || null,
@@ -246,6 +258,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     const updatePayload: Parameters<typeof updateListing>[1] = {
       title: data.title,
       category_id: data.category_id || null,
+      subcategory_id: data.subcategory_id || null,
+      exclusivity: data.exclusivity ?? null,
       location_text: data.location_text || null,
       state: data.state || null,
       suburb: data.suburb || null,
@@ -375,21 +389,78 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               <Input id="title" {...register("title")} className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""} />
               <FieldError message={errors.title?.message} />
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={watch("category_id") ?? ""}
+                  onValueChange={(v) => {
+                    setValue("category_id", v || null);
+                    // Reset sub-category whenever the parent category changes.
+                    setValue("subcategory_id", null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sub-category</Label>
+                <Select
+                  value={watch("subcategory_id") ?? "__unset__"}
+                  disabled={!watch("category_id")}
+                  onValueChange={(v) =>
+                    setValue("subcategory_id", v === "__unset__" ? null : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        watch("category_id")
+                          ? "Select sub-category (optional)"
+                          : "Choose a category first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unset__">None</SelectItem>
+                    {subcategories
+                      .filter((s) => s.category_id === watch("category_id"))
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>Exclusivity</Label>
               <Select
-                value={watch("category_id") ?? ""}
-                onValueChange={(v) => setValue("category_id", v || null)}
+                value={watch("exclusivity") ?? "__unset__"}
+                onValueChange={(v) =>
+                  setValue(
+                    "exclusivity",
+                    v === "__unset__" ? null : (v as "exclusive" | "open"),
+                  )
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="__unset__">Not specified</SelectItem>
+                  <SelectItem value="exclusive">Exclusive</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
                 </SelectContent>
               </Select>
             </div>

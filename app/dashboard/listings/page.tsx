@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/admin/page-header";
 import { BrokerListingsWithFilter } from "@/app/dashboard/listings/broker-listings-filter";
 import { ImportListingsButton } from "@/components/dashboard/import-listings-button";
+import { ImportReaxmlButton } from "@/components/dashboard/import-reaxml-button";
 import { PlusIcon, Building2Icon } from "lucide-react";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
 
@@ -80,6 +81,7 @@ export default async function ListingsPage({
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <ImportListingsButton />
+            <ImportReaxmlButton />
             <Button asChild className="w-full sm:w-auto gap-1.5">
               <Link href="/dashboard/listings/new">
                 <PlusIcon className="h-4 w-4" />

@@ -11,12 +11,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { SerializedEditorState } from "lexical";
 import {
   getCategories,
+  getSubcategories,
   getListingHighlights,
   createListing,
   uploadListingImage,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
-import type { Category, ListingHighlight, ListingTier } from "@/lib/types/listings";
+import type { Category, Subcategory, ListingHighlight, ListingTier } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import { Editor } from "@/components/blocks/editor-00/editor";
@@ -73,6 +74,12 @@ const step1Schema = z.object({
   category_id: z
     .union([z.string().uuid(), z.literal("")])
     .transform((v) => (v === "" ? null : v)),
+  subcategory_id: z
+    .union([z.string().uuid(), z.literal(""), z.null()])
+    .transform((v) => (v && v !== "" ? v : null)),
+  exclusivity: z
+    .union([z.enum(["exclusive", "open"]), z.literal(""), z.null()])
+    .transform((v) => (v === "" || v == null ? null : v)),
   location_text: z.string().max(200).optional(),
   state: z.string().max(100).optional(),
   suburb: z.string().max(100).optional(),
@@ -99,6 +106,8 @@ type FormData = z.infer<typeof fullSchema>;
 const defaultValues: FormData = {
   title: "",
   category_id: null,
+  subcategory_id: null,
+  exclusivity: null,
   location_text: "",
   state: "",
   suburb: "",
@@ -117,6 +126,7 @@ export default function NewListingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [highlights, setHighlights] = useState<ListingHighlight[]>([]);
   const [tierProducts, setTierProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +135,7 @@ export default function NewListingPage() {
     { file: File; url: string }[]
   >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [subcategoryQuery, setSubcategoryQuery] = useState("");
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(undefined);
   // Bumped to force-remount the Lexical Editor whenever AI applies new content,
   // since LexicalComposer only consumes initial state on first mount.
@@ -148,9 +159,10 @@ export default function NewListingPage() {
   } = form;
 
   useEffect(() => {
-    Promise.all([getCategories(), getListingHighlights(), getActiveProducts("listing_tier")]).then(
-      ([cats, hls, products]) => {
+    Promise.all([getCategories(), getSubcategories(), getListingHighlights(), getActiveProducts("listing_tier")]).then(
+      ([cats, subs, hls, products]) => {
         setCategories(cats);
+        setSubcategories(subs);
         setHighlights(hls);
         setTierProducts(products);
         // Default to standard tier (middle-priced product)
@@ -249,6 +261,8 @@ export default function NewListingPage() {
     const result = await createListing({
       title: values.title,
       category_id: values.category_id,
+      subcategory_id: values.subcategory_id,
+      exclusivity: values.exclusivity,
       location_text: values.location_text || null,
       state: values.state || null,
       suburb: values.suburb || null,
@@ -383,7 +397,12 @@ export default function NewListingPage() {
                 <Label>Category</Label>
                 <Combobox
                   value={watch("category_id") ?? ""}
-                  onValueChange={(v) => setValue("category_id", v || null)}
+                  onValueChange={(v) => {
+                    setValue("category_id", v || null);
+                    // Reset sub-category whenever the parent category changes.
+                    setValue("subcategory_id", null);
+                    setSubcategoryQuery("");
+                  }}
                   onInputValueChange={(v, details) => {
                     setCategoryQuery(
                       details.reason === "input-change" ? v : "",
@@ -426,6 +445,87 @@ export default function NewListingPage() {
                       )}
                   </ComboboxContent>
                 </Combobox>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Sub-category</Label>
+                  <Combobox
+                    value={watch("subcategory_id") ?? ""}
+                    disabled={!watch("category_id")}
+                    onValueChange={(v) => setValue("subcategory_id", v || null)}
+                    onInputValueChange={(v, details) => {
+                      setSubcategoryQuery(
+                        details.reason === "input-change" ? v : "",
+                      );
+                    }}
+                    itemToStringLabel={(v: string) => {
+                      if (!v) return "";
+                      return subcategories.find((s) => s.id === v)?.name ?? v;
+                    }}
+                  >
+                    <ComboboxInput
+                      placeholder={
+                        watch("category_id")
+                          ? "Select sub-category (optional)"
+                          : "Choose a category first"
+                      }
+                      className="w-full"
+                    />
+                    <ComboboxContent>
+                      <ComboboxList>
+                        {subcategories
+                          .filter((s) => s.category_id === watch("category_id"))
+                          .filter(
+                            (s) =>
+                              !subcategoryQuery ||
+                              s.name
+                                .toLowerCase()
+                                .includes(subcategoryQuery.toLowerCase()),
+                          )
+                          .map((s) => (
+                            <ComboboxItem key={s.id} value={s.id}>
+                              {s.name}
+                            </ComboboxItem>
+                          ))}
+                      </ComboboxList>
+                      {watch("category_id") &&
+                        subcategories
+                          .filter((s) => s.category_id === watch("category_id"))
+                          .filter(
+                            (s) =>
+                              !subcategoryQuery ||
+                              s.name
+                                .toLowerCase()
+                                .includes(subcategoryQuery.toLowerCase()),
+                          ).length === 0 && (
+                          <p className="text-muted-foreground py-2 text-center text-sm">
+                            No sub-categories found
+                          </p>
+                        )}
+                    </ComboboxContent>
+                  </Combobox>
+                </div>
+                <div className="space-y-2">
+                  <Label>Exclusivity</Label>
+                  <Select
+                    value={watch("exclusivity") ?? "__unset__"}
+                    onValueChange={(v) =>
+                      setValue(
+                        "exclusivity",
+                        v === "__unset__" ? null : (v as "exclusive" | "open"),
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset__">Not specified</SelectItem>
+                      <SelectItem value="exclusive">Exclusive</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

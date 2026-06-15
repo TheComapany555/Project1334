@@ -1,9 +1,21 @@
 export type ListingStatus = "draft" | "published" | "under_offer" | "sold" | "unpublished";
 export type PriceType = "fixed" | "poa";
 export type ListingTier = "basic" | "standard" | "featured";
+/** Agent exclusivity (REAXML `exclusivity`). Null = not specified. */
+export type Exclusivity = "exclusive" | "open";
 
 export type Category = {
   id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  sort_order: number;
+};
+
+/** Second-level business category. `category_id` is the parent top-level Category. */
+export type Subcategory = {
+  id: string;
+  category_id: string;
   name: string;
   slug: string;
   active: boolean;
@@ -33,6 +45,10 @@ export type Listing = {
   slug: string;
   title: string;
   category_id: string | null;
+  /** Optional second-level category (REAXML businessSubCategory). */
+  subcategory_id: string | null;
+  /** Agent exclusivity (REAXML exclusivity); shown publicly. */
+  exclusivity: Exclusivity | null;
   location_text: string | null;
   state: string | null;
   suburb: string | null;
@@ -63,6 +79,7 @@ export type Listing = {
   created_at: string;
   updated_at: string;
   category?: Category | null;
+  subcategory?: Subcategory | null;
   listing_images?: ListingImage[];
   listing_highlights?: ListingHighlight[];
   broker?: { name: string | null; photo_url: string | null };
@@ -75,6 +92,8 @@ export type ListingForEdit = Listing & { highlight_ids?: string[] };
 export type ListingFormData = {
   title: string;
   category_id: string | null;
+  subcategory_id: string | null;
+  exclusivity: Exclusivity | null;
   location_text: string | null;
   state: string | null;
   suburb: string | null;

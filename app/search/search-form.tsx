@@ -28,17 +28,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Search, Loader2, ChevronDown, X, SlidersHorizontal } from "lucide-react";
 import { AuLocalityAutocomplete } from "@/components/location/au-locality-autocomplete";
-import { SUGGESTED_REGIONS, type Category, type ListingHighlight } from "@/lib/types/listings";
+import { SUGGESTED_REGIONS, type Category, type Subcategory, type ListingHighlight } from "@/lib/types/listings";
 
 type SortOption = { value: string; label: string };
 
 type Props = {
   categories: Category[];
+  subcategories: Subcategory[];
   highlights: ListingHighlight[];
   sortOptions: readonly SortOption[];
   defaultValues: {
     q: string;
     category: string;
+    subcategory: string;
     highlight: string;
     state: string;
     suburb: string;
@@ -53,10 +55,11 @@ type Props = {
   };
 };
 
-export function SearchForm({ categories, highlights, defaultValues, sortOptions }: Props) {
+export function SearchForm({ categories, subcategories, highlights, defaultValues, sortOptions }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [category, setCategory] = useState(defaultValues.category || "");
+  const [subcategory, setSubcategory] = useState(defaultValues.subcategory || "");
   const [highlight, setHighlight] = useState(defaultValues.highlight || "");
   const [sort, setSort] = useState(defaultValues.sort || "newest");
   const [categoryQuery, setCategoryQuery] = useState("");
@@ -85,6 +88,10 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
   );
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvanced);
 
+  // Sub-category options depend on the selected category (matched by slug → id).
+  const selectedCategoryId = categories.find((c) => c.slug === category)?.id ?? null;
+  const filteredSubs = subcategories.filter((s) => s.category_id === selectedCategoryId);
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -103,6 +110,7 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (category && category !== "_any") params.set("category", category);
+    if (subcategory && subcategory !== "_any") params.set("subcategory", subcategory);
     if (highlight && highlight !== "_any") params.set("highlight", highlight);
     if (state) params.set("state", state);
     if (suburb) params.set("suburb", suburb);
@@ -143,7 +151,10 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
             <Label>Category</Label>
             <Combobox
               value={category || ""}
-              onValueChange={(v) => setCategory(v ?? "")}
+              onValueChange={(v) => {
+                setCategory(v ?? "");
+                setSubcategory("");
+              }}
               onInputValueChange={(v, details) => {
                 setCategoryQuery(details.reason === "input-change" ? v : "");
               }}
@@ -169,6 +180,26 @@ export function SearchForm({ categories, highlights, defaultValues, sortOptions 
                 )}
               </ComboboxContent>
             </Combobox>
+          </div>
+          <div className="space-y-2">
+            <Label>Sub-category</Label>
+            <Select
+              value={subcategory || "_any"}
+              disabled={!selectedCategoryId}
+              onValueChange={(v) => setSubcategory(v === "_any" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={selectedCategoryId ? "All sub-categories" : "Pick a category"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_any">All sub-categories</SelectItem>
+                {filteredSubs.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Tag</Label>

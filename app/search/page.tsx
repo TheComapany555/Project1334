@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-client";
-import { searchListings, getCategories, getListingHighlights } from "@/lib/actions/listings";
+import { searchListings, getCategories, getSubcategories, getListingHighlights } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
@@ -47,6 +47,7 @@ function parseStr(v: string | string[] | undefined): string | undefined {
 /** Count how many filter fields (beyond keyword + sort) are active */
 function countActiveFilters(p: {
   category?: string;
+  subcategory?: string;
   highlight?: string;
   state?: string;
   suburb?: string;
@@ -59,6 +60,7 @@ function countActiveFilters(p: {
 }) {
   return [
     p.category,
+    p.subcategory,
     p.highlight,
     p.state,
     p.suburb,
@@ -76,6 +78,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   const keyword = parseStr(params.q);
   const category = parseStr(params.category);
+  const subcategory = parseStr(params.subcategory);
   const highlight = parseStr(params.highlight);
   const state = parseStr(params.state);
   const suburb = parseStr(params.suburb);
@@ -94,10 +97,11 @@ export default async function SearchPage({ searchParams }: Props) {
       | "trending") ?? "newest";
   const page = Math.max(1, parseNum(params.page) ?? 1);
 
-  const [result, categories, highlights] = await Promise.all([
+  const [result, categories, subcategories, highlights] = await Promise.all([
     searchListings({
       keyword: keyword ?? null,
       category: category ?? null,
+      subcategory: subcategory ?? null,
       highlight_id: highlight ?? null,
       state: state ?? null,
       suburb: suburb ?? null,
@@ -113,12 +117,14 @@ export default async function SearchPage({ searchParams }: Props) {
       page_size: PAGE_SIZE,
     }),
     getCategories(),
+    getSubcategories(),
     getListingHighlights(),
   ]);
 
   const formValues = {
     q: keyword ?? "",
     category: category ?? "",
+    subcategory: subcategory ?? "",
     highlight: highlight ?? "",
     state: state ?? "",
     suburb: suburb ?? "",
@@ -134,6 +140,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   const activeFilters = countActiveFilters({
     category,
+    subcategory,
     highlight,
     state,
     suburb,
@@ -201,6 +208,7 @@ export default async function SearchPage({ searchParams }: Props) {
           {/* ── Search form ── */}
           <SearchForm
             categories={categories}
+            subcategories={subcategories}
             highlights={highlights}
             defaultValues={formValues}
             sortOptions={SORT_OPTIONS}

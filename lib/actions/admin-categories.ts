@@ -70,3 +70,86 @@ export async function updateCategory(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ── Sub-categories ───────────────────────────────────────────────────────────
+
+export type SubcategoryForAdmin = {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  sort_order: number;
+};
+
+export async function getSubcategoriesForAdmin(): Promise<SubcategoryForAdmin[]> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("subcategories")
+    .select("id, category_id, name, slug, active, sort_order")
+    .order("name");
+  if (error) return [];
+  return (data ?? []) as SubcategoryForAdmin[];
+}
+
+export async function createSubcategory(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const name = (formData.get("name") as string)?.trim();
+  const category_id = (formData.get("category_id") as string)?.trim();
+  if (!name) return { ok: false, error: "Name is required." };
+  if (!category_id) return { ok: false, error: "Parent category is required." };
+  const slug = (formData.get("slug") as string)?.trim() || generateSlugFromName(name);
+  const sort_order = parseInt((formData.get("sort_order") as string) ?? "0", 10) || 0;
+  const supabase = createServiceRoleClient();
+  const { data: existing } = await supabase
+    .from("subcategories")
+    .select("id")
+    .eq("category_id", category_id)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (existing) {
+    return { ok: false, error: "A sub-category with this slug already exists in this category." };
+  }
+  const { error } = await supabase
+    .from("subcategories")
+    .insert({ category_id, name, slug, active: true, sort_order });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function updateSubcategory(
+  id: string,
+  updates: { name?: string; slug?: string; active?: boolean; sort_order?: number },
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  if (updates.slug != null) {
+    const { data: current } = await supabase
+      .from("subcategories")
+      .select("category_id")
+      .eq("id", id)
+      .single();
+    if (current) {
+      const { data: existing } = await supabase
+        .from("subcategories")
+        .select("id")
+        .eq("category_id", current.category_id)
+        .eq("slug", updates.slug)
+        .neq("id", id)
+        .maybeSingle();
+      if (existing) return { ok: false, error: "Slug already in use in this category." };
+    }
+  }
+  const payload: Record<string, unknown> = {};
+  if (updates.name !== undefined) payload.name = updates.name.trim();
+  if (updates.slug !== undefined) payload.slug = updates.slug.trim();
+  if (updates.active !== undefined) payload.active = updates.active;
+  if (updates.sort_order !== undefined) payload.sort_order = updates.sort_order;
+  if (Object.keys(payload).length === 0) return { ok: true };
+  const { error } = await supabase.from("subcategories").update(payload).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateListingSlug } from "@/lib/slug";
 import type {
   Category,
+  Subcategory,
   Listing,
   ListingHighlight,
   ListingImage,
@@ -53,6 +54,7 @@ type ListingJoinRow = Omit<Listing, "listing_highlights" | "broker" | "agency"> 
   listing_highlights?: HighlightJoin[] | null;
   listing_images?: ListingImage[] | null;
   category?: Category | null;
+  subcategory?: Subcategory | null;
   broker?: Joined<BrokerSummary>;
   agency?: Joined<AgencySummary>;
 };
@@ -60,6 +62,7 @@ type ListingSlugJoinRow = Omit<Listing, "listing_highlights" | "broker" | "agenc
   listing_highlights?: HighlightJoin[] | null;
   listing_images?: ListingImage[] | null;
   category?: Category | null;
+  subcategory?: Subcategory | null;
   broker?: Joined<BrokerPublicSummary>;
   agency?: Joined<AgencySummary>;
 };
@@ -144,6 +147,23 @@ export async function getCategories(): Promise<Category[]> {
     .order("sort_order");
   if (error) return [];
   return (data ?? []) as Category[];
+}
+
+/**
+ * Active sub-categories, optionally scoped to one parent category. Ordered by
+ * name (the seed leaves sort_order at 0). Used by the cascading category picker
+ * and the REAXML importer's name→id resolution.
+ */
+export async function getSubcategories(categoryId?: string): Promise<Subcategory[]> {
+  const supabase = createServiceRoleClient();
+  let query = supabase
+    .from("subcategories")
+    .select("id, category_id, name, slug, active, sort_order")
+    .eq("active", true);
+  if (categoryId) query = query.eq("category_id", categoryId);
+  const { data, error } = await query.order("name");
+  if (error) return [];
+  return (data ?? []) as Subcategory[];
 }
 
 export async function getListingHighlights(): Promise<ListingHighlight[]> {
@@ -259,6 +279,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
     .select(`
       *,
       category:categories(id, name, slug),
+      subcategory:subcategories(id, name, slug),
       listing_images(id, url, sort_order),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
@@ -277,6 +298,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
   return {
     ...row,
     category: row.category ?? null,
+    subcategory: row.subcategory ?? null,
     listing_images: row.listing_images ?? [],
     listing_highlights: flattenHighlights(row),
   } as Listing & { listing_highlights?: ListingHighlight[] };
@@ -285,6 +307,8 @@ export async function getListingById(id: string): Promise<Listing | null> {
 export type SearchListingsParams = {
   keyword?: string | null;
   category?: string | null;
+  /** Sub-category id (uuid). Slugs repeat across categories, so we filter by id. */
+  subcategory?: string | null;
   highlight_id?: string | null;
   state?: string | null;
   suburb?: string | null;
@@ -433,6 +457,9 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       categoryFilterApplied = true;
     }
   }
+  if (params.subcategory?.trim()) {
+    query = query.eq("subcategory_id", params.subcategory.trim());
+  }
   if (params.highlight_id?.trim()) {
     const { data: mapRows } = await supabase
       .from("listing_highlight_map")
@@ -566,6 +593,7 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
       *,
       broker:profiles!broker_id(slug, name, company, photo_url, phone),
       category:categories(id, name, slug),
+      subcategory:subcategories(id, name, slug),
       listing_images(id, url, sort_order),
       agency:agencies!agency_id(name, slug, logo_url),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
@@ -581,6 +609,7 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
     ...row,
     broker: broker ?? undefined,
     category: row.category ?? null,
+    subcategory: row.subcategory ?? null,
     listing_images: row.listing_images ?? [],
     agency: firstJoined(row.agency),
     listing_highlights: flattenHighlights(row),
@@ -590,6 +619,8 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
 export async function createListing(form: {
   title: string;
   category_id: string | null;
+  subcategory_id?: string | null;
+  exclusivity?: "exclusive" | "open" | null;
   location_text: string | null;
   state: string | null;
   suburb: string | null;
@@ -632,6 +663,8 @@ export async function createListing(form: {
       slug,
       title: form.title.trim(),
       category_id: form.category_id || null,
+      subcategory_id: form.subcategory_id || null,
+      exclusivity: form.exclusivity ?? null,
       location_text: form.location_text?.trim() || null,
       state: form.state?.trim() || null,
       suburb: form.suburb?.trim() || null,
@@ -666,6 +699,8 @@ export async function updateListing(
   form: {
     title?: string;
     category_id?: string | null;
+    subcategory_id?: string | null;
+    exclusivity?: "exclusive" | "open" | null;
     location_text?: string | null;
     state?: string | null;
     suburb?: string | null;
@@ -706,6 +741,8 @@ export async function updateListing(
     }
   }
   if (form.category_id !== undefined) payload.category_id = form.category_id || null;
+  if (form.subcategory_id !== undefined) payload.subcategory_id = form.subcategory_id || null;
+  if (form.exclusivity !== undefined) payload.exclusivity = form.exclusivity ?? null;
   if (form.location_text !== undefined) payload.location_text = form.location_text?.trim() || null;
   if (form.state !== undefined) payload.state = form.state?.trim() || null;
   if (form.suburb !== undefined) payload.suburb = form.suburb?.trim() || null;
