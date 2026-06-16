@@ -16,6 +16,29 @@ async function requireAdmin() {
   if (!session?.user?.id || session.user.role !== "admin") {
     throw new Error("Unauthorized");
   }
+  return session.user;
+}
+
+async function writeAuditLog(opts: {
+  adminId: string;
+  action: string;
+  targetUserId?: string | null;
+  targetAgencyId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase.from("admin_audit_log").insert({
+    admin_id: opts.adminId,
+    action: opts.action,
+    target_user_id: opts.targetUserId ?? null,
+    target_agency_id: opts.targetAgencyId ?? null,
+    metadata: opts.metadata ?? null,
+  });
+  if (error) {
+    console.error(
+      `[admin-audit-log] Failed to write '${opts.action}' for admin=${opts.adminId}: ${error.message}`,
+    );
+  }
 }
 
 export type AgencyForAdmin = {
@@ -29,6 +52,7 @@ export type AgencyForAdmin = {
   owner_id: string | null;
   owner_name: string | null;
   owner_email: string;
+  subscription_exempt: boolean;
   created_at: string;
 };
 
@@ -60,7 +84,9 @@ export async function listAdminAgencies(
 
   let agencyQuery = supabase
     .from("agencies")
-    .select("id, name, slug, email, status, created_at", { count: "exact" });
+    .select("id, name, slug, email, status, subscription_exempt, created_at", {
+      count: "exact",
+    });
   if (params.status) agencyQuery = agencyQuery.eq("status", params.status);
   if (params.q?.trim()) {
     const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -109,6 +135,7 @@ export async function listAdminAgencies(
       owner_id: owner?.id ?? null,
       owner_name: owner?.name ?? null,
       owner_email: owner ? (ownerEmailMap.get(owner.id) ?? "") : "",
+      subscription_exempt: a.subscription_exempt === true,
       created_at: a.created_at,
     };
   });
@@ -123,7 +150,7 @@ export async function getAgenciesForAdmin(): Promise<AgencyForAdmin[]> {
 
   const { data: agencies, error } = await supabase
     .from("agencies")
-    .select("id, name, slug, email, status, created_at")
+    .select("id, name, slug, email, status, subscription_exempt, created_at")
     .order("created_at", { ascending: false });
   if (error || !agencies?.length) return [];
 
@@ -166,9 +193,111 @@ export async function getAgenciesForAdmin(): Promise<AgencyForAdmin[]> {
       owner_id: owner?.id ?? null,
       owner_name: owner?.name ?? null,
       owner_email: owner ? (ownerEmailMap.get(owner.id) ?? "") : "",
+      subscription_exempt: a.subscription_exempt === true,
       created_at: a.created_at,
     };
   });
+}
+
+/** Admin: waive or re-enable the subscription requirement for an agency. */
+export async function setAgencySubscriptionExempt(
+  agencyId: string,
+  exempt: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("id, name")
+    .eq("id", agencyId)
+    .single();
+  if (!agency) return { ok: false, error: "Agency not found." };
+
+  const { error } = await supabase
+    .from("agencies")
+    .update({
+      subscription_exempt: exempt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", agencyId);
+  if (error) return { ok: false, error: error.message };
+
+  await writeAuditLog({
+    adminId: admin.id,
+    action: exempt ? "waive_agency_subscription" : "require_agency_subscription",
+    targetAgencyId: agency.id,
+    metadata: { agencyName: agency.name, exempt },
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Admin: permanently delete an agency and all broker accounts in it.
+ * Use for cleaning up test accounts — this cannot be undone.
+ */
+export async function deleteAgencyByAdmin(
+  agencyId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireAdmin();
+  const supabase = createServiceRoleClient();
+
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("id, name")
+    .eq("id", agencyId)
+    .single();
+  if (!agency) return { ok: false, error: "Agency not found." };
+
+  const { data: brokers } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .eq("role", "broker");
+
+  const brokerIds = (brokers ?? []).map((b) => b.id);
+
+  if (brokerIds.length) {
+    const { error: userDelError } = await supabase
+      .from("users")
+      .delete()
+      .in("id", brokerIds);
+    if (userDelError) {
+      return {
+        ok: false,
+        error: `Could not remove broker accounts: ${userDelError.message}`,
+      };
+    }
+  }
+
+  const { error: listingDelError } = await supabase
+    .from("listings")
+    .delete()
+    .eq("agency_id", agencyId);
+  if (listingDelError) {
+    return {
+      ok: false,
+      error: `Could not remove agency listings: ${listingDelError.message}`,
+    };
+  }
+
+  const { error: agencyDelError } = await supabase
+    .from("agencies")
+    .delete()
+    .eq("id", agencyId);
+  if (agencyDelError) {
+    return { ok: false, error: agencyDelError.message };
+  }
+
+  await writeAuditLog({
+    adminId: admin.id,
+    action: "delete_agency",
+    targetAgencyId: agency.id,
+    metadata: { agencyName: agency.name, brokerCount: brokerIds.length },
+  });
+
+  return { ok: true };
 }
 
 /** Admin: set agency status (pending -> active, active -> disabled, etc). */

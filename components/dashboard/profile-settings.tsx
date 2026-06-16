@@ -48,6 +48,7 @@ import {
 import { FieldError } from "@/components/ui/field-error";
 import { ConnectedInboxCard } from "@/components/dashboard/connected-inbox-card";
 import { EmailSignatureCard } from "@/components/dashboard/email-signature-card";
+import { CroppablePhotoUpload } from "@/components/shared/croppable-photo-upload";
 
 const schema = z.object({
   name: z.string().max(200).optional().or(z.literal("")),
@@ -250,9 +251,7 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
     }
   }
 
-  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function onPhotoChange(file: File) {
     setPhotoUploading(true);
     const formData = new FormData();
     formData.set("file", file);
@@ -367,14 +366,12 @@ export function ProfileSettings({ embedded = false }: { embedded?: boolean }) {
           />
           <CardContent className="px-5 py-6">
             <div className="flex flex-wrap gap-10">
-              <ImageUploadSlot
+              <CroppablePhotoUpload
                 id="photo-upload"
                 label="Profile photo"
                 url={photoUrl}
                 uploading={photoUploading}
-                onChange={onPhotoChange}
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                shape="circle"
+                onUpload={onPhotoChange}
               />
               <ImageUploadSlot
                 id="logo-upload"

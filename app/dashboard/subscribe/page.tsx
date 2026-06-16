@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import Link from "next/link";
 import {
   CreditCard,
   Shield,
+  LifeBuoy,
   Users,
   Loader2,
   Zap,
@@ -298,12 +300,21 @@ function NoSubscriptionView({
     return (
       <div className="max-w-lg mx-auto">
         <Card>
-          <CardContent className="py-16 text-center">
-            <Shield className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="font-medium">No plans available</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Please contact support for subscription access.
-            </p>
+          <CardContent className="py-16 text-center space-y-4">
+            <Shield className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+            <div className="space-y-1">
+              <p className="font-medium">No plans available</p>
+              <p className="text-sm text-muted-foreground">
+                Subscription plans have not been set up yet. Open a support
+                ticket and our team can enable your agency access.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="gap-2">
+              <Link href="/dashboard/support">
+                <LifeBuoy className="h-4 w-4" />
+                Open support ticket
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

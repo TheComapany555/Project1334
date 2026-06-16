@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth-client";
 import { getProfileNavInfo } from "@/lib/actions/profile";
-import { getAgencySubscriptionStatus } from "@/lib/actions/subscriptions";
+import { getAgencySubscriptionStatus, isAgencySubscriptionExempt } from "@/lib/actions/subscriptions";
 import { redirect } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -31,8 +31,13 @@ export default async function DashboardLayout({
   const navInfo = await getProfileNavInfo(session.user.id);
 
   let subscriptionStatus: SubscriptionStatus | null = null;
+  let subscriptionExempt = false;
   if (session.user.agencyId) {
-    const sub = await getAgencySubscriptionStatus(session.user.agencyId);
+    const [sub, exempt] = await Promise.all([
+      getAgencySubscriptionStatus(session.user.agencyId),
+      isAgencySubscriptionExempt(session.user.agencyId),
+    ]);
+    subscriptionExempt = exempt;
     if (sub) {
       subscriptionStatus = sub.status;
       if (sub.status === "past_due" && sub.grace_period_end) {
@@ -77,7 +82,11 @@ export default async function DashboardLayout({
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
                 {needsSubscription ? (
-                  <SubscriptionGate status={subscriptionStatus} isOwner={isOwner}>
+                  <SubscriptionGate
+                    status={subscriptionStatus}
+                    isOwner={isOwner}
+                    subscriptionExempt={subscriptionExempt}
+                  >
                     {children}
                   </SubscriptionGate>
                 ) : (

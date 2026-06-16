@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { AgencyActions } from "./agency-actions";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import { UrlFacetedFilter } from "@/components/ui/url-faceted-filter";
@@ -95,7 +96,16 @@ export function AgenciesTable({ result }: { result: Paginated<AgencyForAdmin> })
         accessorKey: "status",
         meta: { label: "Status" },
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-        cell: ({ row }) => <StatusBadge status={row.original.status} className="border-0" />,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={row.original.status} className="border-0" />
+            {row.original.subscription_exempt && (
+              <Badge variant="secondary" className="text-[10px] font-normal">
+                Subscription waived
+              </Badge>
+            )}
+          </div>
+        ),
       },
       {
         accessorKey: "created_at",
@@ -112,7 +122,9 @@ export function AgenciesTable({ result }: { result: Paginated<AgencyForAdmin> })
         cell: ({ row }) => (
           <AgencyActions
             agencyId={row.original.id}
+            agencyName={row.original.name}
             status={row.original.status}
+            subscriptionExempt={row.original.subscription_exempt}
             ownerId={row.original.owner_id}
             ownerName={row.original.owner_name}
           />

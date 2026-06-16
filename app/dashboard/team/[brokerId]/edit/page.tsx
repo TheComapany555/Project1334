@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -28,6 +27,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { FieldError } from "@/components/ui/field-error";
 import { AITextActions } from "@/components/ai/ai-text-actions";
+import { CroppablePhotoUpload } from "@/components/shared/croppable-photo-upload";
 import {
   User,
   Phone,
@@ -126,9 +126,7 @@ export default function EditBrokerPage() {
     }
   }
 
-  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function onPhotoChange(file: File) {
     setPhotoUploading(true);
     const formData = new FormData();
     formData.set("file", file);
@@ -189,31 +187,13 @@ export default function EditBrokerPage() {
             </div>
           </CardHeader>
           <CardContent className="px-5 py-6">
-            <div className="flex items-center gap-5">
-              <div className="relative h-20 w-20 rounded-full border-2 border-border bg-muted overflow-hidden group shrink-0">
-                {photoUrl ? (
-                  <Image src={photoUrl} alt="Broker photo" fill className="object-cover" unoptimized />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Camera className="h-7 w-7 text-muted-foreground/30" />
-                  </div>
-                )}
-                <label
-                  htmlFor="photo-upload"
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full"
-                >
-                  <Camera className="h-5 w-5 text-white" />
-                </label>
-              </div>
-              <div>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" id="photo-upload" onChange={onPhotoChange} disabled={photoUploading} />
-                <label htmlFor="photo-upload">
-                  <Button type="button" variant="outline" size="sm" className="cursor-pointer" disabled={photoUploading} asChild>
-                    <span>{photoUploading ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Uploading…</> : "Change photo"}</span>
-                  </Button>
-                </label>
-              </div>
-            </div>
+            <CroppablePhotoUpload
+              id="photo-upload"
+              label="Profile photo"
+              url={photoUrl}
+              uploading={photoUploading}
+              onUpload={onPhotoChange}
+            />
           </CardContent>
         </Card>
 

@@ -90,6 +90,7 @@ export async function getMySubscription(): Promise<AgencySubscription | null> {
 export async function isSubscriptionActive(): Promise<boolean> {
   const { agencyId } = await requireBroker();
   if (!agencyId) return false;
+  if (await isAgencySubscriptionExempt(agencyId)) return true;
   const supabase = createServiceRoleClient();
   const { data } = await supabase
     .from("agency_subscriptions")
@@ -103,6 +104,19 @@ export async function isSubscriptionActive(): Promise<boolean> {
     return new Date(data.grace_period_end) > new Date();
   }
   return true;
+}
+
+/** Whether an agency is exempt from the subscription gate (admin waiver). */
+export async function isAgencySubscriptionExempt(
+  agencyId: string,
+): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase
+    .from("agencies")
+    .select("subscription_exempt")
+    .eq("id", agencyId)
+    .single();
+  return data?.subscription_exempt === true;
 }
 
 /** Get subscription status for a given agency (used in layout).

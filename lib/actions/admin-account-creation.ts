@@ -96,6 +96,8 @@ export async function createAgencyByAdmin(opts: {
   email: string;
   ownerName: string;
   agencyName: string;
+  /** When true (default), brokers can use the platform without paying first. */
+  waiveSubscription?: boolean;
 }): Promise<AdminCreateResult> {
   const admin = await getAdminSession();
   if (!admin) return { ok: false, error: "Unauthorized." };
@@ -140,6 +142,8 @@ export async function createAgencyByAdmin(opts: {
     return { ok: false, error: "Failed to create account. Please try again." };
   }
 
+  const waiveSubscription = opts.waiveSubscription !== false;
+
   // 2. Create agency (active, no approval needed since admin made it)
   const agencySlug = await generateUniqueAgencySlug(agencyName);
   const { data: agency, error: agencyError } = await supabase
@@ -148,6 +152,7 @@ export async function createAgencyByAdmin(opts: {
       name: agencyName,
       slug: agencySlug,
       status: "active",
+      subscription_exempt: waiveSubscription,
     })
     .select("id")
     .single();
@@ -201,7 +206,13 @@ export async function createAgencyByAdmin(opts: {
     action: "create_agency",
     targetUserId: newUser.id,
     targetAgencyId: agency.id,
-    metadata: { email, ownerName, agencyName, emailSent: emailResult.ok },
+    metadata: {
+      email,
+      ownerName,
+      agencyName,
+      emailSent: emailResult.ok,
+      subscriptionExempt: waiveSubscription,
+    },
   });
 
   return {

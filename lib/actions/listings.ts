@@ -123,6 +123,12 @@ async function requireBroker() {
 async function checkAgencySubscription(agencyId: string | null): Promise<boolean> {
   if (!agencyId) return true; // Solo broker (no agency) — no subscription required
   const supabase = createServiceRoleClient();
+  const { data: agency } = await supabase
+    .from("agencies")
+    .select("subscription_exempt")
+    .eq("id", agencyId)
+    .single();
+  if (agency?.subscription_exempt) return true;
   const { data } = await supabase
     .from("agency_subscriptions")
     .select("id, status, grace_period_end")

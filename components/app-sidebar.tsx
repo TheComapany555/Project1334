@@ -26,6 +26,7 @@ import {
   Analytics01Icon,
   UserMultipleIcon,
   MessageMultipleIcon,
+  CustomerService01Icon,
 } from "@hugeicons/core-free-icons"
 
 export type SidebarUser = {
@@ -59,6 +60,7 @@ const brokerNav = [
     icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
   },
   { title: "Payments", url: "/dashboard/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },
+  { title: "Support", url: "/dashboard/support", icon: <HugeiconsIcon icon={CustomerService01Icon} strokeWidth={2} /> },
 ]
 
 export function AppSidebar({

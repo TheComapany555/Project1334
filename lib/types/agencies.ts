@@ -17,6 +17,8 @@ export type Agency = {
     instagram?: string;
   } | null;
   status: AgencyStatus;
+  /** Admin can waive the paid subscription requirement for this agency. */
+  subscription_exempt?: boolean;
   created_at: string;
   updated_at: string;
 };

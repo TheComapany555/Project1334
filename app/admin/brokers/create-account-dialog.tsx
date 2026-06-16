@@ -31,6 +31,7 @@ import {
   createBrokerByAdmin,
   listAgenciesForPicker,
 } from "@/lib/actions/admin-account-creation";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserPlus, Building2, User } from "lucide-react";
 
 const agencySchema = z.object({
@@ -55,6 +56,7 @@ export function CreateAccountDialog() {
   const [tab, setTab] = useState<"agency" | "broker">("agency");
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [agenciesLoading, setAgenciesLoading] = useState(false);
+  const [waiveSubscription, setWaiveSubscription] = useState(true);
 
   const agencyForm = useForm<AgencyForm>({
     resolver: zodResolver(agencySchema),
@@ -80,6 +82,7 @@ export function CreateAccountDialog() {
       email: data.email,
       ownerName: data.ownerName,
       agencyName: data.agencyName,
+      waiveSubscription,
     });
     if (result.ok) {
       if (result.emailSent) {
@@ -187,6 +190,22 @@ export function CreateAccountDialog() {
                     {agencyForm.formState.errors.email.message}
                   </p>
                 )}
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3">
+                <Checkbox
+                  id="waive-subscription"
+                  checked={waiveSubscription}
+                  onCheckedChange={(checked) => setWaiveSubscription(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="waive-subscription" className="text-sm font-medium leading-none">
+                    Waive subscription requirement
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Lets the agency use the platform immediately without paying.
+                    You can change this later from the agency actions menu.
+                  </p>
+                </div>
               </div>
               <DialogFooter>
                 <Button
