@@ -7,7 +7,12 @@ import type {
   BuyerFundingStatus,
   BuyerTimeframe,
 } from "@/lib/actions/buyer-account";
-import type { ContactTag } from "@/lib/types/contacts";
+import type {
+  ContactTag,
+  ContactSource,
+  HotLeadTier,
+} from "@/lib/types/contacts";
+import { tierForSignals, hasHotLeadTag } from "@/lib/crm/hot-lead";
 
 export type BuyerActivityKind =
   // Inferred from existing system tables (already wired):
@@ -44,6 +49,12 @@ export type BuyerActivityEvent = {
   /** Optional contextual metadata (enquiry message, document name, etc). */
   detail?: string | null;
   /**
+   * Full text body for crm_activities (notes, feedback, logged-call notes).
+   * `detail` is a short label; `body` is the untruncated content so the Notes
+   * surfaces can render the whole note.
+   */
+  body?: string | null;
+  /**
    * For `kind="email_sent"`: timestamp of the buyer's first open of the
    * outbound email (null until the tracking pixel is loaded by the client).
    */
@@ -68,6 +79,12 @@ export type BuyerListingSummary = {
   documents_viewed: number;
   documents_downloaded: number;
   last_activity_at: string | null;
+  /**
+   * Pipeline stage for THIS buyer on THIS listing (per-listing CRM status).
+   * Null when the broker hasn't set one and nothing has auto-advanced it.
+   * Requires the buyer to be in the broker's CRM (contact_id present).
+   */
+  pipeline_status: BuyerCrmStatus | null;
 };
 
 export type BuyerEnquirySummary = {
@@ -106,7 +123,8 @@ export type BuyerCrmStatus =
   | "nda_signed"
   | "documents_shared"
   | "negotiating"
-  | "closed";
+  | "sold"
+  | "lost";
 
 export type BuyerPreferencesSnapshot = {
   budget_min: number | null;
@@ -130,6 +148,10 @@ export type BuyerCrmRecord = {
   last_contacted_at: string | null;
   first_interaction_at: string | null;
   consent_marketing: boolean;
+  /** How this buyer entered the broker's CRM (enquiry/manual/share/import). */
+  source: ContactSource | null;
+  /** Title of the listing that brought them in (originating enquiry). */
+  reason_listing_title: string | null;
 };
 
 export type BuyerProfile = {
@@ -145,6 +167,12 @@ export type BuyerProfile = {
   preferences: BuyerPreferencesSnapshot;
   /** Whether the buyer is already in this broker's CRM (broker_contacts). */
   in_contacts: boolean;
+  /**
+   * True when this profile is backed by a real Salebiz user account; false for
+   * a manually-added CRM contact that hasn't registered. Drives the
+   * "no Salebiz account" state + invite button on the full profile.
+   */
+  has_account: boolean;
   /** @deprecated Use `crm.contact_id` — kept for older callers. */
   contact_id: string | null;
   /** CRM-state snapshot scoped to *this* broker's relationship with the buyer. */
@@ -152,6 +180,12 @@ export type BuyerProfile = {
   /** Listing this profile is being viewed in the context of (optional). */
   scope_listing: { id: string; title: string; slug: string } | null;
   metrics: BuyerProfileMetrics;
+  /**
+   * Unified hot-lead tier (buyer activity + NDA + views + broker tags +
+   * engagement history). Computed server-side via lib/crm/hot-lead.ts so the
+   * profile badge matches the CRM "Hot leads" tab exactly.
+   */
+  hot_tier: HotLeadTier;
   listings: BuyerListingSummary[];
   enquiries: BuyerEnquirySummary[];
   activity: BuyerActivityEvent[];
@@ -360,6 +394,7 @@ export async function getBuyerProfile(
         documents_viewed: 0,
         documents_downloaded: 0,
         last_activity_at: null,
+        pipeline_status: null,
       };
       listingAgg.set(listingId, row);
     }
@@ -563,6 +598,7 @@ export async function getBuyerProfile(
       at: row.occurred_at,
       listing_id: row.listing_id ?? "",
       detail: row.subject ?? row.body?.slice(0, 140) ?? null,
+      body: row.body ?? null,
       opened_at: row.opened_at ?? null,
       open_count: row.open_count ?? 0,
     });
@@ -647,7 +683,7 @@ export async function getBuyerPanelByContactId(
 
   const { data: contact } = await supabase
     .from("broker_contacts")
-    .select("id, broker_id, buyer_user_id, name, email, phone, interest, notes, status, next_follow_up_at, last_emailed_at, last_called_at, last_contacted_at, first_interaction_at, consent_marketing, source, created_at")
+    .select("id, broker_id, buyer_user_id, name, email, phone, interest, notes, status, next_follow_up_at, last_emailed_at, last_called_at, last_contacted_at, first_interaction_at, consent_marketing, source, enquiry_id, created_at")
     .eq("id", contactId)
     .maybeSingle();
 
@@ -694,6 +730,24 @@ export async function getBuyerPanelByContactId(
     .map((m) => m.contact_tags)
     .filter((t): t is ContactTag => !!t);
 
+  // Why they're in the CRM: originating enquiry's listing title.
+  let liteReasonListingTitle: string | null = null;
+  if (contact.enquiry_id) {
+    const { data: enq } = await supabase
+      .from("enquiries")
+      .select("listing_id")
+      .eq("id", contact.enquiry_id)
+      .maybeSingle();
+    if (enq?.listing_id) {
+      const { data: lst } = await supabase
+        .from("listings")
+        .select("title")
+        .eq("id", enq.listing_id)
+        .maybeSingle();
+      liteReasonListingTitle = (lst?.title as string | null) ?? null;
+    }
+  }
+
   const liteActivity: BuyerActivityEvent[] = (liteCrmActivity ?? []).map(
     (row) => ({
       id: `crm-${row.id}`,
@@ -701,9 +755,30 @@ export async function getBuyerPanelByContactId(
       at: row.occurred_at,
       listing_id: row.listing_id ?? "",
       detail: row.subject ?? row.body?.slice(0, 140) ?? null,
+      body: row.body ?? null,
       opened_at: row.opened_at ?? null,
       open_count: row.open_count ?? 0,
     }),
+  );
+
+  // Lite contacts have no tracked activity — tier is driven by the broker's
+  // hot tag, pipeline stage, and how recently they were contacted.
+  const liteHotTier = tierForSignals(
+    {
+      views: 0,
+      enquiries: 0,
+      calls: 0,
+      saves: 0,
+      documentViews: 0,
+      documentDownloads: 0,
+      ndaRequested: false,
+      ndaSigned: false,
+      hasHotTag: hasHotLeadTag(tags),
+      pipelineStatus: (contact.status as BuyerCrmStatus | null) ?? null,
+      lastActivityAt:
+        contact.last_contacted_at ?? contact.first_interaction_at ?? null,
+    },
+    Date.now(),
   );
 
   return {
@@ -725,6 +800,7 @@ export async function getBuyerPanelByContactId(
       location_text: null,
     },
     in_contacts: true,
+    has_account: false,
     contact_id: contact.id,
     crm: {
       contact_id: contact.id,
@@ -738,6 +814,8 @@ export async function getBuyerPanelByContactId(
       last_contacted_at: contact.last_contacted_at ?? null,
       first_interaction_at: contact.first_interaction_at ?? null,
       consent_marketing: !!contact.consent_marketing,
+      source: (contact.source as ContactSource | null) ?? null,
+      reason_listing_title: liteReasonListingTitle,
     },
     scope_listing: null,
     metrics: {
@@ -754,6 +832,7 @@ export async function getBuyerPanelByContactId(
       first_seen_at: contact.first_interaction_at ?? null,
       last_seen_at: contact.last_contacted_at ?? null,
     },
+    hot_tier: liteHotTier,
     listings: [],
     enquiries: [],
     activity: liteActivity,
@@ -826,12 +905,16 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
     last_contacted_at: string | null;
     first_interaction_at: string | null;
     consent_marketing: boolean | null;
+    source: string | null;
+    enquiry_id: string | null;
   };
   let crmRow: CrmRow | null = null;
 
+  const crmCols =
+    "id, status, notes, interest, next_follow_up_at, last_emailed_at, last_called_at, last_contacted_at, first_interaction_at, consent_marketing, source, enquiry_id";
   const byUser = await supabase
     .from("broker_contacts")
-    .select("id, status, notes, interest, next_follow_up_at, last_emailed_at, last_called_at, last_contacted_at, first_interaction_at, consent_marketing")
+    .select(crmCols)
     .eq("broker_id", broker.id)
     .eq("buyer_user_id", buyerId)
     .maybeSingle();
@@ -840,7 +923,7 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
   } else if (preferredEmail) {
     const byEmail = await supabase
       .from("broker_contacts")
-      .select("id, status, notes, interest, next_follow_up_at, last_emailed_at, last_called_at, last_contacted_at, first_interaction_at, consent_marketing")
+      .select(crmCols)
       .eq("broker_id", broker.id)
       .ilike("email", preferredEmail)
       .maybeSingle();
@@ -859,6 +942,66 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
   }
 
   const crmStatus = (crmRow?.status as BuyerCrmStatus | null) ?? null;
+
+  // Why this buyer is in the CRM: resolve the originating enquiry's listing
+  // title (for source='enquiry'). Cheap two-step lookup; non-fatal.
+  let reasonListingTitle: string | null = null;
+  if (crmRow?.enquiry_id) {
+    const { data: enq } = await supabase
+      .from("enquiries")
+      .select("listing_id")
+      .eq("id", crmRow.enquiry_id)
+      .maybeSingle();
+    if (enq?.listing_id) {
+      const { data: lst } = await supabase
+        .from("listings")
+        .select("title")
+        .eq("id", enq.listing_id)
+        .maybeSingle();
+      reasonListingTitle = (lst?.title as string | null) ?? null;
+    }
+  }
+
+  // Per-listing pipeline stages for this contact. Merge onto each listing so
+  // the profile can show a status next to the linked listing. Defensive: if
+  // the table isn't migrated yet, `error` is set and we leave statuses null.
+  if (crmRow?.id && a.listings.length > 0) {
+    const { data: listingStatusRows, error: lsErr } = await supabase
+      .from("broker_contact_listing_status")
+      .select("listing_id, status")
+      .eq("contact_id", crmRow.id);
+    if (!lsErr && listingStatusRows) {
+      const statusByListing = new Map<string, BuyerCrmStatus>();
+      for (const r of listingStatusRows) {
+        if (r.listing_id && r.status) {
+          statusByListing.set(r.listing_id, r.status as BuyerCrmStatus);
+        }
+      }
+      for (const l of a.listings) {
+        l.pipeline_status = statusByListing.get(l.listing_id) ?? null;
+      }
+    }
+  }
+
+  // Unified hot-lead tier — same scorer as the CRM list (lib/crm/hot-lead.ts):
+  // buyer activity + NDA + listing views + broker tags + engagement history.
+  const hot_tier = tierForSignals(
+    {
+      views: a.views.length,
+      enquiries: a.enquiries.length,
+      calls: a.calls.length,
+      saves: a.saves.length,
+      documentViews: a.docEvents.filter((e) => e.event_kind === "view").length,
+      documentDownloads: a.docEvents.filter((e) => e.event_kind === "download")
+        .length,
+      ndaRequested: a.docAccess.length > 0 || a.ndaSigs.length > 0,
+      ndaSigned: a.ndaSigs.length > 0,
+      hasHotTag: hasHotLeadTag(crmTags),
+      pipelineStatus: crmStatus,
+      lastActivityAt: a.last_seen_at,
+    },
+    Date.now(),
+  );
 
   return {
     id: user.id,
@@ -879,6 +1022,7 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
       location_text: profile?.location_text ?? null,
     },
     in_contacts: !!crmRow,
+    has_account: true,
     contact_id: crmRow?.id ?? null,
     crm: {
       contact_id: crmRow?.id ?? null,
@@ -892,6 +1036,8 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
       last_contacted_at: crmRow?.last_contacted_at ?? null,
       first_interaction_at: crmRow?.first_interaction_at ?? null,
       consent_marketing: !!crmRow?.consent_marketing,
+      source: (crmRow?.source as ContactSource | null) ?? null,
+      reason_listing_title: reasonListingTitle,
     },
     scope_listing: a.scope_listing,
     metrics: {
@@ -913,6 +1059,7 @@ async function buildBuyerProfileResponse(a: BuildArgs): Promise<BuyerProfile> {
       first_seen_at: a.first_seen_at,
       last_seen_at: a.last_seen_at,
     },
+    hot_tier,
     listings: a.listings,
     enquiries: a.enquiriesSummary,
     activity: a.activity,

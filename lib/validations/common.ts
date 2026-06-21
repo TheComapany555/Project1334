@@ -4,6 +4,28 @@ import { z } from "zod";
 
 export const emailField = z.string().email("Enter a valid email address");
 
+/** Shared email pattern (matches the regex used across the server actions). */
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Plain (non-zod) validators usable on both client and server. */
+export function isValidEmail(value: string): boolean {
+  return EMAIL_RE.test(value.trim());
+}
+
+/**
+ * Loose phone validation: digits with optional leading "+" and common
+ * separators (spaces, dashes, parentheses, dots) — no letters. Must contain
+ * 8–15 digits (E.164 caps at 15; AU mobiles are 10). Returns true for an empty
+ * string so callers can treat the field as optional.
+ */
+export function isValidPhone(value: string): boolean {
+  const v = value.trim();
+  if (!v) return true;
+  if (!/^\+?[\d\s().-]+$/.test(v)) return false; // rejects letters etc.
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
 export const passwordField = z
   .string()
   .min(8, "Password must be at least 8 characters");

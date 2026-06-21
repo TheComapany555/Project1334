@@ -2,6 +2,11 @@ import { getOpenAIClient, OPENAI_MODEL } from "./openai";
 import type { AnalyticsOverview } from "@/lib/actions/analytics";
 import type { RecentFeedbackRow } from "@/lib/actions/crm";
 import type { AIListingInsights } from "./listing-insights";
+import {
+  BUYER_CRM_STATUSES,
+  BUYER_CRM_STATUS_LABEL,
+  type BuyerCrmStatus,
+} from "@/lib/types/contacts";
 
 const FEEDBACK_SUBTYPE_LABELS: Record<string, string> = {
   feedback: "Feedback",
@@ -19,7 +24,7 @@ Produce three outputs in plain Australian English:
 
 1. "performance_summary" — one short paragraph (2 to 5 sentences, max 380 characters) on how the portfolio is performing in the selected period. Lead with headline metrics (views, enquiries, trends). If the buyer-feedback notes reveal a clear pattern (multiple objections about pricing, repeated lease concerns, frequent questions about financials, etc.), weave that pattern into the summary. No headings, bullets, or markdown.
 
-2. "suggested_actions" — an array of 2 to 3 practical next steps for the broker across their listings (not per listing). Each one sentence, max 160 characters, plain text. If buyer feedback suggests a fix (e.g. "publish updated P&L", "review asking price", "clarify lease terms in the listing"), reflect it here.
+2. "suggested_actions" — an array of 2 to 3 practical next steps for the broker across their listings (not per listing). Each one sentence, max 160 characters, plain text. If buyer feedback suggests a fix (e.g. "publish updated P&L", "review asking price", "clarify lease terms in the listing"), reflect it here. If a CRM pipeline breakdown is provided, use it to drive follow-ups: chase the New Lead and Contacted buyers before they go cold, nudge NDA Signed and Documents Shared buyers forward, and prioritise Negotiating buyers toward an offer. Do not chase buyers already marked Sold (won) or Lost; if many are Lost, suggest reviewing why deals are falling through.
 
 3. "seller_update" — a short paragraph the broker could reuse when updating sellers or stakeholders about overall activity this period. Plain text, max 480 characters. Do not use a single seller name; refer to "your listing(s)" or "the businesses we have listed" as appropriate. No emojis or markdown.
 
@@ -59,6 +64,18 @@ function describeOverviewForPrompt(o: AnalyticsOverview): string {
     }
   }
   return lines.join("\n");
+}
+
+function describeStatusBreakdown(
+  breakdown: Partial<Record<BuyerCrmStatus, number>>,
+): string {
+  const parts = BUYER_CRM_STATUSES.filter((s) => (breakdown[s] ?? 0) > 0).map(
+    (s) => `${breakdown[s]} ${BUYER_CRM_STATUS_LABEL[s]}`,
+  );
+  if (parts.length === 0) {
+    return "CRM pipeline: no contacts saved yet.";
+  }
+  return `CRM pipeline (buyers by stage across the broker's contacts): ${parts.join(", ")}. Use these stages to make the follow-up suggestions concrete.`;
 }
 
 function describeFeedbackForPrompt(feedback: RecentFeedbackRow[]): string {
@@ -118,6 +135,7 @@ function parseInsightsJson(raw: string | null | undefined): AIListingInsights {
 export async function generateBrokerAccountInsights(
   overview: AnalyticsOverview,
   feedback: RecentFeedbackRow[] = [],
+  statusBreakdown: Partial<Record<BuyerCrmStatus, number>> = {},
 ): Promise<AIListingInsights> {
   if (overview.per_listing.length === 0) {
     return {
@@ -151,7 +169,7 @@ export async function generateBrokerAccountInsights(
     };
   }
 
-  const userPrompt = `Here is the broker's portfolio analytics:\n\n${describeOverviewForPrompt(overview)}\n\n${describeFeedbackForPrompt(feedback)}\n\nReturn JSON with keys "performance_summary", "suggested_actions", and "seller_update".`;
+  const userPrompt = `Here is the broker's portfolio analytics:\n\n${describeOverviewForPrompt(overview)}\n\n${describeStatusBreakdown(statusBreakdown)}\n\n${describeFeedbackForPrompt(feedback)}\n\nReturn JSON with keys "performance_summary", "suggested_actions", and "seller_update".`;
 
   const openai = getOpenAIClient();
   const completion = await openai.chat.completions.create({

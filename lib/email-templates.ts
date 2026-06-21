@@ -948,6 +948,72 @@ export function shareListingEmail({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Email: Invite a buyer to create a Salebiz account                 */
+/* ------------------------------------------------------------------ */
+
+export function buyerInviteEmail({
+  contactName,
+  brokerName,
+  brokerCompany,
+  registerUrl,
+  customMessage,
+  signatureHtml,
+}: {
+  contactName: string | null;
+  brokerName: string;
+  brokerCompany?: string | null;
+  registerUrl: string;
+  customMessage?: string | null;
+  /** Optional broker signature HTML appended before the footer. */
+  signatureHtml?: string | null;
+}): string {
+  const safeContact = esc(contactName);
+  const safeBrokerName = esc(brokerName);
+  const safeBrokerCompany = esc(brokerCompany);
+  const safeRegisterUrl = esc(registerUrl);
+  const greeting = safeContact ? `Hi ${safeContact},` : "Hi,";
+  const senderLabel = safeBrokerCompany
+    ? `<strong>${safeBrokerName}</strong> from ${safeBrokerCompany}`
+    : `<strong>${safeBrokerName}</strong>`;
+
+  const messageBlock = customMessage?.trim()
+    ? `<div style="margin:0 0 20px;padding:16px 20px;background:#fff8ec;border-radius:8px;border-left:4px solid #d97706;">
+        <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
+          Message from ${safeBrokerName}
+        </p>
+        <p style="margin:0;font-size:14px;color:#333333;line-height:1.6;white-space:pre-wrap;">${esc(customMessage.trim()).replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
+
+  return baseLayout(`
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${greeting}
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">
+      ${senderLabel} has invited you to join Salebiz, the marketplace for buying
+      and selling businesses in Australia. Creating a free account lets you save
+      listings, request information packs, and keep in touch about opportunities
+      that match what you are looking for.
+    </p>
+
+    ${messageBlock}
+
+    <div style="margin:0 0 24px;">
+      <a href="${safeRegisterUrl}" style="display:inline-block;background:${BRAND_PRIMARY};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;">
+        Create your free account
+      </a>
+    </div>
+
+    ${signatureHtml ?? ""}
+
+    <p style="margin:0 0 8px;font-size:13px;color:#888888;">
+      This invitation was sent by a broker on Salebiz.com.au. If you did not expect this, you can safely ignore it.
+    </p>
+  `);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Email: Buyer alert match (Feature 3)                              */
 /* ------------------------------------------------------------------ */
 

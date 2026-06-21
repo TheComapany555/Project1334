@@ -734,8 +734,8 @@ export default function NewListingPage() {
               <div className="space-y-2">
                 <Label>Images</Label>
                 <p className="text-sm text-muted-foreground">
-                  Up to {MAX_IMAGES_PER_LISTING} images (JPEG, PNG, WebP, GIF).
-                  You can select multiple at once.
+                  Up to {MAX_IMAGES_PER_LISTING} images (JPEG, PNG, WebP, GIF),
+                  5MB maximum per image. You can select multiple at once.
                 </p>
                 <input
                   ref={fileInputRef}

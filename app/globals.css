@@ -143,6 +143,24 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Dropdown / dialog scroll-lock: prevent the whole page shifting inward.
+
+   When a Radix dropdown, select, or dialog opens, react-remove-scroll locks the
+   page by setting `body[data-scroll-locked] { overflow:hidden; margin-right:Npx }`
+   — the margin compensates for the scrollbar it expects `overflow:hidden` to
+   remove. But the `overflow-x: clip` on <html> above makes <html> (not <body>)
+   the viewport scroll container, so the body's `overflow:hidden` never removes
+   that scrollbar. The compensation margin then just shoves the page inward on
+   every dropdown. There is nothing to compensate for, so zero it out.
+
+   Unlayered + higher specificity than the injected `body[data-scroll-locked]`
+   rule, so it wins regardless of stylesheet order. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
 /* NProgress loading bar */
 #nprogress .bar {
   background: var(--primary) !important;

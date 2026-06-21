@@ -1,5 +1,9 @@
 import { getOpenAIClient, OPENAI_MODEL } from "./openai";
 import type { ListingInsightsMetrics } from "@/lib/actions/listing-insights";
+import {
+  BUYER_CRM_STATUSES,
+  BUYER_CRM_STATUS_LABEL,
+} from "@/lib/types/contacts";
 
 export type AIListingInsights = {
   performance_summary: string;
@@ -17,7 +21,8 @@ Your audience is the BROKER, not the buyer. Your job is to read the listing's re
    - "Follow up with the 3 buyers who requested NDAs but haven't signed yet."
    - "Buyers keep flagging the asking price as high. Consider sharing an updated valuation rationale or revisiting the price."
    - "Multiple buyers asked about staff retention. Add a brief operations note to the listing description to head off that objection."
-   If the listing has no activity, suggest improving exposure, not buyer follow-ups.
+   - "Two buyers are negotiating and one is at documents shared. Prioritise the negotiating buyers to push toward an offer."
+   If buyer pipeline stages are provided, use them: chase buyers stuck at an early stage (interested, contacted) and prioritise late-stage buyers (negotiating, documents shared) toward closing. If the listing has no activity, suggest improving exposure, not buyer follow-ups.
 
 3. "seller_update" — a ready-to-send professional message the broker can copy and paste straight to their seller (the business owner). Plain text. Open with "Hi [Seller Name]," and close with no signature. Include the real numbers inline. If buyer feedback reveals a recurring theme worth raising with the seller (pricing pushback, requests for more financial detail, concerns about an asset), reference it in neutral, summarised language. Do NOT quote buyer messages verbatim. 3 to 5 sentences, max 600 characters. Tone: confident, calm, factual. No emojis. No marketing fluff.
 
@@ -31,10 +36,30 @@ Style rules across all three outputs:
 
 Return ONLY a JSON object with keys "performance_summary" (string), "suggested_actions" (string[]), and "seller_update" (string). No other text.`;
 
+const LISTING_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  published: "Published",
+  under_offer: "Under offer",
+  sold: "Sold",
+  unpublished: "Unpublished",
+};
+
 function describeMetricsForPrompt(input: ListingInsightsMetrics): string {
   const m = input.metrics;
   const parts: string[] = [];
   parts.push(`Listing title: ${input.listing.title}`);
+  parts.push(
+    `Listing status: ${LISTING_STATUS_LABEL[input.listing.status] ?? input.listing.status}`,
+  );
+  if (input.listing.status === "sold") {
+    parts.push(
+      "(This listing is SOLD. Frame the seller update around the completed sale; do not suggest chasing new buyers.)",
+    );
+  } else if (input.listing.status === "under_offer") {
+    parts.push(
+      "(This listing is UNDER OFFER. Suggest keeping backup buyers warm in case the deal falls through.)",
+    );
+  }
   if (input.listing.category) parts.push(`Category: ${input.listing.category}`);
   const loc = [input.listing.suburb, input.listing.state]
     .filter(Boolean)
@@ -78,6 +103,20 @@ function describeMetricsForPrompt(input: ListingInsightsMetrics): string {
     ).length;
     parts.push(
       `- Hot buyer signals: ${input.hot_buyers.length} buyer(s) flagged (${ndaSignedBuyers} NDA-signed, ${repeatBuyers} returning).`,
+    );
+  }
+
+  // Per-listing CRM pipeline stages. Tells the model where buyers sit in the
+  // deal pipeline FOR THIS BUSINESS so suggested actions can target stuck
+  // stages (e.g. interested-but-not-progressing) and the seller update can
+  // reflect genuine momentum.
+  const pc = input.pipeline_counts ?? {};
+  const stageParts = BUYER_CRM_STATUSES.filter((s) => (pc[s] ?? 0) > 0).map(
+    (s) => `${pc[s]} ${BUYER_CRM_STATUS_LABEL[s]}`,
+  );
+  if (stageParts.length > 0) {
+    parts.push(
+      `- Buyer pipeline stages for this listing: ${stageParts.join(", ")}.`,
     );
   }
 

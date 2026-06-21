@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -80,6 +81,7 @@ import {
   FileSpreadsheet,
   TrendingUp,
   Clock,
+  Building2,
 } from "lucide-react";
 import { ImportContactsDialog } from "@/components/dashboard/import-contacts-dialog";
 import {
@@ -95,6 +97,7 @@ import {
   type ContactTag,
 } from "@/lib/types/contacts";
 import { cn } from "@/lib/utils";
+import { isValidEmail, isValidPhone } from "@/lib/validations/common";
 import { ContactTagMultiSelect } from "@/components/dashboard/contact-tag-multi-select";
 import { ContactTagManager } from "@/components/dashboard/contact-tag-manager";
 import { CallLogDialog } from "@/components/dashboard/call-log-dialog";
@@ -153,7 +156,8 @@ const STATUS_LABEL: Record<BuyerCrmStatus, string> = {
   nda_signed: "NDA Signed",
   documents_shared: "Documents shared",
   negotiating: "Negotiating",
-  closed: "Closed",
+  sold: "Sold",
+  lost: "Lost",
 };
 
 const STATUS_TONE: Record<BuyerCrmStatus, string> = {
@@ -169,7 +173,8 @@ const STATUS_TONE: Record<BuyerCrmStatus, string> = {
     "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   negotiating:
     "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  closed: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  sold: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  lost: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 type PresetTab =
@@ -239,6 +244,62 @@ function getInitials(name: string | null, email: string) {
       .slice(0, 2);
   }
   return email.charAt(0).toUpperCase();
+}
+
+/**
+ * "Interested in" cell — the listings a buyer is linked to (enquired on, or
+ * the broker set a per-listing stage on), each with that pipeline stage.
+ * Shows up to two inline; the rest open the buyer panel.
+ */
+function LinkedListingsCell({
+  contact,
+  onOpen,
+}: {
+  contact: BrokerContact;
+  onOpen: () => void;
+}) {
+  const linked = contact.linked_listings ?? [];
+  if (linked.length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const shown = linked.slice(0, 2);
+  const extra = linked.length - shown.length;
+  return (
+    <div className="flex flex-col gap-1 max-w-[230px]">
+      {shown.map((l) => (
+        <div key={l.listing_id} className="flex items-center gap-1.5 min-w-0">
+          <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <Link
+            href={`/dashboard/listings/${l.listing_id}/insights`}
+            className="text-xs font-medium truncate hover:underline"
+            title={l.title}
+          >
+            {l.title}
+          </Link>
+          {l.stage && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[9px] px-1 py-0 shrink-0",
+                STATUS_TONE[l.stage],
+              )}
+            >
+              {STATUS_LABEL[l.stage]}
+            </Badge>
+          )}
+        </div>
+      ))}
+      {extra > 0 && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-[10px] text-muted-foreground hover:text-foreground text-left w-fit"
+        >
+          +{extra} more
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function ContactsClientView({
@@ -336,8 +397,6 @@ export function ContactsClientView({
 
   const [, startTransition] = useTransition();
 
-  const HOT_TAG_NAMES = ["hot lead", "hot", "vip"];
-
   const filtered = useMemo(() => {
     const now = Date.now();
     const cutoffs: Record<LastActivityFilter, number | null> = {
@@ -352,10 +411,9 @@ export function ContactsClientView({
     return contacts.filter((c) => {
       // Preset filters (override individual status filter unless set)
       if (preset === "hot") {
-        const hasHotTag = c.tags.some((t) =>
-          HOT_TAG_NAMES.includes(t.name.trim().toLowerCase()),
-        );
-        if (!hasHotTag) return false;
+        // Hot = unified score (activity + NDA + views + broker tags +
+        // engagement history), computed server-side. Not tag-only anymore.
+        if (c.hot_tier !== "hot") return false;
       } else if (preset === "follow_ups_due") {
         if (!c.next_follow_up_at || !isOverdue(c.next_follow_up_at)) return false;
       } else if (preset === "nda_signed") {
@@ -464,8 +522,7 @@ export function ContactsClientView({
       negotiating: 0,
     };
     for (const c of contacts) {
-      if (c.tags.some((t) => HOT_TAG_NAMES.includes(t.name.trim().toLowerCase())))
-        counts.hot++;
+      if (c.hot_tier === "hot") counts.hot++;
       if (c.next_follow_up_at && isOverdue(c.next_follow_up_at))
         counts.follow_ups_due++;
       if (c.status === "nda_signed") counts.nda_signed++;
@@ -473,7 +530,6 @@ export function ContactsClientView({
       if (c.status === "negotiating") counts.negotiating++;
     }
     return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contacts]);
 
   return (
@@ -743,6 +799,9 @@ export function ContactsClientView({
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead className="pl-4 sm:pl-6">Contact</TableHead>
                   <TableHead className="hidden md:table-cell">Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    Interested in
+                  </TableHead>
                   <TableHead className="hidden xl:table-cell">Tags</TableHead>
                   <TableHead className="hidden lg:table-cell">Last activity</TableHead>
                   {customFields.map((f) => (
@@ -776,13 +835,21 @@ export function ContactsClientView({
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPanel(c)}
-                              className="text-sm font-medium truncate hover:underline underline-offset-2 text-left"
-                            >
-                              {c.name || c.email}
-                            </button>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPanel(c)}
+                                className="text-sm font-medium truncate hover:underline underline-offset-2 text-left"
+                              >
+                                {c.name || c.email}
+                              </button>
+                              {c.hot_tier === "hot" && (
+                                <Flame
+                                  className="h-3.5 w-3.5 shrink-0 text-orange-500"
+                                  aria-label="Hot lead"
+                                />
+                              )}
+                            </div>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                               <a
                                 href={`mailto:${encodeURIComponent(c.email)}`}
@@ -847,6 +914,12 @@ export function ContactsClientView({
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell className="hidden lg:table-cell py-3 align-top">
+                        <LinkedListingsCell
+                          contact={c}
+                          onOpen={() => handleOpenPanel(c)}
+                        />
+                      </TableCell>
                       <TableCell className="hidden xl:table-cell py-3 align-top">
                         {c.tags.length === 0 ? (
                           <span className="text-xs text-muted-foreground">No tags</span>
@@ -890,9 +963,19 @@ export function ContactsClientView({
                         </TableCell>
                       ))}
                       <TableCell className="hidden sm:table-cell py-3 align-top">
-                        <Badge variant="outline" className="text-[10px]">
-                          {SOURCE_LABELS[c.source] ?? c.source}
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="outline" className="text-[10px] w-fit">
+                            {SOURCE_LABELS[c.source] ?? c.source}
+                          </Badge>
+                          {c.reason_listing_title && (
+                            <span
+                              className="text-[10px] text-muted-foreground truncate max-w-[130px]"
+                              title={`Enquired on ${c.reason_listing_title}`}
+                            >
+                              {c.reason_listing_title}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell py-3 align-top">
                         {c.consent_marketing ? (
@@ -1014,6 +1097,7 @@ export function ContactsClientView({
         onSubmit={async (form) => {
           const res = await addContact(form);
           if (!res.ok) return res.error ?? "Failed to add contact";
+          setAddOpen(false); // close the modal on a successful save
           startTransition(() => router.refresh());
           return null;
         }}
@@ -1262,6 +1346,14 @@ function ContactFormDialog({
       setError("Email is required");
       return;
     }
+    if (!isValidEmail(form.email)) {
+      setError("Enter a valid email address (e.g. name@example.com)");
+      return;
+    }
+    if (!isValidPhone(form.phone)) {
+      setError("Enter a valid phone number — digits only, e.g. 0412 345 678");
+      return;
+    }
     setSubmitting(true);
     const err = await onSubmit(form);
     setSubmitting(false);
@@ -1294,6 +1386,8 @@ function ContactFormDialog({
               <Label htmlFor="c-phone">Phone</Label>
               <Input
                 id="c-phone"
+                type="tel"
+                inputMode="tel"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 placeholder="04XX XXX XXX"

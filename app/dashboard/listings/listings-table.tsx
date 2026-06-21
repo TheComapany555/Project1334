@@ -7,7 +7,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Listing, ListingStatus, ListingTier } from "@/lib/types/listings";
+import type {
+  Listing,
+  ListingStatus,
+  ListingTier,
+  ListingHighlight,
+} from "@/lib/types/listings";
 import type { AgencyBroker } from "@/lib/types/agencies";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
@@ -89,6 +94,15 @@ const TIER_OPTIONS = [
   { value: "standard", label: "Standard" },
   { value: "featured", label: "Featured" },
 ];
+
+// Tag (listing highlight) badge tones, matching the public listing detail's
+// highlight accents.
+const HIGHLIGHT_ACCENT_CLASSES: Record<ListingHighlight["accent"], string> = {
+  primary: "bg-primary/10 text-primary border-primary/20",
+  warning:
+    "bg-warning/10 text-[var(--warning-foreground)] border-warning/30",
+  secondary: "bg-muted text-muted-foreground border-border",
+};
 
 function formatPrice(listing: Listing): string {
   if (listing.price_type === "poa") return "POA";
@@ -411,6 +425,42 @@ export function ListingsTable({
         cell: ({ row }) => (
           <span className="text-sm">{row.original.category?.name ?? "—"}</span>
         ),
+      },
+      {
+        id: "tags",
+        meta: { label: "Tags" },
+        enableSorting: false,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Tags" />
+        ),
+        cell: ({ row }) => {
+          const tags = (row.original.listing_highlights ?? []).filter(
+            (h) => h.active,
+          );
+          if (tags.length === 0) {
+            return <span className="text-sm text-muted-foreground">—</span>;
+          }
+          const shown = tags.slice(0, 3);
+          const extra = tags.length - shown.length;
+          return (
+            <div className="flex max-w-[220px] flex-wrap items-center gap-1">
+              {shown.map((h) => (
+                <Badge
+                  key={h.id}
+                  variant="outline"
+                  className={cn("text-[10px]", HIGHLIGHT_ACCENT_CLASSES[h.accent])}
+                >
+                  {h.label}
+                </Badge>
+              ))}
+              {extra > 0 && (
+                <span className="text-[10px] text-muted-foreground">
+                  +{extra}
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "asking_price",

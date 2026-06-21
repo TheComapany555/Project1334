@@ -4,11 +4,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
-import { shareListingEmail, shareMultipleListingsEmail } from "@/lib/email-templates";
+import {
+  shareListingEmail,
+  shareMultipleListingsEmail,
+  buyerInviteEmail,
+} from "@/lib/email-templates";
 import { getBrokerSignature } from "@/lib/email-signatures";
 import { setContactTags } from "@/lib/actions/contact-tags";
 import type {
   BrokerContact,
+  BuyerCrmStatus,
   ContactSource,
   ContactTag,
   ConsentSource,
@@ -18,6 +23,13 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import {
+  computeHotLeadScore,
+  classifyHotLead,
+  hasHotLeadTag,
+  type HotLeadSignals,
+} from "@/lib/crm/hot-lead";
+import { isValidEmail, isValidPhone } from "@/lib/validations/common";
 
 export type { BrokerContact } from "@/lib/types/contacts";
 
@@ -225,6 +237,242 @@ export async function listBrokerContacts(
         };
       });
     }
+  }
+
+  // ── Listing linkage: which listings each contact is tied to (+ per-listing
+  // stage) and the listing that brought them in. Powers the CRM table's
+  // "Interested in" column and the source/reason display. Self-contained so it
+  // does not disturb the category/NDA enrichment above.
+  if (rows.length > 0) {
+    const contactIds = rows.map((r) => r.id);
+    const linkBuyerIds = rows
+      .map((r) => r.buyer_user_id)
+      .filter((id): id is string => !!id);
+    const ownListingIds = await resolveBrokerListingIds(supabase, {
+      brokerId: userId,
+      agencyId,
+      agencyRole,
+    });
+    const ownListingSet = new Set(ownListingIds);
+
+    // Per-(contact, listing) stages. Defensive: table may not be migrated yet.
+    const stagesByContact = new Map<string, Map<string, BuyerCrmStatus>>();
+    {
+      const { data: stageRows, error } = await supabase
+        .from("broker_contact_listing_status")
+        .select("contact_id, listing_id, status")
+        .in("contact_id", contactIds);
+      if (!error) {
+        for (const s of stageRows ?? []) {
+          if (!s.contact_id || !s.listing_id) continue;
+          let m = stagesByContact.get(s.contact_id);
+          if (!m) {
+            m = new Map();
+            stagesByContact.set(s.contact_id, m);
+          }
+          m.set(s.listing_id, s.status as BuyerCrmStatus);
+        }
+      }
+    }
+
+    // Listings each buyer enquired on (declared interest), own listings only.
+    const enquiryListingsByBuyer = new Map<string, Set<string>>();
+    if (linkBuyerIds.length > 0 && ownListingIds.length > 0) {
+      const { data: enq } = await supabase
+        .from("enquiries")
+        .select("user_id, listing_id")
+        .in("user_id", linkBuyerIds)
+        .in("listing_id", ownListingIds);
+      for (const e of enq ?? []) {
+        if (!e.user_id || !e.listing_id) continue;
+        let set = enquiryListingsByBuyer.get(e.user_id);
+        if (!set) {
+          set = new Set();
+          enquiryListingsByBuyer.set(e.user_id, set);
+        }
+        set.add(e.listing_id);
+      }
+    }
+
+    // Originating enquiry → listing (the "why in CRM" reason).
+    const enquiryIds = rows
+      .map((r) => r.enquiry_id)
+      .filter((id): id is string => !!id);
+    const reasonListingByEnquiry = new Map<string, string>();
+    if (enquiryIds.length > 0) {
+      const { data: oe } = await supabase
+        .from("enquiries")
+        .select("id, listing_id")
+        .in("id", enquiryIds);
+      for (const e of oe ?? []) {
+        if (e.id && e.listing_id) reasonListingByEnquiry.set(e.id, e.listing_id);
+      }
+    }
+
+    // Resolve titles/slugs for every referenced listing in one query.
+    const allListingIds = new Set<string>();
+    for (const m of stagesByContact.values())
+      for (const id of m.keys()) allListingIds.add(id);
+    for (const set of enquiryListingsByBuyer.values())
+      for (const id of set) allListingIds.add(id);
+    for (const id of reasonListingByEnquiry.values()) allListingIds.add(id);
+    const listingMeta = new Map<string, { title: string; slug: string }>();
+    if (allListingIds.size > 0) {
+      const { data: ls } = await supabase
+        .from("listings")
+        .select("id, title, slug")
+        .in("id", [...allListingIds]);
+      for (const l of ls ?? [])
+        listingMeta.set(l.id, {
+          title: l.title as string,
+          slug: l.slug as string,
+        });
+    }
+
+    rows = rows.map((r) => {
+      const stageMap =
+        stagesByContact.get(r.id) ?? new Map<string, BuyerCrmStatus>();
+      const enquirySet = r.buyer_user_id
+        ? enquiryListingsByBuyer.get(r.buyer_user_id) ?? new Set<string>()
+        : new Set<string>();
+      const linkedIds = new Set<string>(
+        [...enquirySet, ...stageMap.keys()].filter((id) => ownListingSet.has(id)),
+      );
+      const linked_listings = [...linkedIds]
+        .map((id) => {
+          const meta = listingMeta.get(id);
+          if (!meta) return null;
+          return {
+            listing_id: id,
+            title: meta.title,
+            slug: meta.slug,
+            stage: stageMap.get(id) ?? null,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => !!x)
+        .sort(
+          (a, b) =>
+            (b.stage ? 1 : 0) - (a.stage ? 1 : 0) ||
+            a.title.localeCompare(b.title),
+        );
+      const reasonListingId = r.enquiry_id
+        ? reasonListingByEnquiry.get(r.enquiry_id) ?? null
+        : null;
+      const reason_listing_title = reasonListingId
+        ? listingMeta.get(reasonListingId)?.title ?? null
+        : null;
+      return { ...r, linked_listings, reason_listing_title };
+    });
+  }
+
+  // ── Hot-lead tier: combine buyer activity, NDA activity, listing views,
+  // broker tags, and engagement history (recency + pipeline stage) into one
+  // tier so the "Hot leads" tab reflects real engagement, not just tags.
+  // Computed on the fly here (acceptable for the dashboard page size); a future
+  // optimisation could precompute a column via cron like listing engagement.
+  if (rows.length > 0) {
+    const nowMs = Date.now();
+    const hotBuyerIds = rows
+      .map((r) => r.buyer_user_id)
+      .filter((id): id is string => !!id);
+    const ownListingIds = await resolveBrokerListingIds(supabase, {
+      brokerId: userId,
+      agencyId,
+      agencyRole,
+    });
+
+    const viewCount = new Map<string, number>();
+    const lastViewAt = new Map<string, string>();
+    const enquiryCount = new Map<string, number>();
+    const callCount = new Map<string, number>();
+    const saveCount = new Map<string, number>();
+    const docViewCount = new Map<string, number>();
+    const docDownloadCount = new Map<string, number>();
+    const ndaSignedSet = new Set<string>();
+
+    if (hotBuyerIds.length > 0 && ownListingIds.length > 0) {
+      const inc = (m: Map<string, number>, k: string | null) => {
+        if (k) m.set(k, (m.get(k) ?? 0) + 1);
+      };
+      const [views, enq, calls, saves, docs, ndaSigs] = await Promise.all([
+        supabase
+          .from("listing_views")
+          .select("user_id, viewed_at")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+        supabase
+          .from("enquiries")
+          .select("user_id")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+        supabase
+          .from("call_clicks")
+          .select("user_id")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+        supabase
+          .from("user_favorites")
+          .select("user_id")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+        supabase
+          .from("document_events")
+          .select("user_id, event_kind")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+        supabase
+          .from("nda_signatures")
+          .select("user_id")
+          .in("user_id", hotBuyerIds)
+          .in("listing_id", ownListingIds),
+      ]);
+      for (const v of views.data ?? []) {
+        inc(viewCount, v.user_id);
+        if (v.user_id && v.viewed_at) {
+          const cur = lastViewAt.get(v.user_id);
+          if (!cur || v.viewed_at > cur) lastViewAt.set(v.user_id, v.viewed_at);
+        }
+      }
+      for (const e of enq.data ?? []) inc(enquiryCount, e.user_id);
+      for (const c of calls.data ?? []) inc(callCount, c.user_id);
+      for (const s of saves.data ?? []) inc(saveCount, s.user_id);
+      for (const d of docs.data ?? []) {
+        if (d.event_kind === "download") inc(docDownloadCount, d.user_id);
+        else inc(docViewCount, d.user_id);
+      }
+      for (const n of ndaSigs.data ?? []) {
+        if (n.user_id) ndaSignedSet.add(n.user_id);
+      }
+    }
+
+    const maxIso = (a: string | null, b: string | null): string | null => {
+      if (!a) return b;
+      if (!b) return a;
+      return a > b ? a : b;
+    };
+
+    rows = rows.map((r) => {
+      const buyerId = r.buyer_user_id;
+      const signals: HotLeadSignals = {
+        views: buyerId ? viewCount.get(buyerId) ?? 0 : 0,
+        enquiries: buyerId ? enquiryCount.get(buyerId) ?? 0 : 0,
+        calls: buyerId ? callCount.get(buyerId) ?? 0 : 0,
+        saves: buyerId ? saveCount.get(buyerId) ?? 0 : 0,
+        documentViews: buyerId ? docViewCount.get(buyerId) ?? 0 : 0,
+        documentDownloads: buyerId ? docDownloadCount.get(buyerId) ?? 0 : 0,
+        ndaRequested: (r.nda_state ?? "none") !== "none",
+        ndaSigned: buyerId ? ndaSignedSet.has(buyerId) : false,
+        hasHotTag: hasHotLeadTag(r.tags),
+        pipelineStatus: (r.status as BuyerCrmStatus | null) ?? null,
+        lastActivityAt: maxIso(
+          r.last_contacted_at ?? null,
+          buyerId ? lastViewAt.get(buyerId) ?? null : null,
+        ),
+      };
+      const hot_score = computeHotLeadScore(signals, nowMs);
+      const hot_tier = classifyHotLead(hot_score, signals.hasHotTag);
+      return { ...r, hot_score, hot_tier };
+    });
   }
 
   if (params.tagId) {
@@ -450,6 +698,12 @@ export async function addContact(form: {
   const supabase = createServiceRoleClient();
 
   if (!form.email?.trim()) return { ok: false, error: "Email is required" };
+  if (!isValidEmail(form.email)) {
+    return { ok: false, error: "Enter a valid email address" };
+  }
+  if (form.phone && !isValidPhone(form.phone)) {
+    return { ok: false, error: "Enter a valid phone number" };
+  }
 
   const consent = !!form.consent_marketing;
   const { data, error } = await supabase
@@ -499,6 +753,10 @@ export async function updateContact(
   const { userId } = await requireBroker();
   const supabase = createServiceRoleClient();
 
+  if (form.phone !== undefined && !isValidPhone(form.phone)) {
+    return { ok: false, error: "Enter a valid phone number" };
+  }
+
   // Read current consent so we can correctly stamp consent_given_at only on transition.
   const { data: existing } = await supabase
     .from("broker_contacts")
@@ -538,6 +796,88 @@ export async function updateContact(
   if (form.tag_ids !== undefined) {
     const tagResult = await setContactTags(id, form.tag_ids);
     if (!tagResult.ok) return { ok: false, error: tagResult.error };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Invite a contact to create a Salebiz buyer account.
+ *
+ * Used from the buyer profile when the buyer has no Salebiz account yet.
+ * Emails them a registration link. Guards: broker must own the contact (or be
+ * the agency owner), and the contact must not already have / match an account.
+ */
+export async function inviteBuyerToSalebiz(
+  contactId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { userId, agencyId, agencyRole } = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  const { data: contact } = await supabase
+    .from("broker_contacts")
+    .select("id, broker_id, buyer_user_id, name, email")
+    .eq("id", contactId)
+    .maybeSingle();
+  if (!contact) return { ok: false, error: "Contact not found" };
+
+  // Ownership: solo broker owns the row; agency owner can act on agency rows.
+  if (contact.broker_id !== userId) {
+    if (agencyId && agencyRole === "owner") {
+      const { data: ownerCheck } = await supabase
+        .from("profiles")
+        .select("agency_id")
+        .eq("id", contact.broker_id)
+        .maybeSingle();
+      if (ownerCheck?.agency_id !== agencyId) {
+        return { ok: false, error: "Forbidden" };
+      }
+    } else {
+      return { ok: false, error: "Forbidden" };
+    }
+  }
+
+  if (contact.buyer_user_id) {
+    return { ok: false, error: "This buyer already has a Salebiz account." };
+  }
+  // They might have an account under this email that isn't linked yet.
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .ilike("email", contact.email)
+    .maybeSingle();
+  if (existingUser?.id) {
+    return { ok: false, error: "A Salebiz account already exists for this email." };
+  }
+
+  const { data: broker } = await supabase
+    .from("profiles")
+    .select("name, company")
+    .eq("id", userId)
+    .maybeSingle();
+  const brokerName = broker?.name || broker?.company || "A broker";
+
+  const signature = await getBrokerSignature(userId);
+  const registerUrl = `${APP_URL}/auth/register?tab=buyer`;
+
+  try {
+    await resendClient().emails.send({
+      from: EMAIL_FROM,
+      to: contact.email,
+      subject: `${brokerName} invited you to join Salebiz`,
+      html: buyerInviteEmail({
+        contactName: contact.name,
+        brokerName,
+        brokerCompany: broker?.company ?? null,
+        registerUrl,
+        signatureHtml: signature?.html ?? null,
+      }),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to send invitation",
+    };
   }
 
   return { ok: true };

@@ -75,7 +75,11 @@ const STATUS_ORDER: Record<BuyerCrmStatus, number> = {
   nda_signed: 4,
   documents_shared: 5,
   negotiating: 6,
-  closed: 7,
+  sold: 7, // won — the funnel peak; sticky against auto-advance, rolls up the overall stage
+  // "lost" is an off-funnel outcome: ranked at the bottom so marking one
+  // listing lost never promotes the buyer's overall stage, and a broker who
+  // re-contacts a lost buyer auto-advances them back to "contacted".
+  lost: 0,
 };
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────
@@ -118,6 +122,29 @@ async function loadContactScoped(
     if (ownerCheck?.agency_id === broker.agencyId) return contact;
   }
   return null;
+}
+
+/**
+ * Verify the broker can act on a listing (owns it, or is the agency owner of
+ * the listing's agency). Returns the listing row or null.
+ */
+async function loadListingScoped(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  broker: { id: string; agencyId: string | null; agencyRole: string | null },
+  listingId: string,
+) {
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, broker_id, agency_id")
+    .eq("id", listingId)
+    .maybeSingle();
+  if (!listing) return null;
+  const owns =
+    listing.broker_id === broker.id ||
+    (broker.agencyId &&
+      broker.agencyRole === "owner" &&
+      listing.agency_id === broker.agencyId);
+  return owns ? listing : null;
 }
 
 /**
@@ -222,6 +249,68 @@ async function advanceStatusIfHigher(
   });
 
   return { from: current, to: target, changed: true };
+}
+
+/**
+ * Per-listing analogue of `advanceStatusIfHigher`. Advances the
+ * (contact, listing) pipeline stage — never demotes — and logs a
+ * listing-scoped `status_changed` activity. Degrades to a no-op if the
+ * `broker_contact_listing_status` table isn't migrated yet.
+ *
+ * Caller must already have verified the broker owns `listingId`.
+ */
+async function advanceListingStatusIfHigher(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  args: {
+    brokerId: string;
+    contactId: string;
+    buyerUserId: string | null;
+    listingId: string;
+  },
+  target: BuyerCrmStatus,
+  meta: { triggeredByKind?: CrmActivityKind } = {},
+): Promise<void> {
+  const { data: existing, error } = await supabase
+    .from("broker_contact_listing_status")
+    .select("status")
+    .eq("contact_id", args.contactId)
+    .eq("listing_id", args.listingId)
+    .maybeSingle();
+  if (error) return; // table not migrated — degrade gracefully
+
+  const current = (existing?.status as BuyerCrmStatus | null) ?? null;
+  if (current && STATUS_ORDER[target] <= STATUS_ORDER[current]) return;
+
+  const { error: upErr } = await supabase
+    .from("broker_contact_listing_status")
+    .upsert(
+      {
+        broker_id: args.brokerId,
+        contact_id: args.contactId,
+        buyer_user_id: args.buyerUserId,
+        listing_id: args.listingId,
+        status: target,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "contact_id,listing_id" },
+    );
+  if (upErr) return;
+
+  await supabase.from("crm_activities").insert({
+    broker_id: args.brokerId,
+    contact_id: args.contactId,
+    buyer_user_id: args.buyerUserId ?? null,
+    listing_id: args.listingId,
+    kind: "status_changed",
+    subject: `${current ?? "new_lead"} → ${target}`,
+    metadata: {
+      from: current ?? "new_lead",
+      to: target,
+      automatic: true,
+      listing_scope: true,
+      triggered_by: meta.triggeredByKind ?? null,
+    },
+  });
 }
 
 /**
@@ -374,6 +463,23 @@ export async function logActivity(input: {
       await advanceStatusIfHigher(supabase, target.contactId, advanceTarget, {
         triggeredByKind: input.kind,
       });
+      // When the activity is tied to a specific listing (e.g. a call logged
+      // about one business, an NDA-related share), advance the per-listing
+      // stage too so the buyer profile reflects deal progress per listing.
+      // Listing ownership was already validated above.
+      if (input.listingId) {
+        await advanceListingStatusIfHigher(
+          supabase,
+          {
+            brokerId: target.brokerId,
+            contactId: target.contactId,
+            buyerUserId: target.buyerUserId ?? null,
+            listingId: input.listingId,
+          },
+          advanceTarget,
+          { triggeredByKind: input.kind },
+        );
+      }
     }
   }
 
@@ -542,6 +648,40 @@ export async function getRecentFeedbackForBroker(
     });
   }
   return out;
+}
+
+/**
+ * Count this broker's CRM contacts by pipeline stage. Powers status-aware AI
+ * insights (broker portfolio) so recommendations/follow-ups reflect how many
+ * buyers are new leads vs negotiating vs closed. Agency owners see the whole
+ * agency; solo brokers see their own.
+ */
+export async function getContactStatusBreakdown(): Promise<
+  Partial<Record<BuyerCrmStatus, number>>
+> {
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  let q = supabase.from("broker_contacts").select("status");
+  if (broker.agencyId && broker.agencyRole === "owner") {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("agency_id", broker.agencyId);
+    const ids = (profiles ?? []).map((p) => p.id);
+    if (ids.length > 0) q = q.in("broker_id", ids);
+    else q = q.eq("broker_id", broker.id);
+  } else {
+    q = q.eq("broker_id", broker.id);
+  }
+
+  const { data } = await q;
+  const counts: Partial<Record<BuyerCrmStatus, number>> = {};
+  for (const r of data ?? []) {
+    const s = (r.status as BuyerCrmStatus | null) ?? "new_lead";
+    counts[s] = (counts[s] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /**
@@ -768,6 +908,90 @@ export async function setContactStatus(
     subject: `${current} → ${next}`,
     metadata: { from: current, to: next, automatic: false },
   });
+
+  return { ok: true, from: current };
+}
+
+/**
+ * Manually set the pipeline stage for a contact ON A SPECIFIC LISTING.
+ *
+ * Lets a broker track, say, "Negotiating" on one business and "New Lead" on
+ * another for the same buyer. Rolls the overall `broker_contacts.status` up to
+ * this stage when it advances it (never demotes), so the CRM list table,
+ * presets, and filters keep reflecting the buyer's furthest stage.
+ */
+export async function setContactListingStatus(
+  contactId: string,
+  listingId: string,
+  next: BuyerCrmStatus,
+): Promise<{ ok: true; from: BuyerCrmStatus | null } | { ok: false; error: string }> {
+  if (!Object.prototype.hasOwnProperty.call(STATUS_ORDER, next)) {
+    return { ok: false, error: "Invalid status" };
+  }
+  const broker = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  const contact = await loadContactScoped(supabase, broker, contactId);
+  if (!contact) return { ok: false, error: "Contact not found" };
+
+  const listing = await loadListingScoped(supabase, broker, listingId);
+  if (!listing) return { ok: false, error: "Listing not found or not yours" };
+
+  const { data: existing, error: readErr } = await supabase
+    .from("broker_contact_listing_status")
+    .select("status")
+    .eq("contact_id", contactId)
+    .eq("listing_id", listingId)
+    .maybeSingle();
+  if (readErr) {
+    return {
+      ok: false,
+      error:
+        "Per-listing statuses aren't available yet. Apply the latest database migration and try again.",
+    };
+  }
+
+  const current = (existing?.status as BuyerCrmStatus | null) ?? null;
+  if (current === next) return { ok: true, from: current };
+
+  const { error: upErr } = await supabase
+    .from("broker_contact_listing_status")
+    .upsert(
+      {
+        broker_id: contact.broker_id,
+        contact_id: contactId,
+        buyer_user_id: contact.buyer_user_id ?? null,
+        listing_id: listingId,
+        status: next,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "contact_id,listing_id" },
+    );
+  if (upErr) return { ok: false, error: upErr.message };
+
+  await supabase.from("crm_activities").insert({
+    broker_id: contact.broker_id,
+    contact_id: contactId,
+    buyer_user_id: contact.buyer_user_id ?? null,
+    listing_id: listingId,
+    kind: "status_changed",
+    subject: `${current ?? "new_lead"} → ${next}`,
+    metadata: {
+      from: current ?? "new_lead",
+      to: next,
+      automatic: false,
+      listing_scope: true,
+    },
+  });
+
+  // Roll the overall/headline status up if this advances it (never demote).
+  const overall = (contact.status as BuyerCrmStatus | null) ?? "new_lead";
+  if (STATUS_ORDER[next] > STATUS_ORDER[overall]) {
+    await supabase
+      .from("broker_contacts")
+      .update({ status: next, updated_at: new Date().toISOString() })
+      .eq("id", contactId);
+  }
 
   return { ok: true, from: current };
 }

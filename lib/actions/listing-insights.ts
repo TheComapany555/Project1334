@@ -7,6 +7,7 @@ import {
   getRecentFeedbackForListing,
   type ListingFeedbackRow,
 } from "@/lib/actions/crm";
+import type { BuyerCrmStatus } from "@/lib/types/contacts";
 
 const DEFAULT_PERIOD_DAYS = 30;
 const ALLOWED_PERIODS = [7, 30, 90] as const;
@@ -36,12 +37,16 @@ export type HotBuyer = {
   /** Human label for the most recent meaningful activity, e.g. "Signed NDA", "Saved listing". */
   last_activity_label: string | null;
   last_activity_at: string | null;
+  /** CRM pipeline stage this buyer is at FOR THIS LISTING (null if unset). */
+  pipeline_status: BuyerCrmStatus | null;
 };
 
 export type ListingInsightsMetrics = {
   listing: {
     id: string;
     title: string;
+    /** Listing lifecycle status (draft/published/under_offer/sold/unpublished). */
+    status: string;
     asking_price: number | null;
     price_type: "fixed" | "poa";
     category: string | null;
@@ -64,6 +69,12 @@ export type ListingInsightsMetrics = {
   hot_buyers: HotBuyer[];
   /** Recent buyer feedback rows tagged to this listing — newest first. */
   recent_feedback: ListingFeedbackRow[];
+  /**
+   * Count of buyers at each pipeline stage FOR THIS LISTING (per-listing CRM
+   * status). Empty when no per-listing stages have been set. Feeds AI Insights
+   * so suggested actions can target stuck stages.
+   */
+  pipeline_counts: Partial<Record<BuyerCrmStatus, number>>;
 };
 
 async function requireBrokerForListing(listingId: string) {
@@ -75,7 +86,7 @@ async function requireBrokerForListing(listingId: string) {
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      `id, broker_id, agency_id, title, asking_price, price_type, suburb, state, published_at,
+      `id, broker_id, agency_id, title, status, asking_price, price_type, suburb, state, published_at,
        category:categories(name)`
     )
     .eq("id", listingId)
@@ -350,16 +361,50 @@ export async function getListingInsightsMetrics(
     }
   }
 
-  // Rank: NDA signed → NDA requested → multiple visits → saved
+  // Per-listing CRM pipeline stages for this listing. Lets AI Insights see
+  // where each buyer sits in the deal pipeline FOR THIS BUSINESS (not a single
+  // ambiguous status). Keyed by buyer_user_id for hot-buyer attachment, and
+  // aggregated into a stage distribution for the prompt. Defensive: if the
+  // table isn't migrated yet, both stay empty.
+  const statusByBuyer = new Map<string, BuyerCrmStatus>();
+  const pipeline_counts: Partial<Record<BuyerCrmStatus, number>> = {};
+  {
+    const { data: stageRows, error: stageErr } = await supabase
+      .from("broker_contact_listing_status")
+      .select("buyer_user_id, status")
+      .eq("listing_id", listingId);
+    if (!stageErr && stageRows) {
+      for (const r of stageRows) {
+        const st = r.status as BuyerCrmStatus | null;
+        if (!st) continue;
+        pipeline_counts[st] = (pipeline_counts[st] ?? 0) + 1;
+        if (r.buyer_user_id) statusByBuyer.set(r.buyer_user_id, st);
+      }
+    }
+  }
+
+  // Rank: NDA signed → NDA requested → multiple visits → saved, then nudged by
+  // how far down the pipeline the buyer is for THIS listing (engagement history)
+  // so an actively-negotiating buyer outranks a passive repeat-viewer.
   const SIGNAL_RANK: Record<HotBuyerSignal, number> = {
     nda_signed: 4,
     nda_requested: 3,
     multiple_visits: 2,
     saved: 1,
   };
+  const STAGE_RANK: Partial<Record<BuyerCrmStatus, number>> = {
+    negotiating: 5,
+    documents_shared: 4,
+    nda_signed: 3,
+    meeting_scheduled: 2.5,
+    interested: 1.5,
+    contacted: 0.5,
+  };
   function score(b: UserAgg): number {
     let s = 0;
     for (const sig of b.signals) s += SIGNAL_RANK[sig];
+    const stage = b.user_id ? statusByBuyer.get(b.user_id) : null;
+    if (stage) s += STAGE_RANK[stage] ?? 0;
     return s + Math.min(b.visit_count, 5) * 0.1;
   }
 
@@ -377,6 +422,7 @@ export async function getListingInsightsMetrics(
       last_seen_at: b.last_seen_at,
       last_activity_label: b.last_activity_label,
       last_activity_at: b.last_activity_at,
+      pipeline_status: b.user_id ? statusByBuyer.get(b.user_id) ?? null : null,
     }));
 
   const rawCat = (listing as { category?: unknown }).category;
@@ -395,6 +441,7 @@ export async function getListingInsightsMetrics(
     listing: {
       id: listing.id,
       title: listing.title,
+      status: listing.status as string,
       asking_price: listing.asking_price,
       price_type: listing.price_type as "fixed" | "poa",
       category: catName,
@@ -416,5 +463,6 @@ export async function getListingInsightsMetrics(
     },
     hot_buyers,
     recent_feedback,
+    pipeline_counts,
   };
 }

@@ -281,22 +281,24 @@ export function EmailComposer({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="email-body">Message *</Label>
-              <div className="flex flex-wrap items-center gap-1 text-[10px]">
-                <span className="text-muted-foreground mr-1">Insert:</span>
-                {MERGE_FIELDS.map((f) => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => insertMergeField(f.key)}
-                    className="rounded border px-1.5 py-0.5 hover:bg-muted transition"
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="email-body">Message *</Label>
+            {/* Merge-field tokens on their own row so they wrap cleanly under
+                the label instead of crowding it. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Insert
+              </span>
+              {MERGE_FIELDS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => insertMergeField(f.key)}
+                  className="rounded-md border px-2 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
             <Textarea
               id="email-body"

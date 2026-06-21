@@ -35,6 +35,7 @@ import {
   Target,
   MapPin,
   Tag as TagIcon,
+  StickyNote,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -56,13 +64,23 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { addContact } from "@/lib/actions/contacts";
+import { addContact, inviteBuyerToSalebiz } from "@/lib/actions/contacts";
+import { setContactListingStatus } from "@/lib/actions/crm";
 import type {
   BuyerProfile,
   BuyerListingSummary,
   BuyerCrmStatus,
+  BuyerActivityKind,
 } from "@/lib/actions/buyer-profile";
-import { TAG_COLOR_CLASSES } from "@/lib/types/contacts";
+import {
+  TAG_COLOR_CLASSES,
+  BUYER_CRM_STATUSES,
+  CONTACT_SOURCE_LABEL,
+} from "@/lib/types/contacts";
+import {
+  HOT_LEAD_TIER_LABEL,
+  HOT_LEAD_TIER_TONE,
+} from "@/lib/crm/hot-lead";
 
 type Props = {
   profile: BuyerProfile;
@@ -75,9 +93,14 @@ export function BuyerProfileView({ profile }: Props) {
   const router = useRouter();
   const [savingContact, startSaveTransition] = useTransition();
 
+  // Hot-lead tier is computed server-side (lib/crm/hot-lead.ts) so this badge
+  // matches the CRM "Hot leads" tab exactly.
   const engagementScore = useMemo(
-    () => computeEngagementScore(profile),
-    [profile],
+    () => ({
+      label: HOT_LEAD_TIER_LABEL[profile.hot_tier],
+      tone: HOT_LEAD_TIER_TONE[profile.hot_tier],
+    }),
+    [profile.hot_tier],
   );
 
   const handleSaveContact = useCallback(() => {
@@ -141,17 +164,33 @@ export function BuyerProfileView({ profile }: Props) {
           />
         </motion.div>
 
-        <motion.div variants={variants}>
-          <KpiStrip profile={profile} />
-        </motion.div>
+        {profile.has_account ? (
+          <motion.div variants={variants}>
+            <KpiStrip profile={profile} />
+          </motion.div>
+        ) : (
+          <motion.div variants={variants}>
+            <NoAccountCard contactId={profile.crm.contact_id} />
+          </motion.div>
+        )}
 
         <motion.div variants={variants}>
           <CrmDetailsCard profile={profile} />
         </motion.div>
 
         <motion.div variants={variants}>
-          <BuyerTabs profile={profile} />
+          <NotesCard profile={profile} />
         </motion.div>
+
+        <motion.div variants={variants}>
+          <CommunicationHistoryCard profile={profile} />
+        </motion.div>
+
+        {profile.has_account && (
+          <motion.div variants={variants}>
+            <BuyerTabs profile={profile} />
+          </motion.div>
+        )}
       </motion.div>
     </TooltipProvider>
   );
@@ -485,7 +524,8 @@ const CRM_STATUS_LABEL: Record<BuyerCrmStatus, string> = {
   nda_signed: "NDA Signed",
   documents_shared: "Documents shared",
   negotiating: "Negotiating",
-  closed: "Closed",
+  sold: "Sold",
+  lost: "Lost",
 };
 
 const CRM_STATUS_TONE: Record<BuyerCrmStatus, string> = {
@@ -496,7 +536,8 @@ const CRM_STATUS_TONE: Record<BuyerCrmStatus, string> = {
   nda_signed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   documents_shared: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   negotiating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  closed: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  sold: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  lost: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 const FUNDING_LABEL: Record<string, string> = {
@@ -543,6 +584,14 @@ function CrmDetailsCard({ profile }: { profile: BuyerProfile }) {
   const crm = profile.crm;
   const status = crm.status;
 
+  // "Why are they in the CRM" — source + the listing that brought them in.
+  const sourceLabel = crm.source ? CONTACT_SOURCE_LABEL[crm.source] : null;
+  const broughtInValue = sourceLabel
+    ? crm.reason_listing_title
+      ? `${sourceLabel} · ${crm.reason_listing_title}`
+      : sourceLabel
+    : null;
+
   const hasPreferences =
     p.budget_min != null ||
     p.budget_max != null ||
@@ -574,12 +623,17 @@ function CrmDetailsCard({ profile }: { profile: BuyerProfile }) {
             </CardDescription>
           </div>
           {status && (
-            <Badge
-              variant="outline"
-              className={cn("text-[11px]", CRM_STATUS_TONE[status])}
-            >
-              {CRM_STATUS_LABEL[status]}
-            </Badge>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Overall stage
+              </span>
+              <Badge
+                variant="outline"
+                className={cn("text-[11px]", CRM_STATUS_TONE[status])}
+              >
+                {CRM_STATUS_LABEL[status]}
+              </Badge>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -620,6 +674,7 @@ function CrmDetailsCard({ profile }: { profile: BuyerProfile }) {
             label="In your CRM"
             value={hasCrmRow ? "Yes" : "Not yet"}
           />
+          <SnapshotItem label="Brought in by" value={broughtInValue} />
         </div>
 
         {/* Buyer details */}
@@ -770,6 +825,242 @@ function DetailRow({
   );
 }
 
+// ─── No-account state ───────────────────────────────────────────────────────
+
+function NoAccountCard({ contactId }: { contactId: string | null }) {
+  const [inviting, startInvite] = useTransition();
+  const [invited, setInvited] = useState(false);
+
+  const handleInvite = () => {
+    if (!contactId) return;
+    startInvite(async () => {
+      const res = await inviteBuyerToSalebiz(contactId);
+      if (res.ok) {
+        setInvited(true);
+        toast.success("Invitation sent.");
+      } else {
+        toast.error(res.error ?? "Couldn't send invitation.");
+      }
+    });
+  };
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20">
+      <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <UserPlus className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium">
+              This buyer does not have a SaleBiz account.
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Engagement metrics, listing activity, and saved searches will
+              appear here once they join. You can still log calls, notes, and
+              follow-ups in the meantime.
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={handleInvite}
+          disabled={inviting || invited || !contactId}
+          className="shrink-0 gap-1.5"
+        >
+          {inviting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : invited ? (
+            <Check className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <Send className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {invited ? "Invitation sent" : "Invite to SaleBiz"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Notes ───────────────────────────────────────────────────────────────
+
+function NotesCard({ profile }: { profile: BuyerProfile }) {
+  const notes = useMemo(
+    () => profile.activity.filter((e) => e.kind === "note_added"),
+    [profile.activity],
+  );
+  const listingTitleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of profile.listings) m.set(l.listing_id, l.title);
+    return m;
+  }, [profile.listings]);
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="text-base flex items-center gap-2">
+          <StickyNote className="h-4 w-4 text-muted-foreground" />
+          Notes
+          {notes.length > 0 && (
+            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
+              {notes.length}
+            </span>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Internal notes your team has logged about this buyer.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-5">
+        {notes.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">
+            No notes yet. Use the Note action on a CRM row or the slide-out panel
+            to add one.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {notes.map((n) => {
+              const listingTitle = n.listing_id
+                ? listingTitleById.get(n.listing_id)
+                : null;
+              return (
+                <li key={n.id} className="rounded-md border bg-muted/30 p-3">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {fmtTime(n.at)} · {fmtRelative(new Date(n.at))}
+                    </span>
+                    {listingTitle && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {listingTitle}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-foreground">
+                    {n.body ?? n.detail}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Communication history ──────────────────────────────────────────────────
+
+const COMM_KINDS: BuyerActivityKind[] = [
+  "enquiry",
+  "email_sent",
+  "email_received",
+  "call_logged",
+  "message_sent",
+  "message_received",
+  "listing_shared",
+  "feedback_logged",
+];
+
+const COMM_META: Record<
+  string,
+  { label: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  enquiry: { label: "Enquiry received", icon: MessageSquare },
+  email_sent: { label: "Email sent", icon: Mail },
+  email_received: { label: "Email received", icon: Mail },
+  call_logged: { label: "Call logged", icon: Phone },
+  message_sent: { label: "Message sent", icon: MessageSquare },
+  message_received: { label: "Message received", icon: MessageSquare },
+  listing_shared: { label: "Listing shared", icon: Send },
+  feedback_logged: { label: "Feedback logged", icon: ClipboardList },
+};
+
+function CommunicationHistoryCard({ profile }: { profile: BuyerProfile }) {
+  const events = useMemo(
+    () => profile.activity.filter((e) => COMM_KINDS.includes(e.kind)),
+    [profile.activity],
+  );
+  const listingTitleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of profile.listings) m.set(l.listing_id, l.title);
+    return m;
+  }, [profile.listings]);
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="text-base flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          Communication history
+          {events.length > 0 && (
+            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">
+              {events.length}
+            </span>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Emails, calls, messages, shares, and enquiries with this buyer, newest
+          first.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-5">
+        {events.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">
+            No communication logged yet. Emails, calls, messages, and listing
+            shares you log will appear here.
+          </p>
+        ) : (
+          <ul className="max-h-96 space-y-3 overflow-y-auto pr-1">
+            {events.map((e) => {
+              const meta = COMM_META[e.kind] ?? {
+                label: e.kind,
+                icon: MessageSquare,
+              };
+              const Icon = meta.icon;
+              const listingTitle = e.listing_id
+                ? listingTitleById.get(e.listing_id)
+                : null;
+              const opened = e.kind === "email_sent" && !!e.opened_at;
+              return (
+                <li key={e.id} className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="text-sm font-medium">{meta.label}</span>
+                      {listingTitle && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {listingTitle}
+                        </Badge>
+                      )}
+                      {opened && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        >
+                          Opened
+                        </Badge>
+                      )}
+                    </div>
+                    {e.detail && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {e.detail}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground">
+                      {fmtTime(e.at)} · {fmtRelative(new Date(e.at))}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Tabs ──────────────────────────────────────────────────────────────────
 
 function BuyerTabs({ profile }: { profile: BuyerProfile }) {
@@ -793,7 +1084,10 @@ function BuyerTabs({ profile }: { profile: BuyerProfile }) {
       </TabsList>
 
       <TabsContent value="listings">
-        <ListingsTab listings={profile.listings} />
+        <ListingsTab
+          listings={profile.listings}
+          contactId={profile.crm.contact_id}
+        />
       </TabsContent>
 
       <TabsContent value="enquiries">
@@ -811,8 +1105,10 @@ function BuyerTabs({ profile }: { profile: BuyerProfile }) {
 
 const ListingsTab = memo(function ListingsTab({
   listings,
+  contactId,
 }: {
   listings: BuyerListingSummary[];
+  contactId: string | null;
 }) {
   if (listings.length === 0) {
     return (
@@ -834,7 +1130,8 @@ const ListingsTab = memo(function ListingsTab({
           Per-listing engagement
         </CardTitle>
         <CardDescription className="text-xs">
-          Stats are scoped to this buyer only.
+          Stats and pipeline stage are scoped to this buyer, per listing.
+          {!contactId && " Add this buyer to your CRM to set a stage per listing."}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
@@ -844,6 +1141,9 @@ const ListingsTab = memo(function ListingsTab({
               <tr className="border-y border-border bg-muted/40 text-left">
                 <th className="pl-5 pr-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Listing
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Pipeline stage
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Views
@@ -888,6 +1188,27 @@ const ListingsTab = memo(function ListingsTab({
                     >
                       {l.title}
                     </Link>
+                  </td>
+                  <td className="px-3 py-3">
+                    {contactId ? (
+                      <ListingStatusSelect
+                        contactId={contactId}
+                        listingId={l.listing_id}
+                        value={l.pipeline_status}
+                      />
+                    ) : l.pipeline_status ? (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px]",
+                          CRM_STATUS_TONE[l.pipeline_status],
+                        )}
+                      >
+                        {CRM_STATUS_LABEL[l.pipeline_status]}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-sm tabular-nums">{l.views}</td>
                   <td className="px-3 py-3 text-sm tabular-nums hidden sm:table-cell">
@@ -969,6 +1290,68 @@ const ListingsTab = memo(function ListingsTab({
     </Card>
   );
 });
+
+// ─── Per-listing pipeline status select ─────────────────────────────────────
+
+function ListingStatusSelect({
+  contactId,
+  listingId,
+  value,
+}: {
+  contactId: string;
+  listingId: string;
+  value: BuyerCrmStatus | null;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  // Optimistic value, re-synced when the server-provided value changes
+  // (after router.refresh()).
+  const [optimistic, setOptimistic] = useState<BuyerCrmStatus | null>(value);
+  const [seen, setSeen] = useState<BuyerCrmStatus | null>(value);
+  if (seen !== value) {
+    setSeen(value);
+    setOptimistic(value);
+  }
+  const current: BuyerCrmStatus = optimistic ?? "new_lead";
+
+  const handleChange = (next: string) => {
+    const v = next as BuyerCrmStatus;
+    if (v === current) return;
+    setOptimistic(v);
+    startTransition(async () => {
+      const res = await setContactListingStatus(contactId, listingId, v);
+      if (res.ok) {
+        toast.success("Listing stage updated");
+        router.refresh();
+      } else {
+        setOptimistic(value);
+        toast.error(res.error ?? "Couldn't update stage.");
+      }
+    });
+  };
+
+  return (
+    <Select value={current} onValueChange={handleChange} disabled={pending}>
+      <SelectTrigger
+        size="sm"
+        className={cn(
+          "h-7 text-[10px] gap-1 px-2 border w-auto min-w-[120px]",
+          CRM_STATUS_TONE[current],
+        )}
+        aria-label="Pipeline stage for this listing"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {BUYER_CRM_STATUSES.map((s) => (
+          <SelectItem key={s} value={s} className="text-xs">
+            {CRM_STATUS_LABEL[s]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 // ─── Enquiries tab ─────────────────────────────────────────────────────────
 
@@ -1061,37 +1444,6 @@ function getInitials(name: string | null, email: string | null): string {
     );
   }
   return source[0]?.toUpperCase() ?? "?";
-}
-
-function computeEngagementScore(
-  profile: BuyerProfile,
-): { label: string; tone: string } {
-  const m = profile.metrics;
-  let score = 0;
-  score += Math.min(m.total_views, 10) * 1;
-  score += Math.min(m.total_return_visits, 10) * 2; // returning = strong signal
-  score += m.total_enquiries * 8;
-  score += m.saves * 4;
-  score += m.nda_requested * 6;
-  score += m.nda_signed * 12;
-  score += m.total_calls * 5;
-  score += m.documents_viewed * 4;
-  score += m.documents_downloaded * 6; // downloads outweigh views — buyer kept the file
-
-  if (score >= 30)
-    return {
-      label: "Hot lead",
-      tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    };
-  if (score >= 12)
-    return {
-      label: "Warm",
-      tone: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    };
-  return {
-    label: "New interest",
-    tone: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-  };
 }
 
 function fmtRelative(date: Date): string {

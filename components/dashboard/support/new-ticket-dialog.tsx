@@ -108,7 +108,7 @@ export function NewTicketDialog() {
 
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-1.5">
-            <Label htmlFor="ticket-subject">Subject</Label>
+            <Label htmlFor="ticket-subject">Subject *</Label>
             <Input
               id="ticket-subject"
               value={subject}
@@ -160,7 +160,7 @@ export function NewTicketDialog() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="ticket-description">Description</Label>
+            <Label htmlFor="ticket-description">Description *</Label>
             <Textarea
               id="ticket-description"
               value={description}
@@ -181,7 +181,12 @@ export function NewTicketDialog() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting || !subject.trim() || !description.trim()
+              }
+            >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               Submit ticket
             </Button>

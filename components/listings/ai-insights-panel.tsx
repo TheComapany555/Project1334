@@ -69,6 +69,10 @@ import type {
 } from "@/lib/actions/listing-insights";
 import type { AIListingInsights } from "@/lib/ai/listing-insights";
 import type { FeedbackSubtype, ListingFeedbackRow } from "@/lib/actions/crm";
+import {
+  BUYER_CRM_STATUS_LABEL,
+  BUYER_CRM_STATUS_TONE,
+} from "@/lib/types/contacts";
 import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
 import { ClipboardList, Plus } from "lucide-react";
 
@@ -847,6 +851,18 @@ const HotBuyerRow = memo(function HotBuyerRow({
         </div>
       </div>
       <div className="flex flex-col gap-1.5 sm:items-end sm:max-w-[280px]">
+        {buyer.pipeline_status && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-[11px] font-medium",
+              BUYER_CRM_STATUS_TONE[buyer.pipeline_status],
+            )}
+            title="Pipeline stage for this listing"
+          >
+            {BUYER_CRM_STATUS_LABEL[buyer.pipeline_status]}
+          </Badge>
+        )}
         <div className="flex flex-wrap gap-1.5 sm:justify-end">
           {orderedSignals.map((sig) => (
             <Badge

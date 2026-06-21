@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { setContactStatus } from "@/lib/actions/crm";
+import { setContactStatus, setContactListingStatus } from "@/lib/actions/crm";
 import { startThreadFromContact } from "@/lib/actions/messages";
 import {
   Sheet,
@@ -50,7 +50,11 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TAG_COLOR_CLASSES } from "@/lib/types/contacts";
+import {
+  TAG_COLOR_CLASSES,
+  BUYER_CRM_STATUSES,
+  CONTACT_SOURCE_LABEL,
+} from "@/lib/types/contacts";
 import {
   getBuyerProfile,
   getBuyerPanelByContactId,
@@ -71,7 +75,8 @@ const STATUS_LABEL: Record<BuyerCrmStatus, string> = {
   nda_signed: "NDA Signed",
   documents_shared: "Documents shared",
   negotiating: "Negotiating",
-  closed: "Closed",
+  sold: "Sold",
+  lost: "Lost",
 };
 
 const STATUS_TONE: Record<BuyerCrmStatus, string> = {
@@ -87,7 +92,35 @@ const STATUS_TONE: Record<BuyerCrmStatus, string> = {
     "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   negotiating:
     "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  closed: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  sold: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  lost: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+};
+
+// ── Communication history (broker ↔ buyer interactions) ────────────────────
+
+const COMM_KINDS: BuyerActivityKind[] = [
+  "enquiry",
+  "email_sent",
+  "email_received",
+  "call_logged",
+  "message_sent",
+  "message_received",
+  "listing_shared",
+  "feedback_logged",
+];
+
+const COMM_META: Record<
+  string,
+  { label: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  enquiry: { label: "Enquiry received", icon: MessageSquare },
+  email_sent: { label: "Email sent", icon: Mail },
+  email_received: { label: "Email received", icon: Mail },
+  call_logged: { label: "Call logged", icon: PhoneCall },
+  message_sent: { label: "Message sent", icon: MessageSquare },
+  message_received: { label: "Message received", icon: MessageSquare },
+  listing_shared: { label: "Listing shared", icon: Building2 },
+  feedback_logged: { label: "Feedback logged", icon: ClipboardList },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -210,6 +243,14 @@ function BuyerPanelContent({
   const closePanel = useBuyerPanelStore((s) => s.close);
   const isLite = target.kind === "contact" && !profile.crm.contact_id;
   const status = profile.crm.status;
+  // Notes logged via the Note action — surfaced here with full text (newest
+  // first) so they don't vanish into the engagement counts.
+  const noteEvents = profile.activity.filter((e) => e.kind === "note_added");
+  // Broker ↔ buyer communication log (emails, calls, messages, shares).
+  const commEvents = profile.activity.filter((e) => COMM_KINDS.includes(e.kind));
+  const commListingTitleById = new Map(
+    profile.listings.map((l) => [l.listing_id, l.title] as const),
+  );
   const buyerUserIdForActions =
     target.kind === "buyer" ? target.buyerUserId : null;
   const refreshPanel = () =>
@@ -272,6 +313,21 @@ function BuyerPanelContent({
       refreshPanel();
     } else {
       toast.error(res.error);
+    }
+  };
+
+  const handleListingStatusChange = async (listingId: string, next: string) => {
+    if (!profile.crm.contact_id) return;
+    const res = await setContactListingStatus(
+      profile.crm.contact_id,
+      listingId,
+      next as BuyerCrmStatus,
+    );
+    if (res.ok) {
+      toast.success("Listing stage updated");
+      refreshPanel();
+    } else {
+      toast.error(res.error ?? "Couldn't update stage.");
     }
   };
 
@@ -363,18 +419,7 @@ function BuyerPanelContent({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(
-                      [
-                        "new_lead",
-                        "contacted",
-                        "interested",
-                        "meeting_scheduled",
-                        "nda_signed",
-                        "documents_shared",
-                        "negotiating",
-                        "closed",
-                      ] as BuyerCrmStatus[]
-                    ).map((s) => (
+                    {BUYER_CRM_STATUSES.map((s) => (
                       <SelectItem key={s} value={s} className="text-xs">
                         {STATUS_LABEL[s]}
                       </SelectItem>
@@ -412,7 +457,7 @@ function BuyerPanelContent({
       </div>
 
       {/* Quick actions row */}
-      <div className="px-6 py-3 border-b grid grid-cols-6 gap-2">
+      <div className="px-6 py-3 border-b grid grid-cols-3 gap-2.5">
         <QuickAction icon={Mail} label="Email" onClick={handleEmailClick} />
         <QuickAction icon={PhoneCall} label="Call" onClick={handleCallClick} />
         <QuickAction icon={StickyNote} label="Note" onClick={handleNoteClick} />
@@ -508,6 +553,17 @@ function BuyerPanelContent({
           label="Last active"
           value={fmtRelative(profile.last_active_at)}
         />
+        <SnapshotItem
+          icon={Building2}
+          label="Brought in by"
+          value={
+            profile.crm.source
+              ? profile.crm.reason_listing_title
+                ? `${CONTACT_SOURCE_LABEL[profile.crm.source]} · ${profile.crm.reason_listing_title}`
+                : CONTACT_SOURCE_LABEL[profile.crm.source]
+              : null
+          }
+        />
       </div>
 
       {/* Buyer details */}
@@ -599,6 +655,74 @@ function BuyerPanelContent({
         </>
       )}
 
+      {/* Notes — full text of notes logged via the Note action. */}
+      {noteEvents.length > 0 && (
+        <>
+          <SectionHeader title="Notes" />
+          <div className="px-6 pb-4 space-y-2">
+            {noteEvents.map((n) => (
+              <div
+                key={n.id}
+                className="rounded-md border bg-muted/30 p-2.5 text-xs"
+              >
+                <p className="mb-1 text-[10px] text-muted-foreground">
+                  {fmtRelative(n.at)}
+                </p>
+                <p className="whitespace-pre-wrap">{n.body ?? n.detail}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Communication history — broker ↔ buyer interactions, newest first. */}
+      {commEvents.length > 0 && (
+        <>
+          <SectionHeader title="Communication" />
+          <div className="px-6 pb-4 space-y-2">
+            {commEvents.slice(0, 6).map((e) => {
+              const meta = COMM_META[e.kind] ?? {
+                label: e.kind,
+                icon: MessageSquare,
+              };
+              const Icon = meta.icon;
+              const listingTitle = e.listing_id
+                ? commListingTitleById.get(e.listing_id)
+                : null;
+              return (
+                <div key={e.id} className="flex items-start gap-2 text-xs">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">
+                      <span className="font-medium">{meta.label}</span>
+                      {listingTitle && (
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {listingTitle}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {fmtRelative(e.at)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            {commEvents.length > 6 && (
+              <Link
+                href={fullProfileHref}
+                className="text-[10px] text-primary hover:underline"
+              >
+                +{commEvents.length - 6} more on the full profile
+              </Link>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Engagement counts (privacy-first replacement for the full timeline).
           Brokers don't need to see every buyer click — just how engaged the
           buyer has been overall and how their outreach is landing. */}
@@ -657,6 +781,49 @@ function BuyerPanelContent({
                     </span>
                   )}
                 </div>
+                {profile.crm.contact_id ? (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Stage
+                    </span>
+                    <Select
+                      value={l.pipeline_status ?? "new_lead"}
+                      onValueChange={(v) =>
+                        handleListingStatusChange(l.listing_id, v)
+                      }
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        className={cn(
+                          "h-6 text-[10px] gap-1 px-2 border w-auto min-w-[110px]",
+                          STATUS_TONE[l.pipeline_status ?? "new_lead"],
+                        )}
+                        aria-label="Pipeline stage for this listing"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUYER_CRM_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s} className="text-xs">
+                            {STATUS_LABEL[s]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : l.pipeline_status ? (
+                  <div className="pt-1">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px]",
+                        STATUS_TONE[l.pipeline_status],
+                      )}
+                    >
+                      {STATUS_LABEL[l.pipeline_status]}
+                    </Badge>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -706,10 +873,10 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 py-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/60 active:scale-[0.98] transition-all"
+      className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-3 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/60 active:scale-[0.98] transition-all"
     >
-      <Icon className="h-4 w-4" />
-      <span className="truncate">{label}</span>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="text-center leading-tight">{label}</span>
     </button>
   );
 }

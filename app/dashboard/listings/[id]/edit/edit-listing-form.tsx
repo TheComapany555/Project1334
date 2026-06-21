@@ -670,7 +670,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
         <Card>
           <CardHeader>
             <CardTitle>Images</CardTitle>
-            <CardDescription>Up to 10 images, 5MB each. Order is used for the gallery.</CardDescription>
+            <CardDescription>Up to 10 images, 5MB maximum per image (JPEG, PNG, WebP, GIF). Order is used for the gallery.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-4">
