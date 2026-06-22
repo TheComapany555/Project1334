@@ -341,6 +341,90 @@ export async function createBrokerByAdmin(opts: {
   };
 }
 
+export type ResendSetPasswordResult =
+  | {
+      ok: true;
+      /** The set-password link — admin can copy it or open it directly. */
+      url: string;
+      email: string;
+      /** Whether the email actually went out (false → hand the link over manually). */
+      emailSent: boolean;
+      warning?: string;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Admin: re-issue a fresh single-use "set password" link for an existing
+ * broker, email it to them, AND return the link so the admin can copy it or
+ * open it directly (handy when email delivery is flaky). Invalidates any prior
+ * set-password token for that user.
+ */
+export async function resendSetPasswordLinkByAdmin(
+  userId: string,
+): Promise<ResendSetPasswordResult> {
+  const admin = await getAdminSession();
+  if (!admin) return { ok: false, error: "Unauthorized." };
+
+  const supabase = createServiceRoleClient();
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!user) return { ok: false, error: "User not found." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, role, agency_id, agency_role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile || profile.role !== "broker") {
+    return { ok: false, error: "This account is not a broker." };
+  }
+
+  let agencyName: string | null = null;
+  if (profile.agency_id) {
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("name")
+      .eq("id", profile.agency_id)
+      .maybeSingle();
+    agencyName = agency?.name ?? null;
+  }
+
+  const tokenResult = await createSetPasswordToken(userId);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error };
+
+  const url = buildSetPasswordUrl(tokenResult.token);
+  const emailResult = await sendSetPasswordEmail({
+    email: user.email,
+    name: profile.name ?? null,
+    setPasswordUrl: url,
+    agencyName,
+    createdByLabel: "the Salebiz admin team",
+    isAgencyOwner: profile.agency_role === "owner",
+  });
+
+  await writeAuditLog({
+    adminId: admin.id,
+    action: "resend_set_password",
+    targetUserId: userId,
+    targetAgencyId: profile.agency_id ?? null,
+    metadata: { email: user.email, emailSent: emailResult.ok },
+  });
+
+  return {
+    ok: true,
+    url,
+    email: user.email,
+    emailSent: emailResult.ok,
+    warning: emailResult.ok
+      ? undefined
+      : "The email could not be sent, but the link below is valid — copy it to the broker directly.",
+  };
+}
+
 /** Lightweight agency list for the "Create Broker" agency-picker (no admin gate inside — caller already gates). */
 export async function listAgenciesForPicker(): Promise<{ id: string; name: string; status: string }[]> {
   const admin = await getAdminSession();

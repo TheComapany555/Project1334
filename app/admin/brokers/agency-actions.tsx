@@ -26,6 +26,7 @@ import {
   setAgencySubscriptionExempt,
 } from "@/lib/actions/admin-brokers";
 import { startImpersonation } from "@/lib/actions/impersonation";
+import { useResendSetPasswordLink } from "@/components/admin/use-resend-set-password-link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +35,7 @@ import {
   UserCog,
   ShieldCheck,
   ShieldOff,
+  KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -65,6 +67,11 @@ export function AgencyActions({
   const [deleting, setDeleting] = useState(false);
   const [managing, setManaging] = useState(false);
   const [togglingExempt, setTogglingExempt] = useState(false);
+  const {
+    resend: resendSetPassword,
+    pending: resending,
+    dialog: resendDialog,
+  } = useResendSetPasswordLink();
   const deleteNameMatches =
     deleteConfirmName.trim().toLowerCase() === agencyName.trim().toLowerCase();
 
@@ -175,6 +182,20 @@ export function AgencyActions({
               Manage as owner
             </DropdownMenuItem>
           )}
+          {ownerId && (
+            <DropdownMenuItem
+              onClick={() => resendSetPassword(ownerId)}
+              disabled={resending}
+              className="flex items-center gap-2"
+            >
+              {resending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <KeyRound className="h-3.5 w-3.5" />
+              )}
+              Resend set-password link
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={handleToggleSubscriptionExempt}
             disabled={togglingExempt}
@@ -221,6 +242,8 @@ export function AgencyActions({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {resendDialog}
 
       <AlertDialog open={confirmDisable} onOpenChange={setConfirmDisable}>
         <AlertDialogContent>
