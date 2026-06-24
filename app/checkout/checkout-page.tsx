@@ -103,7 +103,7 @@ function FloatingInput({
               "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
             valid &&
               !error &&
-              "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20"
+              "border-emerald-500 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20",
           )}
         />
         <label
@@ -113,7 +113,7 @@ function FloatingInput({
               ? "top-1.5 text-[10px] font-medium"
               : "top-1/2 -translate-y-1/2 text-sm",
             error && "text-destructive",
-            valid && !error && focused && "text-emerald-600"
+            valid && !error && focused && "text-emerald-600",
           )}
         >
           {label}
@@ -360,7 +360,8 @@ function DiscountRedirect({
       <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-muted-foreground/70">
         <Shield className="h-3.5 w-3.5" />
         <span>
-          You will be redirected to Stripe to complete checkout. Secured by 256-bit SSL.
+          You will be redirected to Stripe to complete checkout. Secured by
+          256-bit SSL.
         </span>
       </div>
     </div>
@@ -384,8 +385,10 @@ function Step({
         className={cn(
           "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold tabular-nums shrink-0",
           done && "bg-emerald-500 text-white",
-          current && !done && "bg-primary text-primary-foreground ring-2 ring-primary/20",
-          !done && !current && "bg-muted text-muted-foreground"
+          current &&
+            !done &&
+            "bg-primary text-primary-foreground ring-2 ring-primary/20",
+          !done && !current && "bg-muted text-muted-foreground",
         )}
       >
         {done ? <CheckCircle2 className="h-3 w-3" /> : n}
@@ -393,7 +396,7 @@ function Step({
       <span
         className={cn(
           "text-xs",
-          current ? "text-foreground font-medium" : "text-muted-foreground"
+          current ? "text-foreground font-medium" : "text-muted-foreground",
         )}
       >
         {label}
@@ -436,9 +439,7 @@ function PaymentForm({
 
   useEffect(() => {
     if (!nameTouched) return;
-    setNameError(
-      name.trim().length < 2 ? "Please enter your full name" : ""
-    );
+    setNameError(name.trim().length < 2 ? "Please enter your full name" : "");
   }, [name, nameTouched]);
 
   useEffect(() => {
@@ -479,11 +480,24 @@ function PaymentForm({
       if (error) {
         setPaymentError(
           error.type === "card_error" || error.type === "validation_error"
-            ? error.message ?? "Payment failed"
-            : "An unexpected error occurred. Please try again."
+            ? (error.message ?? "Payment failed")
+            : "An unexpected error occurred. Please try again.",
         );
       } else {
-        onSuccess();
+        const syncRes = await fetch("/api/stripe/sync-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentId }),
+        });
+        const syncData = await syncRes.json();
+        if (!syncRes.ok) {
+          setPaymentError(
+            syncData.error ??
+              "Payment succeeded but activation is still processing. Please refresh in a moment.",
+          );
+        } else {
+          onSuccess();
+        }
       }
     } catch {
       setPaymentError("Something went wrong. Please try again.");
@@ -562,7 +576,7 @@ function PaymentForm({
         disabled={isProcessing || !stripe || !elements}
         className={cn(
           "h-12 w-full gap-2 text-sm font-semibold transition-all",
-          isProcessing && "opacity-90"
+          isProcessing && "opacity-90",
         )}
       >
         {isProcessing ? (
@@ -694,7 +708,8 @@ function InvoiceRequestForm({
         <div className="space-y-1">
           <p className="text-base font-semibold">Invoice requested</p>
           <p className="text-sm text-muted-foreground max-w-xs">
-            Our team will review your request and send an invoice to your agency. Your listing will go live once payment is received.
+            Our team will review your request and send an invoice to your
+            agency. Your listing will go live once payment is received.
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="mt-2 gap-1.5">
@@ -721,7 +736,8 @@ function InvoiceRequestForm({
 
       <div className="space-y-2">
         <label htmlFor="invoice-notes" className="text-sm font-medium">
-          Notes <span className="text-muted-foreground font-normal">(optional)</span>
+          Notes{" "}
+          <span className="text-muted-foreground font-normal">(optional)</span>
         </label>
         <textarea
           id="invoice-notes"
@@ -751,7 +767,9 @@ function InvoiceRequestForm({
         ) : (
           <Lock className="h-4 w-4" />
         )}
-        {submitting ? "Submitting..." : `Request invoice (${formatPrice(product.price, product.currency)})`}
+        {submitting
+          ? "Submitting..."
+          : `Request invoice (${formatPrice(product.price, product.currency)})`}
       </Button>
 
       <p className="text-center text-[11px] text-muted-foreground">
@@ -763,16 +781,19 @@ function InvoiceRequestForm({
 
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
-export function CheckoutPage({ listing, product, paymentType = "featured" }: CheckoutPageProps) {
+export function CheckoutPage({
+  listing,
+  product,
+  paymentType = "featured",
+}: CheckoutPageProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [initError, setInitError] = useState("");
   const [isInitializing, setIsInitializing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"card" | "invoice">("card");
-  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(
-    null
-  );
+  const [appliedDiscount, setAppliedDiscount] =
+    useState<AppliedDiscount | null>(null);
   const hasInitialized = useRef(false);
 
   const initializePayment = useCallback(async () => {
@@ -877,7 +898,9 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                   {product.duration_days && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
-                      <span>{product.duration_days} days of featured visibility</span>
+                      <span>
+                        {product.duration_days} days of featured visibility
+                      </span>
                     </div>
                   )}
                 </div>
@@ -910,7 +933,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                     <span
                       className={cn(
                         "tabular-nums",
-                        appliedDiscount && "line-through text-muted-foreground"
+                        appliedDiscount && "line-through text-muted-foreground",
                       )}
                     >
                       {formatPrice(subtotal, product.currency)}
@@ -922,7 +945,11 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                         Discount ({appliedDiscount.code.percent_off}%)
                       </span>
                       <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        −{formatPrice(appliedDiscount.discount_amount, appliedDiscount.currency)}
+                        −
+                        {formatPrice(
+                          appliedDiscount.discount_amount,
+                          appliedDiscount.currency,
+                        )}
                       </span>
                     </div>
                   )}
@@ -932,7 +959,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                     <span className="text-xl font-bold tabular-nums">
                       {formatPrice(
                         discountedTotal,
-                        appliedDiscount?.currency ?? product.currency
+                        appliedDiscount?.currency ?? product.currency,
                       )}
                     </span>
                   </div>
@@ -1004,7 +1031,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                       "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
                       paymentMode === "card"
                         ? "border-primary bg-primary/5 text-primary"
-                        : "border-border text-muted-foreground hover:border-border/80"
+                        : "border-border text-muted-foreground hover:border-border/80",
                     )}
                   >
                     <Lock className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
@@ -1017,7 +1044,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                       "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
                       paymentMode === "invoice"
                         ? "border-primary bg-primary/5 text-primary"
-                        : "border-border text-muted-foreground hover:border-border/80"
+                        : "border-border text-muted-foreground hover:border-border/80",
                     )}
                   >
                     <Shield className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
@@ -1053,9 +1080,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Checkout unavailable</p>
-                    <p className="text-xs text-muted-foreground">
-                      {initError}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{initError}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" asChild>
@@ -1079,7 +1104,8 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                     clientSecret,
                     fonts: [
                       {
-                        cssSrc: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
+                        cssSrc:
+                          "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
                       },
                     ],
                     appearance: {
@@ -1102,8 +1128,7 @@ export function CheckoutPage({ listing, product, paymentType = "featured" }: Che
                         },
                         ".Input:focus": {
                           border: "1px solid hsl(152, 60%, 36%)",
-                          boxShadow:
-                            "0 0 0 3px hsla(152, 60%, 36%, 0.15)",
+                          boxShadow: "0 0 0 3px hsla(152, 60%, 36%, 0.15)",
                         },
                         ".Label": {
                           fontWeight: "500",

@@ -4,6 +4,7 @@ import { Check, Eye, Search, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/types/products";
 import type { ListingTier } from "@/lib/types/listings";
+import { matchTierProduct } from "@/lib/listing-tier-products";
 
 type TierOption = {
   tier: ListingTier;
@@ -15,29 +16,11 @@ type TierOption = {
   recommended?: boolean;
 };
 
-/**
- * Match a product to a tier slot by name. Admins can rename products but
- * the seed names ("Basic Listing", "Standard Listing", "Featured Listing
- * Tier") are stable enough for a contains-match. If admin renames a
- * product to something exotic, the slot just won't find it and will be
- * filtered out below — broker sees one fewer tier rather than wrong prices.
- */
-function matchProduct(
-  products: Product[],
-  tier: ListingTier,
-): Product | null {
-  const needle =
-    tier === "basic" ? "basic" : tier === "standard" ? "standard" : "featured";
-  return (
-    products.find((p) => p.name.toLowerCase().includes(needle)) ?? null
-  );
-}
-
 function buildTierOptions(products: Product[]): TierOption[] {
   const slots: TierOption[] = [
     {
       tier: "basic",
-      product: matchProduct(products, "basic"),
+      product: matchTierProduct(products, "basic"),
       label: "Basic",
       description: "Only people with the link can see it",
       features: ["Shareable link", "Shown on your broker profile"],
@@ -45,7 +28,7 @@ function buildTierOptions(products: Product[]): TierOption[] {
     },
     {
       tier: "standard",
-      product: matchProduct(products, "standard"),
+      product: matchTierProduct(products, "standard"),
       label: "Standard",
       description: "Buyers can find it when browsing",
       features: [
@@ -58,7 +41,7 @@ function buildTierOptions(products: Product[]): TierOption[] {
     },
     {
       tier: "featured",
-      product: matchProduct(products, "featured"),
+      product: matchTierProduct(products, "featured"),
       label: "Featured",
       description: "Get the most eyes on your listing",
       features: [
@@ -111,7 +94,7 @@ export function TierSelector({ products, selectedTier, onSelectTier }: Props) {
               "relative flex flex-col rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm",
               isSelected
                 ? "border-primary bg-primary/[0.02] ring-1 ring-primary/20"
-                : "border-border hover:border-muted-foreground/30"
+                : "border-border hover:border-muted-foreground/30",
             )}
           >
             {opt.recommended && (
@@ -126,19 +109,23 @@ export function TierSelector({ products, selectedTier, onSelectTier }: Props) {
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
                   isSelected
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
                 {opt.icon}
               </div>
               <div>
                 <p className="font-semibold text-sm">{opt.label}</p>
-                <p className="text-xs text-muted-foreground">{opt.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  {opt.description}
+                </p>
               </div>
             </div>
 
             <div className="mb-4">
-              <span className="text-2xl font-bold">{formatPrice(price, currency)}</span>
+              <span className="text-2xl font-bold">
+                {formatPrice(price, currency)}
+              </span>
               {price > 0 && opt.product?.duration_days && (
                 <span className="text-xs text-muted-foreground ml-1">
                   / {opt.product.duration_days} days
@@ -148,11 +135,14 @@ export function TierSelector({ products, selectedTier, onSelectTier }: Props) {
 
             <ul className="space-y-1.5 flex-1">
               {opt.features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <li
+                  key={f}
+                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                >
                   <Check
                     className={cn(
                       "h-3.5 w-3.5 shrink-0",
-                      isSelected ? "text-primary" : "text-muted-foreground/50"
+                      isSelected ? "text-primary" : "text-muted-foreground/50",
                     )}
                   />
                   {f}
@@ -166,7 +156,7 @@ export function TierSelector({ products, selectedTier, onSelectTier }: Props) {
                 "mt-4 flex items-center justify-center rounded-md py-2 text-xs font-medium transition-colors",
                 isSelected
                   ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               {isSelected ? "Selected" : "Select"}

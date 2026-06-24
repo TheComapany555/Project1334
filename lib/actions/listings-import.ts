@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateListingSlug } from "@/lib/slug";
 import { normaliseHeader, type ListingImportRow } from "@/lib/listings-import";
+import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
+import { syncSubscriptionById } from "@/lib/payments/activate-subscription";
 
 export type ImportListingsResult =
   | {
@@ -31,31 +33,6 @@ async function requireBroker() {
 }
 
 /**
- * Mirror of createListing's subscription gate: an agency must have an active
- * (or in-grace past_due) subscription to create listings. Solo brokers (no
- * agency) are exempt. Keeps bulk import consistent with single creation.
- */
-async function hasActiveSubscription(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  agencyId: string | null,
-): Promise<boolean> {
-  if (!agencyId) return true;
-  const { data } = await supabase
-    .from("agency_subscriptions")
-    .select("status, grace_period_end")
-    .eq("agency_id", agencyId)
-    .in("status", ["active", "trialing", "past_due"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-  if (!data) return false;
-  if (data.status === "past_due" && data.grace_period_end) {
-    return new Date(data.grace_period_end) > new Date();
-  }
-  return true;
-}
-
-/**
  * Bulk-create listings from a parsed import chunk. Listings are always created
  * as DRAFTS owned by the importer (broker_id = created_by = current user), so
  * the agency owner can review, assign (Feature #6), and publish afterwards.
@@ -75,7 +52,24 @@ export async function importListings(
 
   const supabase = createServiceRoleClient();
 
-  if (!(await hasActiveSubscription(supabase, agencyId))) {
+  let access = await checkAgencySubscriptionAccess(supabase, agencyId);
+  if (!access.allowed && access.reason === "pending" && agencyId) {
+    const { data: pendingSub } = await supabase
+      .from("agency_subscriptions")
+      .select("id")
+      .eq("agency_id", agencyId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pendingSub?.id) {
+      const sync = await syncSubscriptionById(supabase, pendingSub.id);
+      if (sync.ok) {
+        access = await checkAgencySubscriptionAccess(supabase, agencyId);
+      }
+    }
+  }
+  if (!access.allowed) {
     return {
       ok: false,
       error: "Your agency subscription is not active. Please subscribe before importing listings.",

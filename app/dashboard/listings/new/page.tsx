@@ -17,9 +17,15 @@ import {
   uploadListingImage,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
-import type { Category, Subcategory, ListingHighlight, ListingTier } from "@/lib/types/listings";
+import type {
+  Category,
+  Subcategory,
+  ListingHighlight,
+  ListingTier,
+} from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
+import { matchTierProduct } from "@/lib/listing-tier-products";
 import { Editor } from "@/components/blocks/editor-00/editor";
 import {
   AIContentActions,
@@ -136,12 +142,16 @@ export default function NewListingPage() {
   >([]);
   const [categoryQuery, setCategoryQuery] = useState("");
   const [subcategoryQuery, setSubcategoryQuery] = useState("");
-  const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(undefined);
+  const [descriptionEditorState, setDescriptionEditorState] = useState<
+    SerializedEditorState | undefined
+  >(undefined);
   // Bumped to force-remount the Lexical Editor whenever AI applies new content,
   // since LexicalComposer only consumes initial state on first mount.
   const [editorKey, setEditorKey] = useState(0);
   const [selectedTier, setSelectedTier] = useState<ListingTier>("standard");
-  const [selectedTierProductId, setSelectedTierProductId] = useState<string | null>(null);
+  const [selectedTierProductId, setSelectedTierProductId] = useState<
+    string | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
@@ -159,20 +169,30 @@ export default function NewListingPage() {
   } = form;
 
   useEffect(() => {
-    Promise.all([getCategories(), getSubcategories(), getListingHighlights(), getActiveProducts("listing_tier")]).then(
-      ([cats, subs, hls, products]) => {
-        setCategories(cats);
-        setSubcategories(subs);
-        setHighlights(hls);
-        setTierProducts(products);
-        // Default to standard tier (middle-priced product)
-        const sorted = [...products].sort((a, b) => a.price - b.price);
-        const stdProduct = sorted[1] ?? sorted[0];
-        if (stdProduct) setSelectedTierProductId(stdProduct.id);
-        setLoading(false);
-      },
-    );
+    Promise.all([
+      getCategories(),
+      getSubcategories(),
+      getListingHighlights(),
+      getActiveProducts("listing_tier"),
+    ]).then(([cats, subs, hls, products]) => {
+      setCategories(cats);
+      setSubcategories(subs);
+      setHighlights(hls);
+      setTierProducts(products);
+      const standardProduct = matchTierProduct(products, "standard");
+      if (standardProduct) {
+        setSelectedTierProductId(standardProduct.id);
+      }
+      setLoading(false);
+    });
   }, []);
+
+  useEffect(() => {
+    const product = matchTierProduct(tierProducts, selectedTier);
+    if (product && product.id !== selectedTierProductId) {
+      setSelectedTierProductId(product.id);
+    }
+  }, [tierProducts, selectedTier, selectedTierProductId]);
 
   // Auto-fill postcode whenever the user has a suburb but no postcode (covers
   // both manual typing and city-level autocomplete picks that omit postcode).
@@ -273,7 +293,9 @@ export default function NewListingPage() {
       profit: values.profit ?? null,
       lease_details: values.lease_details || null,
       summary: values.summary || null,
-      description: descriptionEditorState ? JSON.stringify(descriptionEditorState) : values.description || null,
+      description: descriptionEditorState
+        ? JSON.stringify(descriptionEditorState)
+        : values.description || null,
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
       listing_tier: selectedTier,
@@ -301,7 +323,9 @@ export default function NewListingPage() {
     if (isPaidTier && listingId && selectedTierProductId) {
       // Redirect to checkout for paid tier
       toast.success("Listing saved. Redirecting to payment...");
-      router.replace(`/checkout?listing=${listingId}&product=${selectedTierProductId}&type=listing_tier`);
+      router.replace(
+        `/checkout?listing=${listingId}&product=${selectedTierProductId}&type=listing_tier`,
+      );
     } else {
       toast.success(isDraft ? "Draft saved." : "Listing published.");
       router.replace("/dashboard/listings");
@@ -545,12 +569,28 @@ export default function NewListingPage() {
                         onBlur={field.onBlur}
                         maxLength={100}
                         onResolved={(p) => {
-                          if (p.suburb) form.setValue("suburb", p.suburb, { shouldDirty: true });
-                          if (p.state) form.setValue("state", p.state, { shouldDirty: true });
-                          if (p.postcode) form.setValue("postcode", p.postcode, { shouldDirty: true });
-                          const locLine = [p.suburb, p.state, p.postcode].filter(Boolean).join(" ");
-                          if (locLine && !form.getValues("location_text")?.trim()) {
-                            form.setValue("location_text", locLine, { shouldDirty: true });
+                          if (p.suburb)
+                            form.setValue("suburb", p.suburb, {
+                              shouldDirty: true,
+                            });
+                          if (p.state)
+                            form.setValue("state", p.state, {
+                              shouldDirty: true,
+                            });
+                          if (p.postcode)
+                            form.setValue("postcode", p.postcode, {
+                              shouldDirty: true,
+                            });
+                          const locLine = [p.suburb, p.state, p.postcode]
+                            .filter(Boolean)
+                            .join(" ");
+                          if (
+                            locLine &&
+                            !form.getValues("location_text")?.trim()
+                          ) {
+                            form.setValue("location_text", locLine, {
+                              shouldDirty: true,
+                            });
                           }
                         }}
                         placeholder="Start typing, e.g. Sydney"
@@ -711,7 +751,9 @@ export default function NewListingPage() {
                       };
                     }}
                     onAccept={(result: AIResult) => {
-                      setValue("summary", result.summary, { shouldDirty: true });
+                      setValue("summary", result.summary, {
+                        shouldDirty: true,
+                      });
                       setDescriptionEditorState(
                         plainTextToSerializedEditorState(result.description),
                       );
@@ -727,7 +769,9 @@ export default function NewListingPage() {
                   <Editor
                     key={editorKey}
                     editorSerializedState={descriptionEditorState}
-                    onSerializedChange={(value) => setDescriptionEditorState(value)}
+                    onSerializedChange={(value) =>
+                      setDescriptionEditorState(value)
+                    }
                   />
                 </div>
               </div>
@@ -862,7 +906,8 @@ export default function NewListingPage() {
                 <div>
                   <Label>Listing visibility</Label>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Choose how visible your listing will be. Standard and Featured levels require payment.
+                    Choose how visible your listing will be. Standard and
+                    Featured levels require payment.
                   </p>
                 </div>
                 <TierSelector

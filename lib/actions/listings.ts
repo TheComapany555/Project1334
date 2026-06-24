@@ -20,6 +20,7 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
 
 // Homepage feeds over-fetch by this factor before diversifying, so a few
 // dominant brokers can't lock out the visible window. Capped at the
@@ -117,31 +118,6 @@ async function requireBroker() {
     agencyId: session.user.agencyId ?? null,
     agencyRole: session.user.agencyRole ?? null,
   };
-}
-
-/** Check if the broker's agency has an active subscription. Returns true for non-agency brokers. */
-async function checkAgencySubscription(agencyId: string | null): Promise<boolean> {
-  if (!agencyId) return true; // Solo broker (no agency) — no subscription required
-  const supabase = createServiceRoleClient();
-  const { data: agency } = await supabase
-    .from("agencies")
-    .select("subscription_exempt")
-    .eq("id", agencyId)
-    .single();
-  if (agency?.subscription_exempt) return true;
-  const { data } = await supabase
-    .from("agency_subscriptions")
-    .select("id, status, grace_period_end")
-    .eq("agency_id", agencyId)
-    .in("status", ["active", "trialing", "past_due"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-  if (!data) return false;
-  if (data.status === "past_due" && data.grace_period_end) {
-    return new Date(data.grace_period_end) > new Date();
-  }
-  return true;
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -648,8 +624,8 @@ export async function createListing(form: {
   const slug = generateListingSlug(form.title);
 
   // Subscription check: agency brokers need active subscription to create listings
-  const hasSubscription = await checkAgencySubscription(agencyId);
-  if (!hasSubscription) {
+  const access = await checkAgencySubscriptionAccess(supabase, agencyId);
+  if (!access.allowed) {
     return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
   }
 
@@ -813,8 +789,8 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
 
   // Block publishing if subscription or tier payment is missing
   if (status === "published") {
-    const hasSubscription = await checkAgencySubscription(agencyId);
-    if (!hasSubscription) {
+    const access = await checkAgencySubscriptionAccess(supabase, agencyId);
+    if (!access.allowed) {
       return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
     }
     const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";

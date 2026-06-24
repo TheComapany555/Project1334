@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveProductPrice } from "@/lib/actions/products";
+import { listingTierFromProductName } from "@/lib/listing-tier-products";
+import {
+  clearStalePendingListingPayments,
+  findReusablePendingPayment,
+} from "@/lib/payments/sync-payment";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -85,6 +90,20 @@ export async function POST(req: NextRequest) {
       ? listing.category_id
       : null;
 
+  await clearStalePendingListingPayments(supabase, listingId);
+
+  const reusable = await findReusablePendingPayment(
+    supabase,
+    listingId,
+    productId,
+  );
+  if (reusable) {
+    return NextResponse.json({
+      clientSecret: reusable.clientSecret,
+      paymentId: reusable.paymentId,
+    });
+  }
+
   // Create payment record with resolved price
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
@@ -125,14 +144,9 @@ export async function POST(req: NextRequest) {
     if (featuredScope) metadata.featured_scope = featuredScope;
     if (featuredCategoryId) metadata.featured_category_id = featuredCategoryId;
 
-    // For listing tier payments, determine tier from the listing's current tier
+    // For listing tier payments, derive tier from the product being paid for
     if (paymentType === "listing_tier") {
-      const { data: listingData } = await supabase
-        .from("listings")
-        .select("listing_tier")
-        .eq("id", listingId)
-        .single();
-      metadata.listing_tier = listingData?.listing_tier ?? "standard";
+      metadata.listing_tier = listingTierFromProductName(product.name);
     }
 
     const paymentIntent = await stripe.paymentIntents.create({

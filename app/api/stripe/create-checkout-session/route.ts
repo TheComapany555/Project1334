@@ -9,6 +9,8 @@ import {
   ensureStripeCoupon,
   invalidateStripeCoupon,
 } from "@/lib/payments/stripe-coupons";
+import { listingTierFromProductName } from "@/lib/listing-tier-products";
+import { clearStalePendingListingPayments } from "@/lib/payments/sync-payment";
 
 /**
  * Create a Stripe Checkout Session at the original product price with an
@@ -125,15 +127,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Determine listing tier for tier flow
+  await clearStalePendingListingPayments(supabase, listingId);
+
+  // Determine listing tier for tier flow (from product paid, not stale listing row)
   let listingTier: string | undefined;
   if (paymentType === "listing_tier") {
-    const { data: listingData } = await supabase
-      .from("listings")
-      .select("listing_tier")
-      .eq("id", listingId)
-      .single();
-    listingTier = listingData?.listing_tier ?? "standard";
+    listingTier = listingTierFromProductName(product.name);
   }
 
   // Featured-scope (legacy/featured products carry a scope)

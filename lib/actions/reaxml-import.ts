@@ -16,6 +16,7 @@ import {
   type ReaxmlPreviewResult,
   type ImportReaxmlResult,
 } from "@/lib/reaxml-import-shared";
+import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
 
 /** Source tag stored on listing_external_refs for REAXML-imported listings. */
 const SOURCE_PLATFORM = "reaxml";
@@ -30,27 +31,6 @@ async function requireBroker() {
     throw new Error("Unauthorized");
   }
   return { userId: session.user.id, agencyId: session.user.agencyId ?? null };
-}
-
-/** Mirror of createListing's subscription gate (solo brokers are exempt). */
-async function hasActiveSubscription(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  agencyId: string | null,
-): Promise<boolean> {
-  if (!agencyId) return true;
-  const { data } = await supabase
-    .from("agency_subscriptions")
-    .select("status, grace_period_end")
-    .eq("agency_id", agencyId)
-    .in("status", ["active", "trialing", "past_due"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-  if (!data) return false;
-  if (data.status === "past_due" && data.grace_period_end) {
-    return new Date(data.grace_period_end) > new Date();
-  }
-  return true;
 }
 
 type TaxonomyMaps = {
@@ -196,7 +176,8 @@ export async function importReaxml(
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
   const supabase = createServiceRoleClient();
-  if (!(await hasActiveSubscription(supabase, agencyId))) {
+  const access = await checkAgencySubscriptionAccess(supabase, agencyId);
+  if (!access.allowed) {
     return {
       ok: false,
       error: "Your agency subscription is not active. Please subscribe before importing listings.",

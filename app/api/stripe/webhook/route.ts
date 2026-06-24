@@ -6,6 +6,7 @@ import {
   applyListingTierBenefits,
 } from "@/lib/payments/apply-benefits";
 import { incrementDiscountCodeUsage } from "@/lib/actions/discount-codes";
+import { activateSubscriptionFromPaymentIntent } from "@/lib/payments/activate-subscription";
 import type Stripe from "stripe";
 
 /**
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     const paymentType = paymentIntent.metadata?.payment_type;
 
     if (paymentType === "subscription") {
-      await handleSubscriptionPayment(supabase, paymentIntent);
+      await activateSubscriptionFromPaymentIntent(supabase, paymentIntent);
     } else if (paymentType === "listing_tier") {
       await applyListingTierBenefits(supabase, paymentIntent.metadata);
     } else {
@@ -397,161 +398,6 @@ async function reconcileSeatsForSubscription(
       stripeSubscriptionId,
       err,
     );
-  }
-}
-
-async function handleSubscriptionPayment(
-  supabase: ReturnType<typeof createServiceRoleClient>,
-  paymentIntent: Stripe.PaymentIntent
-) {
-  const subscriptionDbId = paymentIntent.metadata?.subscription_db_id;
-  const agencyId = paymentIntent.metadata?.agency_id;
-  const productId = paymentIntent.metadata?.product_id;
-
-  if (!subscriptionDbId) return;
-
-  const now = new Date();
-  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  // Activate the subscription
-  await supabase
-    .from("agency_subscriptions")
-    .update({
-      status: "active",
-      current_period_start: now.toISOString(),
-      current_period_end: periodEnd.toISOString(),
-      updated_at: now.toISOString(),
-    })
-    .eq("id", subscriptionDbId);
-
-  // If a discount code was applied to this first-month signup, count the use.
-  const discountCodeId = paymentIntent.metadata?.discount_code_id;
-  if (discountCodeId) {
-    await incrementDiscountCodeUsage(discountCodeId).catch((e) =>
-      console.error("[webhook] Failed to increment discount usage:", e),
-    );
-  }
-
-  // Set up Stripe recurring subscription for future auto-billing.
-  //
-  // The metadata stamped by create-subscription/route.ts gives us the
-  // already-resolved (admin-override-aware) base price + per-seat price +
-  // initial seat quantity. Using those snapshots instead of re-reading the
-  // product means recurring charges respect per-agency overrides (a
-  // pre-existing bug: overrides applied to the first PaymentIntent but
-  // not the recurring Stripe sub).
-  try {
-    const agencyEmail = paymentIntent.metadata?.agency_email;
-    const agencyName = paymentIntent.metadata?.agency_name;
-    const pricingModel =
-      (paymentIntent.metadata?.pricing_model as
-        | "flat"
-        | "tiered_seats"
-        | undefined) ?? "flat";
-    const includedSeats = Number(paymentIntent.metadata?.included_seats ?? "0");
-    const extraSeatPriceCents = Number(
-      paymentIntent.metadata?.extra_seat_price ?? "0",
-    );
-    const seatQuantity = Number(paymentIntent.metadata?.seat_quantity ?? "1");
-    const basePriceCents = Number(
-      paymentIntent.metadata?.base_price_cents ?? "0",
-    );
-
-    // Create Stripe customer (no payment method attached — will collect on first invoice)
-    const customer = await stripe.customers.create({
-      email: agencyEmail || undefined,
-      name: agencyName || undefined,
-      metadata: { agency_id: agencyId ?? "" },
-    });
-
-    const { data: product } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", productId)
-      .single();
-
-    if (product) {
-      // Line 1: base price (covers the included seats).
-      const basePrice = await stripe.prices.create({
-        currency: product.currency,
-        unit_amount: basePriceCents || product.price,
-        recurring: { interval: "month" },
-        product_data: {
-          name: product.name,
-          metadata: { product_id: product.id, line: "base" },
-        },
-      });
-
-      const items: Stripe.SubscriptionCreateParams.Item[] = [
-        { price: basePrice.id, quantity: 1 },
-      ];
-
-      // Line 2 (optional): per-extra-seat price, quantity = brokers above the included count.
-      let extraSeatPrice: Stripe.Price | null = null;
-      const extraSeats =
-        pricingModel === "tiered_seats"
-          ? Math.max(0, seatQuantity - includedSeats)
-          : 0;
-      if (pricingModel === "tiered_seats" && extraSeatPriceCents > 0) {
-        extraSeatPrice = await stripe.prices.create({
-          currency: product.currency,
-          unit_amount: extraSeatPriceCents,
-          recurring: { interval: "month" },
-          product_data: {
-            name: `${product.name} — extra broker`,
-            metadata: { product_id: product.id, line: "extra_seat" },
-          },
-        });
-        if (extraSeats > 0) {
-          items.push({ price: extraSeatPrice.id, quantity: extraSeats });
-        }
-      }
-
-      // Create subscription with trial_end = 30 days from now (first month already paid).
-      const trialEnd = Math.floor(periodEnd.getTime() / 1000);
-      const stripeSub = await stripe.subscriptions.create({
-        customer: customer.id,
-        items,
-        trial_end: trialEnd,
-        payment_settings: {
-          save_default_payment_method: "on_subscription",
-        },
-        metadata: {
-          agency_id: agencyId ?? "",
-          subscription_db_id: subscriptionDbId,
-          pricing_model: pricingModel,
-        },
-      });
-
-      // Locate the extra-seat subscription item ID so the reconciler can
-      // update its quantity later.
-      let extraSeatItemId: string | null = null;
-      if (extraSeatPrice) {
-        const items = stripeSub.items?.data ?? [];
-        for (const item of items) {
-          if (item.price?.id === extraSeatPrice.id) {
-            extraSeatItemId = item.id;
-            break;
-          }
-        }
-      }
-
-      await supabase
-        .from("agency_subscriptions")
-        .update({
-          stripe_customer_id: customer.id,
-          stripe_subscription_id: stripeSub.id,
-          stripe_price_id: basePrice.id,
-          extra_seat_stripe_price_id: extraSeatPrice?.id ?? null,
-          extra_seat_stripe_item_id: extraSeatItemId,
-          quantity: seatQuantity,
-        })
-        .eq("id", subscriptionDbId);
-    }
-  } catch (err) {
-    // Subscription is activated regardless — agency has 30 days access
-    // Admin can set up recurring billing manually via Stripe dashboard if this fails
-    console.error("[webhook] Failed to set up Stripe recurring subscription:", err);
   }
 }
 

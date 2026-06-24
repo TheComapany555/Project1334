@@ -45,10 +45,12 @@ function formatPrice(cents: number, currency: string): string {
 function SubscriptionPaymentForm({
   totalCents,
   currency,
+  subscriptionId,
   onSuccess,
 }: {
   totalCents: number;
   currency: string;
+  subscriptionId: string | null;
   onSuccess: () => void;
 }) {
   const stripe = useStripe();
@@ -82,6 +84,30 @@ function SubscriptionPaymentForm({
       setError(confirmError.message ?? "Payment failed.");
       setProcessing(false);
     } else {
+      if (subscriptionId) {
+        try {
+          const syncRes = await fetch("/api/stripe/sync-subscription", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subscriptionId }),
+          });
+          const syncData = await syncRes.json();
+          if (!syncRes.ok) {
+            setError(
+              syncData.error ??
+                "Payment succeeded but activation is still processing. Refresh in a moment or contact support.",
+            );
+            setProcessing(false);
+            return;
+          }
+        } catch {
+          setError(
+            "Payment succeeded but we could not confirm activation. Please refresh or contact support.",
+          );
+          setProcessing(false);
+          return;
+        }
+      }
       onSuccess();
     }
   }
@@ -155,9 +181,7 @@ function SuccessView() {
           Your agency now has full access to the platform.
         </p>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Redirecting to dashboard…
-      </p>
+      <p className="text-xs text-muted-foreground">Redirecting to dashboard…</p>
     </div>
   );
 }
@@ -179,6 +203,7 @@ export function SubscriptionCheckout({ product, quote }: Props) {
   const extraSeatCents = quote?.extra_seat_price_cents ?? 0;
   const totalCents = quote?.monthly_total_cents ?? product.price;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -189,7 +214,8 @@ export function SubscriptionCheckout({ product, quote }: Props) {
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   // Discount code (applies to the first month's agency fee only).
   const [discountInput, setDiscountInput] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState<DiscountValidationResult | null>(null);
+  const [appliedDiscount, setAppliedDiscount] =
+    useState<DiscountValidationResult | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [validatingDiscount, setValidatingDiscount] = useState(false);
   const initCalledRef = useRef(false);
@@ -197,7 +223,9 @@ export function SubscriptionCheckout({ product, quote }: Props) {
   const hasDiscount = !!(appliedDiscount && appliedDiscount.ok);
   // What the agency pays for the FIRST month (after any discount). The recurring
   // monthly price stays at the full seat-aware total.
-  const firstMonthCents = hasDiscount ? appliedDiscount!.final_amount : totalCents;
+  const firstMonthCents = hasDiscount
+    ? appliedDiscount!.final_amount
+    : totalCents;
 
   // Re-create the PaymentIntent. `manual` lets apply/remove re-init even though
   // the initial mount is guarded against StrictMode double-calls.
@@ -208,11 +236,15 @@ export function SubscriptionCheckout({ product, quote }: Props) {
       setIsInitializing(true);
       setInitError(null);
       setClientSecret(null);
+      setSubscriptionId(null);
       try {
         const res = await fetch("/api/stripe/create-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId: product.id, discountCode: code ?? undefined }),
+          body: JSON.stringify({
+            productId: product.id,
+            discountCode: code ?? undefined,
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -221,6 +253,7 @@ export function SubscriptionCheckout({ product, quote }: Props) {
           return;
         }
         setClientSecret(data.clientSecret);
+        setSubscriptionId(data.subscriptionId ?? null);
       } catch {
         setInitError("Network error. Please try again.");
         if (!manual) initCalledRef.current = false;
@@ -237,7 +270,10 @@ export function SubscriptionCheckout({ product, quote }: Props) {
     setValidatingDiscount(true);
     setDiscountError(null);
     try {
-      const result = await validateSubscriptionDiscount({ code, productId: product.id });
+      const result = await validateSubscriptionDiscount({
+        code,
+        productId: product.id,
+      });
       if (!result.ok) {
         setDiscountError(result.error ?? "Invalid code.");
         return;
@@ -287,7 +323,8 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                   {product.name}
                   {quote ? (
                     <span className="text-xs">
-                      {" "}({quote.included_seats} broker
+                      {" "}
+                      ({quote.included_seats} broker
                       {quote.included_seats === 1 ? "" : "s"} included)
                     </span>
                   ) : null}
@@ -314,9 +351,12 @@ export function SubscriptionCheckout({ product, quote }: Props) {
             {hasDiscount && (
               <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-400">
                 <span>
-                  Discount ({appliedDiscount!.code?.percent_off}% off first month)
+                  Discount ({appliedDiscount!.code?.percent_off}% off first
+                  month)
                 </span>
-                <span>−{formatPrice(appliedDiscount!.discount_amount, currency)}</span>
+                <span>
+                  −{formatPrice(appliedDiscount!.discount_amount, currency)}
+                </span>
               </div>
             )}
             <Separator />
@@ -384,7 +424,7 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                   "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
                   paymentMode === "card"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:border-border/80"
+                    : "border-border text-muted-foreground hover:border-border/80",
                 )}
               >
                 <CreditCard className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
@@ -397,7 +437,7 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                   "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
                   paymentMode === "invoice"
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:border-border/80"
+                    : "border-border text-muted-foreground hover:border-border/80",
                 )}
               >
                 <FileText className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
@@ -414,7 +454,8 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                   <div className="space-y-1">
                     <p className="text-base font-semibold">Invoice requested</p>
                     <p className="text-sm text-muted-foreground max-w-xs">
-                      Our team will send you an invoice. Your subscription will be activated once payment is received.
+                      Our team will send you an invoice. Your subscription will
+                      be activated once payment is received.
                     </p>
                   </div>
                 </div>
@@ -425,14 +466,22 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                     setInvoiceSubmitting(true);
                     setInvoiceError(null);
                     try {
-                      const res = await fetch("/api/stripe/request-subscription-invoice", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ productId: product.id, notes: invoiceNotes.trim() || undefined }),
-                      });
+                      const res = await fetch(
+                        "/api/stripe/request-subscription-invoice",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            productId: product.id,
+                            notes: invoiceNotes.trim() || undefined,
+                          }),
+                        },
+                      );
                       const data = await res.json();
                       if (!res.ok) {
-                        setInvoiceError(data.error ?? "Failed to request invoice.");
+                        setInvoiceError(
+                          data.error ?? "Failed to request invoice.",
+                        );
                         return;
                       }
                       setInvoiceSubmitted(true);
@@ -450,13 +499,21 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                       <li>Submit your invoice request below</li>
                       <li>We&apos;ll generate and send you an invoice</li>
                       <li>Pay via bank transfer</li>
-                      <li>Your subscription activates once payment is confirmed</li>
+                      <li>
+                        Your subscription activates once payment is confirmed
+                      </li>
                     </ol>
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="sub-invoice-notes" className="text-sm font-medium">
-                      Notes <span className="text-muted-foreground font-normal">(optional)</span>
+                    <label
+                      htmlFor="sub-invoice-notes"
+                      className="text-sm font-medium"
+                    >
+                      Notes{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
                     </label>
                     <textarea
                       id="sub-invoice-notes"
@@ -475,9 +532,20 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                     </div>
                   )}
 
-                  <Button type="submit" variant="outline" className="w-full h-11 gap-2" disabled={invoiceSubmitting}>
-                    {invoiceSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                    {invoiceSubmitting ? "Submitting…" : `Request invoice (${formatPrice(totalCents, currency)}/mo)`}
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="w-full h-11 gap-2"
+                    disabled={invoiceSubmitting}
+                  >
+                    {invoiceSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    {invoiceSubmitting
+                      ? "Submitting…"
+                      : `Request invoice (${formatPrice(totalCents, currency)}/mo)`}
                   </Button>
 
                   <p className="text-center text-[11px] text-muted-foreground">
@@ -494,8 +562,9 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                       <span className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
                         <TicketPercent className="h-4 w-4 shrink-0" />
                         <span>
-                          <strong>{appliedDiscount!.code?.code}</strong> applied —{" "}
-                          {appliedDiscount!.code?.percent_off}% off first month
+                          <strong>{appliedDiscount!.code?.code}</strong> applied
+                          — {appliedDiscount!.code?.percent_off}% off first
+                          month
                         </span>
                       </span>
                       <button
@@ -547,7 +616,9 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                         </Button>
                       </div>
                       {discountError && (
-                        <p className="text-xs text-destructive">{discountError}</p>
+                        <p className="text-xs text-destructive">
+                          {discountError}
+                        </p>
                       )}
                     </div>
                   )}
@@ -561,88 +632,93 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                     </p>
                   </div>
                 ) : initError ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <AlertCircle className="h-6 w-6 text-destructive" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Checkout unavailable</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">
-                    {initError}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    initializePayment(
-                      hasDiscount ? appliedDiscount!.code?.code ?? null : null,
-                      true,
-                    )
-                  }
-                >
-                  Try again
-                </Button>
-              </div>
-            ) : clientSecret ? (
-              <Elements
-                stripe={stripePromise}
-                options={{
-                  clientSecret,
-                  fonts: [
-                    {
-                      cssSrc:
-                        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
-                    },
-                  ],
-                  appearance: {
-                    theme: "stripe",
-                    variables: {
-                      colorPrimary: "hsl(152, 60%, 36%)",
-                      colorBackground: "hsl(0, 0%, 100%)",
-                      colorText: "hsl(0, 0%, 10%)",
-                      colorDanger: "hsl(0, 84%, 60%)",
-                      fontFamily: "Inter, system-ui, sans-serif",
-                      borderRadius: "6px",
-                      spacingUnit: "4px",
-                      fontSizeBase: "14px",
-                    },
-                    rules: {
-                      ".Input": {
-                        border: "1px solid hsl(0, 0%, 85%)",
-                        boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
-                        padding: "10px 12px",
+                  <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+                    <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <AlertCircle className="h-6 w-6 text-destructive" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        Checkout unavailable
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-xs">
+                        {initError}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        initializePayment(
+                          hasDiscount
+                            ? (appliedDiscount!.code?.code ?? null)
+                            : null,
+                          true,
+                        )
+                      }
+                    >
+                      Try again
+                    </Button>
+                  </div>
+                ) : clientSecret ? (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      fonts: [
+                        {
+                          cssSrc:
+                            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
+                        },
+                      ],
+                      appearance: {
+                        theme: "stripe",
+                        variables: {
+                          colorPrimary: "hsl(152, 60%, 36%)",
+                          colorBackground: "hsl(0, 0%, 100%)",
+                          colorText: "hsl(0, 0%, 10%)",
+                          colorDanger: "hsl(0, 84%, 60%)",
+                          fontFamily: "Inter, system-ui, sans-serif",
+                          borderRadius: "6px",
+                          spacingUnit: "4px",
+                          fontSizeBase: "14px",
+                        },
+                        rules: {
+                          ".Input": {
+                            border: "1px solid hsl(0, 0%, 85%)",
+                            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+                            padding: "10px 12px",
+                          },
+                          ".Input:focus": {
+                            border: "1px solid hsl(152, 60%, 36%)",
+                            boxShadow: "0 0 0 3px hsla(152, 60%, 36%, 0.15)",
+                          },
+                          ".Label": {
+                            fontWeight: "500",
+                            fontSize: "12px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            color: "hsl(0, 0%, 45%)",
+                            marginBottom: "6px",
+                          },
+                          ".Tab": {
+                            border: "1px solid hsl(0, 0%, 85%)",
+                            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+                          },
+                          ".Tab--selected": {
+                            borderColor: "hsl(152, 60%, 36%)",
+                            boxShadow: "0 0 0 1px hsl(152, 60%, 36%)",
+                          },
+                        },
                       },
-                      ".Input:focus": {
-                        border: "1px solid hsl(152, 60%, 36%)",
-                        boxShadow: "0 0 0 3px hsla(152, 60%, 36%, 0.15)",
-                      },
-                      ".Label": {
-                        fontWeight: "500",
-                        fontSize: "12px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        color: "hsl(0, 0%, 45%)",
-                        marginBottom: "6px",
-                      },
-                      ".Tab": {
-                        border: "1px solid hsl(0, 0%, 85%)",
-                        boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
-                      },
-                      ".Tab--selected": {
-                        borderColor: "hsl(152, 60%, 36%)",
-                        boxShadow: "0 0 0 1px hsl(152, 60%, 36%)",
-                      },
-                    },
-                  },
-                }}
-              >
-                <SubscriptionPaymentForm
-                  totalCents={firstMonthCents}
-                  currency={currency}
-                  onSuccess={() => setShowSuccess(true)}
-                />
-              </Elements>
+                    }}
+                  >
+                    <SubscriptionPaymentForm
+                      totalCents={firstMonthCents}
+                      currency={currency}
+                      subscriptionId={subscriptionId}
+                      onSuccess={() => setShowSuccess(true)}
+                    />
+                  </Elements>
                 ) : null}
               </div>
             )}
