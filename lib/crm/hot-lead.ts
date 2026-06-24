@@ -55,6 +55,7 @@ const STAGE_BONUS: Record<BuyerCrmStatus, number> = {
   interested: 5,
   meeting_scheduled: 8,
   nda_signed: 10,
+  know_your_buyer: 11,
   documents_shared: 12,
   negotiating: 16,
   sold: 0,

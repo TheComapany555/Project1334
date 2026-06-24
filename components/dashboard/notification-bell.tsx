@@ -96,6 +96,10 @@ const NOTIFICATION_ICON_MAP: Record<string, IconStyle> = {
     Icon: UserCheck,
     tone: "bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-400",
   },
+  kyb_verification_complete: {
+    Icon: BadgeCheck,
+    tone: "bg-teal-500/10 text-teal-600 ring-1 ring-teal-500/20 dark:text-teal-400",
+  },
   payment_received: {
     Icon: DollarSign,
     tone: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400",

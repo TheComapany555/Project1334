@@ -395,6 +395,7 @@ export async function getListingInsightsMetrics(
   const STAGE_RANK: Partial<Record<BuyerCrmStatus, number>> = {
     negotiating: 5,
     documents_shared: 4,
+    know_your_buyer: 3.5,
     nda_signed: 3,
     meeting_scheduled: 2.5,
     interested: 1.5,

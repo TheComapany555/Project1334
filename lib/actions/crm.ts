@@ -73,9 +73,10 @@ const STATUS_ORDER: Record<BuyerCrmStatus, number> = {
   interested: 2,
   meeting_scheduled: 3,
   nda_signed: 4,
-  documents_shared: 5,
-  negotiating: 6,
-  sold: 7, // won — the funnel peak; sticky against auto-advance, rolls up the overall stage
+  know_your_buyer: 5,
+  documents_shared: 6,
+  negotiating: 7,
+  sold: 8, // won — the funnel peak; sticky against auto-advance, rolls up the overall stage
   // "lost" is an off-funnel outcome: ranked at the bottom so marking one
   // listing lost never promotes the buyer's overall stage, and a broker who
   // re-contacts a lost buyer auto-advances them back to "contacted".

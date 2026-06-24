@@ -154,6 +154,7 @@ const STATUS_LABEL: Record<BuyerCrmStatus, string> = {
   interested: "Interested",
   meeting_scheduled: "Meeting scheduled",
   nda_signed: "NDA Signed",
+  know_your_buyer: "Know Your Buyer",
   documents_shared: "Documents shared",
   negotiating: "Negotiating",
   sold: "Sold",
@@ -169,6 +170,8 @@ const STATUS_TONE: Record<BuyerCrmStatus, string> = {
     "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
   nda_signed:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  know_your_buyer:
+    "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
   documents_shared:
     "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   negotiating:

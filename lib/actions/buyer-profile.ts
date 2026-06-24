@@ -121,6 +121,7 @@ export type BuyerCrmStatus =
   | "interested"
   | "meeting_scheduled"
   | "nda_signed"
+  | "know_your_buyer"
   | "documents_shared"
   | "negotiating"
   | "sold"

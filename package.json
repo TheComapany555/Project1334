@@ -14,7 +14,9 @@
     "cron:buyer-alerts": "npx tsx scripts/buyer-alerts-cron.ts",
     "cron:follow-ups-due": "npx tsx scripts/follow-ups-due-cron.ts",
     "cron:data-room-expiry": "npx tsx scripts/data-room-expiry-cron.ts",
-    "cron:listing-ranking": "npx tsx scripts/listing-ranking-cron.ts"
+    "cron:listing-ranking": "npx tsx scripts/listing-ranking-cron.ts",
+    "smoke:sumsub": "npx tsx scripts/sumsub-smoke-test.ts",
+    "test:sumsub-webhook": "npx tsx scripts/sumsub-webhook-test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

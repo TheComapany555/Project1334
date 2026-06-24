@@ -115,6 +115,7 @@ export type BuyerCrmStatus =
   | "interested"
   | "meeting_scheduled"
   | "nda_signed"
+  | "know_your_buyer"
   | "documents_shared"
   | "negotiating"
   | "sold"
@@ -127,6 +128,7 @@ export const BUYER_CRM_STATUSES: BuyerCrmStatus[] = [
   "interested",
   "meeting_scheduled",
   "nda_signed",
+  "know_your_buyer",
   "documents_shared",
   "negotiating",
   "sold",
@@ -150,6 +152,7 @@ export const BUYER_CRM_STATUS_LABEL: Record<BuyerCrmStatus, string> = {
   interested: "Interested",
   meeting_scheduled: "Meeting scheduled",
   nda_signed: "NDA Signed",
+  know_your_buyer: "Know Your Buyer",
   documents_shared: "Documents shared",
   negotiating: "Negotiating",
   sold: "Sold",
@@ -163,6 +166,7 @@ export const BUYER_CRM_STATUS_TONE: Record<BuyerCrmStatus, string> = {
   interested: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   meeting_scheduled: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
   nda_signed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  know_your_buyer: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
   documents_shared: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   negotiating: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   sold: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
