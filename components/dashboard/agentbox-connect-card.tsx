@@ -216,8 +216,13 @@ export function AgentboxConnectCard({ initialView }: { initialView: AgentboxConn
                 <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
                   Credentials are saved but we can&apos;t reach Agentbox yet — its API is restricted to
-                  whitelisted IP addresses. Once Reapit whitelists our server IP, click{" "}
+                  whitelisted IP addresses. Ask Reapit to whitelist our server IP, then click{" "}
                   <strong>Test connection</strong>.
+                  {view.lastError && (
+                    <span className="mt-1.5 block font-mono text-[11px] opacity-90">
+                      {view.lastError}
+                    </span>
+                  )}
                 </span>
               </div>
             )}

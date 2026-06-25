@@ -46,6 +46,30 @@ async function throttle(): Promise<void> {
   lastRequestAt = Date.now();
 }
 
+/**
+ * Pull Agentbox's human-readable error out of a JSON error body. On a whitelist
+ * failure the message contains the offending IP, e.g.
+ * "The IP is not allowed for the provided API key:1.2.3.4" — surfacing it tells
+ * you exactly which IP to give Reapit. Falls back to the raw body.
+ */
+function extractAgentboxMessage(body: string): string | null {
+  if (!body) return null;
+  try {
+    const j = JSON.parse(body) as {
+      Response?: { errorMessage?: unknown };
+      response?: { errorMessage?: unknown };
+      errorMessage?: unknown;
+      message?: unknown;
+    };
+    const msg =
+      j.Response?.errorMessage ?? j.response?.errorMessage ?? j.errorMessage ?? j.message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+  } catch {
+    /* not JSON */
+  }
+  return body.slice(0, 200).trim() || null;
+}
+
 type RequestOutcome =
   | { ok: true; json: unknown }
   | { ok: false; error: string; ipBlocked?: boolean };
@@ -83,19 +107,26 @@ async function agentboxRequest(
       }
 
       if (!res.ok) {
-        // 401 -> credentials; 403 -> most likely IP not whitelisted.
-        const ipBlocked = res.status === 403;
         const body = await res.text().catch(() => "");
-        return {
-          ok: false,
-          ipBlocked,
-          error:
-            res.status === 401
-              ? "Agentbox rejected the credentials (401). Check the Client ID and API Key."
-              : ipBlocked
-                ? "Agentbox returned 403 — your server IP is likely not whitelisted yet."
-                : `Agentbox request failed (HTTP ${res.status}). ${body.slice(0, 200)}`.trim(),
-        };
+        const message = extractAgentboxMessage(body);
+        // Agentbox returns 401 (sometimes 403) with "The IP is not allowed for
+        // the provided API key:<ip>" when the caller isn't whitelisted. Detect
+        // that from the body and surface the IP verbatim.
+        const ipBlocked = res.status === 403 || /ip is not allowed/i.test(body);
+        if (ipBlocked) {
+          return {
+            ok: false,
+            ipBlocked: true,
+            error: message ?? `Your server IP is not whitelisted yet (HTTP ${res.status}).`,
+          };
+        }
+        if (res.status === 401) {
+          return {
+            ok: false,
+            error: message ?? "Agentbox rejected the credentials (401). Check the Client ID and API Key.",
+          };
+        }
+        return { ok: false, error: `Agentbox request failed (HTTP ${res.status}). ${message ?? ""}`.trim() };
       }
 
       const json = await res.json().catch(() => null);
