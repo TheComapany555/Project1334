@@ -80,6 +80,8 @@ hooks/  middleware.ts  public/
 | Listing CRUD / search / images | [lib/actions/listings.ts](lib/actions/listings.ts) |
 | Listing types | [lib/types/listings.ts](lib/types/listings.ts) |
 | CSV import (blueprint for REAXML) | [lib/actions/listings-import.ts](lib/actions/listings-import.ts), [lib/listings-import.ts](lib/listings-import.ts), [components/dashboard/import-listings-dialog.tsx](components/dashboard/import-listings-dialog.tsx) |
+| Listing integrations framework (adapters, shared upsert/taxonomy) | [lib/integrations/](lib/integrations/) (`types.ts`, `taxonomy.ts`, `upsert.ts`, `registry.ts`) — used by both REAXML import and the Agentbox connector |
+| Agentbox (Reapit Sales) connector | [lib/integrations/agentbox/](lib/integrations/agentbox/) (client/map/fixtures), [lib/actions/agentbox.ts](lib/actions/agentbox.ts), [app/dashboard/integrations/page.tsx](app/dashboard/integrations/page.tsx), migration `20260625000001_agency_integrations.sql`. Credentials AES-256-GCM via [lib/crypto/secrets.ts](lib/crypto/secrets.ts). |
 | Categories (admin) | [lib/actions/admin-categories.ts](lib/actions/admin-categories.ts), [app/admin/categories/](app/admin/categories/) |
 | Create / edit form | [app/dashboard/listings/new/page.tsx](app/dashboard/listings/new/page.tsx), [app/dashboard/listings/[id]/edit/edit-listing-form.tsx](app/dashboard/listings/[id]/edit/edit-listing-form.tsx) |
 | Public detail | [app/listing/[slug]/page.tsx](app/listing/[slug]/page.tsx) |
