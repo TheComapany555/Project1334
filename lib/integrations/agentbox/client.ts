@@ -24,6 +24,8 @@ import type { AgentboxRawListing } from "./map";
 import type { IntegrationCredentials, VerifyResult } from "../types";
 
 const DEFAULT_BASE_URL = "https://api.agentboxcrm.com.au";
+/** Agentbox requires a `version` query param on every request (else HTTP 300). */
+const API_VERSION = process.env.AGENTBOX_API_VERSION || "2";
 const PAGE_SIZE = 50;
 /** Safety cap on pages fetched per sync (manual sync; shared sandbox is small). */
 const MAX_PAGES = 10;
@@ -80,17 +82,25 @@ async function throttle(): Promise<void> {
  * "The IP is not allowed for the provided API key:1.2.3.4" — surfacing it tells
  * you exactly which IP to give Reapit. Falls back to the raw body.
  */
+type AgentboxErrorEnvelope = {
+  errorMessage?: unknown;
+  errors?: Array<{ detail?: unknown; title?: unknown }>;
+};
+
 function extractAgentboxMessage(body: string): string | null {
   if (!body) return null;
   try {
     const j = JSON.parse(body) as {
-      Response?: { errorMessage?: unknown };
-      response?: { errorMessage?: unknown };
+      Response?: AgentboxErrorEnvelope;
+      response?: AgentboxErrorEnvelope;
       errorMessage?: unknown;
       message?: unknown;
     };
+    // Old shape: { Response: { errorMessage } }.  v2 shape: { response: { errors: [{ detail }] } }.
+    const env = j.Response ?? j.response;
+    const firstError = env?.errors?.[0];
     const msg =
-      j.Response?.errorMessage ?? j.response?.errorMessage ?? j.errorMessage ?? j.message;
+      env?.errorMessage ?? firstError?.detail ?? firstError?.title ?? j.errorMessage ?? j.message;
     if (typeof msg === "string" && msg.trim()) return msg.trim();
   } catch {
     /* not JSON */
@@ -108,6 +118,7 @@ async function agentboxRequest(
   params: Record<string, string | number | undefined> = {},
 ): Promise<RequestOutcome> {
   const url = new URL(baseUrl() + path);
+  url.searchParams.set("version", API_VERSION); // required by Agentbox
   for (const [k, v] of Object.entries(params)) {
     if (v != null) url.searchParams.set(k, String(v));
   }
@@ -176,16 +187,25 @@ async function agentboxRequest(
   }
 }
 
-/** Pull the listing array out of Agentbox's response envelope (verify on live). */
+/**
+ * Pull the listing array out of Agentbox's response envelope. The v2 shape is
+ * { response: { listings: { listing: [...] } } }; we also tolerate items/data
+ * and a single-object result. Verify against a real 200 once whitelisted.
+ */
 function extractItems(json: unknown): AgentboxRawListing[] {
   if (!json || typeof json !== "object") return [];
   const root = json as Record<string, unknown>;
-  // Common shapes: { response: { listings: { items: [...] } } } or { items: [...] } or [...].
-  const response = (root.response ?? root) as Record<string, unknown>;
-  const listings = (response.listings ?? response) as Record<string, unknown> | unknown[];
-  if (Array.isArray(listings)) return listings as AgentboxRawListing[];
-  const items = (listings as Record<string, unknown>).items;
-  return Array.isArray(items) ? (items as AgentboxRawListing[]) : [];
+  const response = (root.response ?? root.Response ?? root) as Record<string, unknown>;
+  const node = (response.listings ?? response.Listings ?? response) as
+    | Record<string, unknown>
+    | unknown[];
+  if (Array.isArray(node)) return node as AgentboxRawListing[];
+  const container = node as Record<string, unknown>;
+  const candidate =
+    container.listing ?? container.items ?? container.listings ?? container.data;
+  if (Array.isArray(candidate)) return candidate as AgentboxRawListing[];
+  if (candidate && typeof candidate === "object") return [candidate as AgentboxRawListing];
+  return [];
 }
 
 /** Verify credentials + IP reachability with a minimal request. */
