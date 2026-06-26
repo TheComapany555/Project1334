@@ -19,6 +19,7 @@
  * (see the plan). They are isolated here for a cheap one-file adjustment.
  */
 
+import { fetch as undiciFetch, ProxyAgent } from "undici";
 import type { AgentboxRawListing } from "./map";
 import type { IntegrationCredentials, VerifyResult } from "../types";
 
@@ -32,6 +33,33 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 function baseUrl(): string {
   return (process.env.AGENTBOX_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
+}
+
+/**
+ * Optional static-IP egress proxy. Serverless hosts (e.g. Vercel) rotate their
+ * outbound IP, which Reapit can't whitelist. Routing Agentbox calls through a
+ * fixed-IP proxy (QuotaGuard Static / Fixie / …) gives Reapit ONE stable IP to
+ * allowlist. Set AGENTBOX_PROXY_URL, or the provider's own var is picked up too.
+ */
+function getProxyUrl(): string | null {
+  return (
+    process.env.AGENTBOX_PROXY_URL?.trim() ||
+    process.env.QUOTAGUARDSTATIC_URL?.trim() ||
+    process.env.FIXIE_URL?.trim() ||
+    null
+  );
+}
+
+let cachedDispatcher: ProxyAgent | null = null;
+let cachedProxyUrl: string | null = null;
+function getProxyDispatcher(): ProxyAgent | undefined {
+  const url = getProxyUrl();
+  if (!url) return undefined;
+  if (!cachedDispatcher || cachedProxyUrl !== url) {
+    cachedDispatcher = new ProxyAgent(url);
+    cachedProxyUrl = url;
+  }
+  return cachedDispatcher;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -89,7 +117,7 @@ async function agentboxRequest(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(url.toString(), {
+      const res = await undiciFetch(url.toString(), {
         method: "GET",
         headers: {
           "X-Client-ID": creds.clientId,
@@ -97,6 +125,7 @@ async function agentboxRequest(
           Accept: "application/json",
         },
         signal: controller.signal,
+        dispatcher: getProxyDispatcher(),
       });
 
       if (res.status === 429 && attempt < MAX_429_RETRIES) {
