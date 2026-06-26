@@ -22,10 +22,11 @@
 import { fetch as undiciFetch, ProxyAgent } from "undici";
 import type { AgentboxRawListing } from "./map";
 import type { IntegrationCredentials, VerifyResult } from "../types";
+import { validateAgentboxClientId } from "@/lib/agentbox-sync-shared";
 
 const DEFAULT_BASE_URL = "https://api.agentboxcrm.com.au";
 /** Agentbox requires a `version` query param on every request (else HTTP 300). */
-const API_VERSION = process.env.AGENTBOX_API_VERSION || "2";
+const DEFAULT_API_VERSION = (process.env.AGENTBOX_API_VERSION || "1").trim() || "1";
 const PAGE_SIZE = 50;
 /** Safety cap on pages fetched per sync (manual sync; shared sandbox is small). */
 const MAX_PAGES = 10;
@@ -66,6 +67,26 @@ function getProxyDispatcher(): ProxyAgent | undefined {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Remember a version that worked for this process (sandbox vs prod may differ). */
+let cachedApiVersion: string | null = null;
+
+function apiVersionsToTry(): string[] {
+  if (cachedApiVersion) return [cachedApiVersion];
+  const preferred = DEFAULT_API_VERSION;
+  const candidates = [preferred, "1", "2"].filter(
+    (v, i, arr) => arr.indexOf(v) === i,
+  );
+  return candidates;
+}
+
+function isVersionError(status: number, body: string, message: string | null): boolean {
+  return (
+    status === 300 ||
+    /valid version/i.test(body) ||
+    /valid version/i.test(message ?? "")
+  );
 }
 
 // Module-level sequential throttle (one sync runs requests back-to-back).
@@ -117,74 +138,100 @@ async function agentboxRequest(
   creds: IntegrationCredentials,
   params: Record<string, string | number | undefined> = {},
 ): Promise<RequestOutcome> {
-  const url = new URL(baseUrl() + path);
-  url.searchParams.set("version", API_VERSION); // required by Agentbox
-  for (const [k, v] of Object.entries(params)) {
-    if (v != null) url.searchParams.set(k, String(v));
-  }
+  const versions = apiVersionsToTry();
+  let lastVersionError: RequestOutcome | null = null;
 
-  for (let attempt = 0; ; attempt++) {
-    await throttle();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await undiciFetch(url.toString(), {
-        method: "GET",
-        headers: {
-          "X-Client-ID": creds.clientId,
-          "X-API-Key": creds.apiKey,
-          Accept: "application/json",
-        },
-        signal: controller.signal,
-        dispatcher: getProxyDispatcher(),
-      });
+  for (const apiVersion of versions) {
+    const url = new URL(baseUrl() + path);
+    url.searchParams.set("version", apiVersion);
+    for (const [k, v] of Object.entries(params)) {
+      if (v != null) url.searchParams.set(k, String(v));
+    }
 
-      if (res.status === 429 && attempt < MAX_429_RETRIES) {
-        const retryAfter = Number(res.headers.get("retry-after"));
-        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 1000;
-        await sleep(waitMs);
-        continue;
-      }
+    for (let attempt = 0; ; attempt++) {
+      await throttle();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await undiciFetch(url.toString(), {
+          method: "GET",
+          headers: {
+            "X-Client-ID": creds.clientId,
+            "X-API-Key": creds.apiKey,
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+          dispatcher: getProxyDispatcher(),
+        });
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        const message = extractAgentboxMessage(body);
-        // Agentbox returns 401 (sometimes 403) with "The IP is not allowed for
-        // the provided API key:<ip>" when the caller isn't whitelisted. Detect
-        // that from the body and surface the IP verbatim.
-        const ipBlocked = res.status === 403 || /ip is not allowed/i.test(body);
-        if (ipBlocked) {
+        if (res.status === 429 && attempt < MAX_429_RETRIES) {
+          const retryAfter = Number(res.headers.get("retry-after"));
+          const waitMs =
+            Number.isFinite(retryAfter) && retryAfter > 0
+              ? retryAfter * 1000
+              : 2 ** attempt * 1000;
+          await sleep(waitMs);
+          continue;
+        }
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          const message = extractAgentboxMessage(body);
+
+          if (isVersionError(res.status, body, message)) {
+            lastVersionError = {
+              ok: false,
+              error: `Agentbox request failed (HTTP ${res.status}). ${message ?? ""}`.trim(),
+            };
+            break; // try next apiVersion
+          }
+
+          const ipBlocked = res.status === 403 || /ip is not allowed/i.test(body);
+          if (ipBlocked) {
+            return {
+              ok: false,
+              ipBlocked: true,
+              error: message ?? `Your server IP is not whitelisted yet (HTTP ${res.status}).`,
+            };
+          }
+          if (res.status === 401) {
+            return {
+              ok: false,
+              error:
+                message ??
+                "Agentbox rejected the credentials (401). Check the Client ID and API Key.",
+            };
+          }
           return {
             ok: false,
-            ipBlocked: true,
-            error: message ?? `Your server IP is not whitelisted yet (HTTP ${res.status}).`,
+            error: `Agentbox request failed (HTTP ${res.status}). ${message ?? ""}`.trim(),
           };
         }
-        if (res.status === 401) {
-          return {
-            ok: false,
-            error: message ?? "Agentbox rejected the credentials (401). Check the Client ID and API Key.",
-          };
-        }
-        return { ok: false, error: `Agentbox request failed (HTTP ${res.status}). ${message ?? ""}`.trim() };
-      }
 
-      const json = await res.json().catch(() => null);
-      return { ok: true, json };
-    } catch (e) {
-      // Network error / timeout — frequently the IP allowlist or sandbox reachability.
-      return {
-        ok: false,
-        ipBlocked: true,
-        error:
-          e instanceof Error
-            ? `Could not reach Agentbox (${e.message}). The sandbox is IP-restricted — confirm our IP is whitelisted.`
-            : "Could not reach Agentbox.",
-      };
-    } finally {
-      clearTimeout(timer);
+        const json = await res.json().catch(() => null);
+        cachedApiVersion = apiVersion;
+        return { ok: true, json };
+      } catch (e) {
+        return {
+          ok: false,
+          ipBlocked: true,
+          error:
+            e instanceof Error
+              ? `Could not reach Agentbox (${e.message}). The sandbox is IP-restricted — confirm our IP is whitelisted.`
+              : "Could not reach Agentbox.",
+        };
+      } finally {
+        clearTimeout(timer);
+      }
     }
   }
+
+  return (
+    lastVersionError ?? {
+      ok: false,
+      error: "Agentbox request failed — no valid API version accepted.",
+    }
+  );
 }
 
 /**
@@ -212,6 +259,10 @@ function extractItems(json: unknown): AgentboxRawListing[] {
 export async function verifyAgentboxCredentials(
   creds: IntegrationCredentials,
 ): Promise<VerifyResult> {
+  const clientIdError = validateAgentboxClientId(creds.clientId);
+  if (clientIdError) {
+    return { ok: false, error: clientIdError };
+  }
   const res = await agentboxRequest("/listings", creds, { page: 1, limit: 1 });
   if (res.ok) return { ok: true };
   return { ok: false, error: res.error, ipBlocked: res.ipBlocked };

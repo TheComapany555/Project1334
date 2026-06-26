@@ -15,6 +15,7 @@ import {
 } from "@/lib/crypto/secrets";
 import {
   AGENTBOX_PLATFORM,
+  validateAgentboxClientId,
   type AgentboxConnectionStatus,
   type AgentboxConnectionView,
   type AgentboxSyncResult,
@@ -75,7 +76,13 @@ async function loadConnectionRow(agencyId: string): Promise<ConnectionRow | null
 function getEnvAgentboxCredentials(): { clientId: string; apiKey: string } | null {
   const clientId = process.env.AGENTBOX_CLIENT_ID?.trim();
   const apiKey = process.env.AGENTBOX_API_KEY?.trim();
-  return clientId && apiKey ? { clientId, apiKey } : null;
+  if (!clientId || !apiKey) return null;
+  const clientIdError = validateAgentboxClientId(clientId);
+  if (clientIdError) {
+    console.error("[agentbox] Invalid AGENTBOX_CLIENT_ID in env:", clientIdError);
+    return null;
+  }
+  return { clientId, apiKey };
 }
 
 /**
@@ -139,6 +146,10 @@ export async function connectAgentbox(input: {
   const apiKey = input.apiKey?.trim();
   if (!clientId || !apiKey) {
     return { ok: false, error: "Both Client ID and API Key are required." };
+  }
+  const clientIdError = validateAgentboxClientId(clientId);
+  if (clientIdError) {
+    return { ok: false, error: clientIdError };
   }
 
   const adapter = getAdapter(AGENTBOX_PLATFORM);
