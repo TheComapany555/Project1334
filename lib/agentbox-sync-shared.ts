@@ -9,23 +9,18 @@
 export const AGENTBOX_PLATFORM = "agentbox" as const;
 
 /**
- * Reject common credential paste mistakes before calling the API.
- * Evidence: base64 of sandbox admin URL was stored as AGENTBOX_CLIENT_ID.
+ * Reject the one credential paste mistake we can detect with certainty: a raw
+ * admin URL pasted in place of the Client ID.
+ *
+ * NOTE: Agentbox's Client ID for this sandbox is a base64 token that decodes to
+ * the admin URL (e.g. "aHR0cHM6..." → "https://sandbox1.agentboxcrm.com.au/admin/").
+ * That IS the value Agentbox issued and the value the X-Client-ID header expects,
+ * so we must NOT reject base64 strings — let the live API validate them instead.
  */
 export function validateAgentboxClientId(clientId: string): string | null {
   const trimmed = clientId.trim();
   if (/^https?:\/\//i.test(trimmed)) {
-    return "That looks like a sandbox admin URL, not an API Client ID. Use the Client ID from Reapit (a long token string).";
-  }
-  if (/^[a-z0-9+/]+=*$/i.test(trimmed) && trimmed.length > 20) {
-    try {
-      const decoded = Buffer.from(trimmed, "base64").toString("utf8");
-      if (/^https?:\/\//i.test(decoded)) {
-        return "AGENTBOX_CLIENT_ID looks like a base64-encoded admin link. Paste the API Client ID from Reapit, not the sandbox URL.";
-      }
-    } catch {
-      /* not base64 */
-    }
+    return "That looks like a raw admin URL, not an API Client ID. Paste the Client ID exactly as Agentbox/Reapit provided it.";
   }
   return null;
 }
