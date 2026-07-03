@@ -19,6 +19,7 @@ import type { Paginated } from "@/lib/types/pagination";
 import { TierBadge } from "@/components/shared/tier-badge";
 import { updateListingStatus, setListingVisibility, deleteListing } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
@@ -374,15 +375,6 @@ export function ListingsTable({
               >
                 {listing.status.replace("_", " ")}
               </Badge>
-              {listing.is_private && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 border-0"
-                  title="Off-market — hidden from the public marketplace"
-                >
-                  Private
-                </Badge>
-              )}
               <Select
                 value={listing.status}
                 onValueChange={(v) =>
@@ -409,6 +401,24 @@ export function ListingsTable({
         },
         filterFn: (row, id, value: string[]) =>
           value.includes(row.getValue<string>(id)),
+      },
+      {
+        id: "privacy",
+        accessorFn: (row) => (row.is_private ? "private" : "public"),
+        meta: { label: "Privacy" },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Privacy" />
+        ),
+        cell: ({ row }) => {
+          const isPrivate = row.original.is_private;
+          return (
+            <StatusBadge
+              status={isPrivate ? "private" : "public"}
+              label={isPrivate ? "Private" : "Public"}
+              className="border-0"
+            />
+          );
+        },
       },
       {
         accessorKey: "listing_tier",

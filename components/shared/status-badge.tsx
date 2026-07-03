@@ -16,6 +16,7 @@ const STATUS_VARIANT_MAP: Record<string, BadgeVariant> = {
   removed: "destructive",
   disabled: "destructive",
   rejected: "destructive",
+  public: "success",
 };
 
 export function StatusBadge({

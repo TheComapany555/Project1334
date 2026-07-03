@@ -83,6 +83,22 @@ export function AdminListingsTable({ result }: { result: Paginated<ListingForAdm
         cell: ({ row }) => <StatusBadge status={row.original.status} className="border-0" />,
       },
       {
+        id: "privacy",
+        accessorFn: (row) => (row.is_private ? "private" : "public"),
+        meta: { label: "Privacy" },
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Privacy" />,
+        cell: ({ row }) => {
+          const isPrivate = row.original.is_private;
+          return (
+            <StatusBadge
+              status={isPrivate ? "private" : "public"}
+              label={isPrivate ? "Private" : "Public"}
+              className="border-0"
+            />
+          );
+        },
+      },
+      {
         id: "visibility",
         accessorFn: (row) => (row.admin_removed_at ? "removed" : "visible"),
         meta: { label: "Visibility" },

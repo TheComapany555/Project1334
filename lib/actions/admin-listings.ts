@@ -22,6 +22,7 @@ export type ListingForAdmin = {
   slug: string;
   title: string;
   status: string;
+  is_private: boolean;
   admin_removed_at: string | null;
   is_featured: boolean;
   featured_until: string | null;
@@ -57,6 +58,7 @@ export async function listAdminListings(
       slug,
       title,
       status,
+      is_private,
       admin_removed_at,
       is_featured,
       featured_until,
