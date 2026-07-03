@@ -32,7 +32,8 @@ export async function getComparisonListings(
       agency:agencies(name, slug, logo_url)
     `)
     .in("id", listingIds)
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("is_private", false);
 
   return data ?? [];
 }
@@ -173,6 +174,7 @@ export async function getAllPublishedListingsForPicker(): Promise<
       listing_images(url, sort_order)
     `)
     .eq("status", "published")
+    .eq("is_private", false)
     .order("published_at", { ascending: false })
     .limit(200);
 

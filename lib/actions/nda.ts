@@ -140,6 +140,7 @@ export async function signNda(
     .select("id, status")
     .eq("id", listingId)
     .eq("status", "published")
+    .eq("is_private", false)
     .single();
   if (!listing) return { ok: false, error: "Listing not found." };
 

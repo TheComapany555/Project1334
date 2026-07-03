@@ -30,6 +30,7 @@ export async function GET(
       )
       .eq("agency_id", agency.id)
       .eq("status", "published")
+      .eq("is_private", false)
       .order("published_at", { ascending: false })
       .range(from, from + pageSize - 1);
 

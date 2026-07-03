@@ -107,6 +107,26 @@ function publicMarketplaceVisibilityFilter(
   ].join(",");
 }
 
+/** Minimal chainable shape used by {@link applyPublicVisibility}, decoupled from
+ *  Supabase's builder generics to avoid excessively-deep type instantiation. */
+interface VisibilityFilterBuilder {
+  eq(column: string, value: unknown): VisibilityFilterBuilder;
+  is(column: string, value: unknown): VisibilityFilterBuilder;
+}
+
+/**
+ * Applies every public-visibility condition — published, not admin-removed, not
+ * private — to a listings query in ONE place. Use on ALL anon/buyer-facing listing
+ * reads so a Private (off-market) listing can never leak to the public. Returns the
+ * same builder for further chaining (.or/.order/.single/etc.).
+ */
+function applyPublicVisibility<T>(query: T): T {
+  return (query as unknown as VisibilityFilterBuilder)
+    .eq("status", "published")
+    .is("admin_removed_at", null)
+    .eq("is_private", false) as unknown as T;
+}
+
 async function requireBroker() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || session.user.role !== "broker") {
@@ -174,6 +194,8 @@ export type ListBrokerListingsParams = {
    * - "assigned": listings assigned to them by someone else
    */
   ownership?: "all" | "created" | "assigned";
+  /** Filter by public visibility: "all" (default), "live" (on marketplace), or "private" (off-market). */
+  visibility?: "all" | "live" | "private";
 };
 
 /**
@@ -217,6 +239,11 @@ export async function listBrokerListings(
 
   if (params.status?.trim() && params.status !== "all") {
     query = query.eq("status", params.status.trim());
+  }
+  if (params.visibility === "private") {
+    query = query.eq("is_private", true);
+  } else if (params.visibility === "live") {
+    query = query.eq("is_private", false);
   }
   if (params.q?.trim()) {
     const k = params.q.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -322,10 +349,11 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
   const fetchSize = Math.min(50, targetSize * HOMEPAGE_OVERFETCH_MULTIPLIER);
   const nowIso = new Date().toISOString();
 
-  const { data, error } = await supabase
-    .from("listings")
-    .select(
-      `
+  const { data, error } = await applyPublicVisibility(
+    supabase
+      .from("listings")
+      .select(
+        `
       *,
       broker:profiles!broker_id(name, photo_url),
       category:categories(id, name, slug),
@@ -333,9 +361,8 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
       agency:agencies!agency_id(name, slug, logo_url),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `
-    )
-    .eq("status", "published")
-    .is("admin_removed_at", null)
+      ),
+  )
     .or(
       `featured_homepage_until.gt."${nowIso}",featured_until.gt."${nowIso}"`,
     )
@@ -404,10 +431,11 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   const pageSize = Math.min(50, Math.max(1, params.page_size ?? 12));
   const offset = (page - 1) * pageSize;
 
-  let query = supabase
-    .from("listings")
-    .select(
-      `
+  let query = applyPublicVisibility(
+    supabase
+      .from("listings")
+      .select(
+        `
       *,
       broker:profiles!broker_id(name, photo_url),
       category:categories(id, name, slug),
@@ -415,10 +443,9 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
       agency:agencies!agency_id(name, slug, logo_url),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `,
-      { count: "exact" }
-    )
-    .eq("status", "published")
-    .is("admin_removed_at", null);
+        { count: "exact" }
+      ),
+  );
 
   if (params.keyword?.trim()) {
     const k = params.keyword.trim();
@@ -522,16 +549,16 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
 /** Public: published listings for a broker (by broker profile id). */
 export async function getPublishedListingsByBrokerId(brokerId: string): Promise<Listing[]> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("listings")
-    .select(`
+  const { data, error } = await applyPublicVisibility(
+    supabase
+      .from("listings")
+      .select(`
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
     `)
-    .eq("broker_id", brokerId)
-    .eq("status", "published")
-    .is("admin_removed_at", null)
+      .eq("broker_id", brokerId),
+  )
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false });
   if (error) return [];
@@ -546,16 +573,16 @@ export async function getPublishedListingsByBrokerId(brokerId: string): Promise<
 /** Public: published listings for an agency. */
 export async function getPublishedListingsByAgencyId(agencyId: string): Promise<Listing[]> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("listings")
-    .select(`
+  const { data, error } = await applyPublicVisibility(
+    supabase
+      .from("listings")
+      .select(`
       *,
       category:categories(id, name, slug),
       listing_images(id, url, sort_order)
     `)
-    .eq("agency_id", agencyId)
-    .eq("status", "published")
-    .is("admin_removed_at", null)
+      .eq("agency_id", agencyId),
+  )
     .order("featured_homepage_until", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false });
   if (error) return [];
@@ -569,9 +596,10 @@ export async function getPublishedListingsByAgencyId(agencyId: string): Promise<
 
 export async function getListingBySlug(slug: string): Promise<(Listing & { broker?: { slug: string; name: string | null; company: string | null; photo_url: string | null; phone: string | null }; agency?: { name: string; slug: string | null; logo_url: string | null } | null }) | null> {
   const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("listings")
-    .select(`
+  const { data, error } = await applyPublicVisibility(
+    supabase
+      .from("listings")
+      .select(`
       *,
       broker:profiles!broker_id(slug, name, company, photo_url, phone),
       category:categories(id, name, slug),
@@ -580,10 +608,8 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
       agency:agencies!agency_id(name, slug, logo_url),
       listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
     `)
-    .eq("slug", slug)
-    .eq("status", "published")
-    .is("admin_removed_at", null)
-    .single();
+      .eq("slug", slug),
+  ).single();
   if (error || !data) return null;
   const row = data as ListingSlugJoinRow;
   const broker = firstJoined(row.broker);
@@ -618,6 +644,8 @@ export async function createListing(form: {
   status: "draft" | "published";
   listing_tier?: "basic" | "standard" | "featured";
   tier_product_id?: string | null;
+  /** Private (off-market): broker-only, hidden from all public surfaces. Forces basic tier, no payment. */
+  is_private?: boolean;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const { userId, agencyId } = await requireBroker();
   const supabase = createServiceRoleClient();
@@ -629,10 +657,13 @@ export async function createListing(form: {
     return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
   }
 
-  const tier = form.listing_tier ?? "basic";
+  // Private (off-market) listings never touch the marketplace: force the free basic tier
+  // and skip the paid-tier gate entirely.
+  const isPrivate = form.is_private === true;
+  const tier = isPrivate ? "basic" : (form.listing_tier ?? "basic");
   const isFreeOrBasic = tier === "basic";
 
-  // For paid tiers, force draft status until payment is made
+  // For paid tiers, force draft status until payment is made (never applies to private/basic).
   const effectiveStatus = isFreeOrBasic ? form.status : "draft";
   const published_at = effectiveStatus === "published" ? new Date().toISOString() : null;
 
@@ -660,8 +691,9 @@ export async function createListing(form: {
       description: form.description?.trim() || null,
       status: effectiveStatus,
       published_at,
+      is_private: isPrivate,
       listing_tier: tier,
-      tier_product_id: form.tier_product_id || null,
+      tier_product_id: isPrivate ? null : (form.tier_product_id || null),
       tier_paid_at: isFreeOrBasic && effectiveStatus === "published" ? new Date().toISOString() : null,
     })
     .select("id")
@@ -767,7 +799,7 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   const { userId, agencyId, agencyRole } = await requireBroker();
   const supabase = createServiceRoleClient();
 
-  let statusQuery = supabase.from("listings").select("id, status, listing_tier, tier_paid_at").eq("id", id);
+  let statusQuery = supabase.from("listings").select("id, status, listing_tier, tier_paid_at, is_private").eq("id", id);
   if (agencyId && agencyRole === "owner") {
     statusQuery = statusQuery.eq("agency_id", agencyId);
   } else {
@@ -787,16 +819,22 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
     return { ok: false, error: `Cannot change status from ${current} to ${status}.` };
   }
 
+  // Private (off-market) listings are broker-only and never on the marketplace, so
+  // "publishing" one just marks it active — no tier payment, no public-publish notification.
+  const isPrivate = (listing as { is_private?: boolean }).is_private === true;
+
   // Block publishing if subscription or tier payment is missing
   if (status === "published") {
     const access = await checkAgencySubscriptionAccess(supabase, agencyId);
     if (!access.allowed) {
       return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
     }
-    const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
-    const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
-    if (tier !== "basic" && !tierPaidAt) {
-      return { ok: false, error: "Payment is required before publishing. Please complete the payment for your selected visibility level first." };
+    if (!isPrivate) {
+      const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
+      const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
+      if (tier !== "basic" && !tierPaidAt) {
+        return { ok: false, error: "Payment is required before publishing. Please complete the payment for your selected visibility level first." };
+      }
     }
   }
 
@@ -817,7 +855,7 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
     .single();
   const listingTitle = listingInfo?.title ?? "a listing";
 
-  if (status === "published") {
+  if (status === "published" && !isPrivate) {
     notifyAdmins({
       type: "listing_published",
       title: `Listing published: "${listingTitle}"`,
@@ -825,6 +863,52 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
     }).catch(() => {});
   }
 
+  return { ok: true };
+}
+
+/**
+ * Toggle a listing between Private (off-market, broker-only) and Live on Salebiz.
+ * Making a listing Private removes it from the marketplace immediately. Making it
+ * Live re-runs the marketplace publish gate (active subscription + tier paid) so a
+ * broker can't create a paid-tier listing "privately" for free and then flip it live.
+ */
+export async function setListingVisibility(
+  id: string,
+  isPrivate: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId, agencyId, agencyRole } = await requireBroker();
+  const supabase = createServiceRoleClient();
+
+  let ownerQuery = supabase
+    .from("listings")
+    .select("id, status, listing_tier, tier_paid_at, is_private")
+    .eq("id", id);
+  if (agencyId && agencyRole === "owner") {
+    ownerQuery = ownerQuery.eq("agency_id", agencyId);
+  } else {
+    ownerQuery = ownerQuery.eq("broker_id", userId);
+  }
+  const { data: listing } = await ownerQuery.single();
+  if (!listing) return { ok: false, error: "Listing not found." };
+
+  // Going Live on the marketplace: enforce the same gate as publishing.
+  if (!isPrivate) {
+    const access = await checkAgencySubscriptionAccess(supabase, agencyId);
+    if (!access.allowed) {
+      return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
+    }
+    const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
+    const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
+    if (tier !== "basic" && !tierPaidAt) {
+      return { ok: false, error: "Payment is required before going live. Please complete the payment for your selected visibility level first." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("listings")
+    .update({ is_private: isPrivate, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 

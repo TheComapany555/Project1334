@@ -61,7 +61,8 @@ export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
         "id, slug, title, asking_price, price_type, location_text, listing_images(url, sort_order)",
       )
       .in("id", ids)
-      .eq("status", "published");
+      .eq("status", "published")
+      .eq("is_private", false);
 
     const listingById = new Map((listings ?? []).map((l) => [l.id, l as unknown as ListingRow]));
     const items: BuyerSavedListing[] = (favRows ?? [])
@@ -126,15 +127,17 @@ export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
     const { data: rows, count } = await supabase
       .from("listing_share_invites")
       .select(
-        "id, token, custom_message, sent_at, expires_at, opened_at, broker_name_snapshot, listing:listings(id, slug, title, asking_price, price_type, location_text, listing_images(url, sort_order))",
+        "id, token, custom_message, sent_at, expires_at, opened_at, broker_name_snapshot, listing:listings(id, slug, title, asking_price, price_type, location_text, is_private, listing_images(url, sort_order))",
         { count: "exact" },
       )
       .ilike("recipient_email", email)
       .order("sent_at", { ascending: false })
       .limit(PANEL_PAGE_SIZE);
 
-    const items: BuyerSentToMeRow[] = (rows ?? []).map((row) => {
-      const listing = (row as unknown as { listing: ListingRow | null }).listing;
+    const items: BuyerSentToMeRow[] = (rows ?? []).flatMap((row) => {
+      const listing = (row as unknown as { listing: (ListingRow & { is_private?: boolean }) | null }).listing;
+      // A listing that has since gone Private (off-market) must not surface to buyers.
+      if (listing?.is_private) return [];
       return {
         invite_id: row.id as string,
         token: row.token as string,
@@ -165,15 +168,17 @@ export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
     const { data: rows, count } = await supabase
       .from("buyer_alert_matches")
       .select(
-        "id, matched_at, preference:buyer_alert_preferences(label, business_type, state, suburb, min_price, max_price, category:categories(name)), listing:listings(id, slug, title, asking_price, price_type, location_text, published_at, listing_images(url, sort_order))",
+        "id, matched_at, preference:buyer_alert_preferences(label, business_type, state, suburb, min_price, max_price, category:categories(name)), listing:listings(id, slug, title, asking_price, price_type, location_text, published_at, is_private, listing_images(url, sort_order))",
         { count: "exact" },
       )
       .eq("user_id", userId)
       .order("matched_at", { ascending: false })
       .limit(PANEL_PAGE_SIZE);
 
-    const items: BuyerMatchedListing[] = (rows ?? []).map((row) => {
-      const listing = (row as unknown as { listing: ListingRow & { published_at?: string | null } | null }).listing;
+    const items: BuyerMatchedListing[] = (rows ?? []).flatMap((row) => {
+      const listing = (row as unknown as { listing: (ListingRow & { published_at?: string | null; is_private?: boolean }) | null }).listing;
+      // A listing that has since gone Private (off-market) must not surface to buyers.
+      if (listing?.is_private) return [];
       const preference = (row as unknown as {
         preference?: {
           label?: string | null;

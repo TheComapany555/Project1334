@@ -41,7 +41,8 @@ export async function getUserFavorites(): Promise<{
       )
     `)
     .in("id", listingIds)
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("is_private", false);
 
   return { listings: listings ?? [], listingIds };
 }

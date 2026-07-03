@@ -400,6 +400,17 @@ export async function getPublicListingDocuments(
 ): Promise<PublicListingDocumentsResult> {
   const supabase = createServiceRoleClient();
 
+  // Defense in depth: a Private (off-market) or unpublished listing exposes no public
+  // documents, even if its id is known directly.
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("status, is_private")
+    .eq("id", listingId)
+    .single();
+  if (!listing || listing.status !== "published" || listing.is_private) {
+    return { documents: [], requiresNda: false, hasSigned: false, lockedConfidentialCount: 0 };
+  }
+
   const { data: nda } = await supabase
     .from("listing_ndas")
     .select("is_required")

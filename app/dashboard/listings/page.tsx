@@ -47,9 +47,14 @@ export default async function ListingsPage({
     ownershipParam === "created" || ownershipParam === "assigned"
       ? ownershipParam
       : undefined;
+  const visibilityParam = pickStr(sp.visibility);
+  const visibility =
+    visibilityParam === "live" || visibilityParam === "private"
+      ? visibilityParam
+      : undefined;
 
   const [result, brokerSlug, categories, highlights, session] = await Promise.all([
-    listBrokerListings({ page, pageSize, q, status, ownership }),
+    listBrokerListings({ page, pageSize, q, status, ownership, visibility }),
     getBrokerSlug(),
     getCategories(),
     getListingHighlights(),
@@ -70,7 +75,7 @@ export default async function ListingsPage({
   const published = result.rows.filter((l) => l.status === "published").length;
   const drafts = result.rows.filter((l) => l.status === "draft").length;
 
-  const hasFilters = !!(q || status || ownership);
+  const hasFilters = !!(q || status || ownership || visibility);
   const isEmpty = total === 0 && !hasFilters;
 
   return (

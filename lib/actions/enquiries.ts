@@ -55,6 +55,7 @@ export async function submitEnquiry(
     .select("id, broker_id, title, slug")
     .eq("id", listingId)
     .eq("status", "published")
+    .eq("is_private", false)
     .single();
   if (listError || !listing) {
     return { ok: false, error: "Listing not found or not available." };

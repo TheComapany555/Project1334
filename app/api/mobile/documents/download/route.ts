@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       .select("id")
       .eq("id", doc.listing_id)
       .eq("status", "published")
+      .eq("is_private", false)
       .single();
 
     if (!listing) {

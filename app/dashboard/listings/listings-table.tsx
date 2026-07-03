@@ -17,7 +17,7 @@ import type { AgencyBroker } from "@/lib/types/agencies";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import type { Paginated } from "@/lib/types/pagination";
 import { TierBadge } from "@/components/shared/tier-badge";
-import { updateListingStatus, deleteListing } from "@/lib/actions/listings";
+import { updateListingStatus, setListingVisibility, deleteListing } from "@/lib/actions/listings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -251,6 +251,16 @@ export function ListingsTable({
     }
   }
 
+  async function onVisibilityChange(listingId: string, makePrivate: boolean) {
+    const res = await setListingVisibility(listingId, makePrivate);
+    if (res.ok) {
+      toast.success(makePrivate ? "Listing is now private" : "Listing is now live on Salebiz");
+      router.refresh();
+    } else {
+      toast.error(res.error ?? "Failed to update visibility");
+    }
+  }
+
   async function onConfirmSold(listingId: string) {
     const res = await updateListingStatus(listingId, "sold");
     setConfirmingSold(null);
@@ -364,6 +374,15 @@ export function ListingsTable({
               >
                 {listing.status.replace("_", " ")}
               </Badge>
+              {listing.is_private && (
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 border-0"
+                  title="Off-market — hidden from the public marketplace"
+                >
+                  Private
+                </Badge>
+              )}
               <Select
                 value={listing.status}
                 onValueChange={(v) =>
@@ -580,6 +599,15 @@ export function ListingsTable({
               <HugeiconsIcon icon={Comment01Icon} className="size-4" />
               Log buyer feedback
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                onVisibilityChange(listing.id, !listing.is_private);
+              }}
+            >
+              <HugeiconsIcon icon={SecurityCheckIcon} className="size-4" />
+              {listing.is_private ? "Make live on Salebiz" : "Make private"}
+            </DropdownMenuItem>
             {(listing.status === "published" ||
               listing.status === "under_offer") && (
               <DropdownMenuItem
@@ -595,7 +623,7 @@ export function ListingsTable({
                 Mark as sold
               </DropdownMenuItem>
             )}
-            {listing.status === "published" && brokerSlug && (
+            {listing.status === "published" && !listing.is_private && brokerSlug && (
               <DropdownMenuItem asChild>
                 <Link
                   href={`/listing/${listing.slug}`}
@@ -607,7 +635,7 @@ export function ListingsTable({
                 </Link>
               </DropdownMenuItem>
             )}
-            {listing.status === "published" && (
+            {listing.status === "published" && !listing.is_private && (
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/listings/${listing.id}/share`}>
                   <HugeiconsIcon icon={SentIcon} className="size-4" />
@@ -615,7 +643,7 @@ export function ListingsTable({
                 </Link>
               </DropdownMenuItem>
             )}
-            {listing.status === "published" && (
+            {listing.status === "published" && !listing.is_private && (
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/listings/${listing.id}/share-external`}>
                   <HugeiconsIcon icon={Mail01Icon} className="size-4" />
@@ -623,7 +651,7 @@ export function ListingsTable({
                 </Link>
               </DropdownMenuItem>
             )}
-            {canFeature && listing.status === "published" && (
+            {canFeature && listing.status === "published" && !listing.is_private && (
               <DropdownMenuItem asChild>
                 <Link href={`/dashboard/listings/${listing.id}/feature`}>
                   <HugeiconsIcon icon={StarIcon} className="size-4" />

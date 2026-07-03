@@ -15,6 +15,7 @@ import {
   getListingHighlights,
   updateListing,
   updateListingStatus,
+  setListingVisibility,
   uploadListingImage,
   deleteListingImage,
   reorderListingImages,
@@ -107,6 +108,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
   const [imageUploading, setImageUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusChanging, setStatusChanging] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(!!listing.is_private);
+  const [visibilityChanging, setVisibilityChanging] = useState(false);
   const [tierProducts, setTierProducts] = useState<Product[]>([]);
   const [selectedTier, setSelectedTier] = useState<ListingTier>(
     (listing.listing_tier as ListingTier) ?? "basic"
@@ -306,6 +309,19 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       router.refresh();
     } else {
       toast.error(result.error ?? "Failed to update status.");
+    }
+  }
+
+  async function onVisibilityChange(makePrivate: boolean) {
+    setVisibilityChanging(true);
+    const result = await setListingVisibility(listing.id, makePrivate);
+    setVisibilityChanging(false);
+    if (result.ok) {
+      setIsPrivate(makePrivate);
+      toast.success(makePrivate ? "Listing is now private." : "Listing is now live on Salebiz.");
+      router.refresh();
+    } else {
+      toast.error(result.error ?? "Failed to update visibility.");
     }
   }
 
@@ -790,6 +806,42 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           </CardContent>
         </Card>
 
+        {/* Private (off-market) vs Live on Salebiz. Broker-only — admins manage
+            marketplace state via the admin tools. */}
+        {!isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{isPrivate ? "Private (off-market)" : "Live on Salebiz"}</CardTitle>
+              <CardDescription>
+                {isPrivate
+                  ? "This listing is broker-only and hidden from the public marketplace. Make it live to list it publicly."
+                  : "This listing can appear on the public Salebiz marketplace. Make it private to manage it off-market, with no public exposure."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isPrivate ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={visibilityChanging}
+                  onClick={() => onVisibilityChange(false)}
+                >
+                  {visibilityChanging ? "Updating…" : "Make live on Salebiz"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={visibilityChanging}
+                  onClick={() => onVisibilityChange(true)}
+                >
+                  {visibilityChanging ? "Updating…" : "Make private"}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Virtual Data Room & NDA */}
         <Card>
           <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -861,7 +913,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               Unpublish
             </Button>
           )}
-          {listing.status === "published" && (
+          {listing.status === "published" && !isPrivate && (
             <Button variant="outline" size="sm" asChild>
               <Link href={`/listing/${listing.slug}`} target="_blank" rel="noopener noreferrer">
                 View public page

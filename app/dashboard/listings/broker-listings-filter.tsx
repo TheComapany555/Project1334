@@ -46,6 +46,12 @@ const STATUS_OPTIONS: { value: "_all" | ListingStatus; label: string }[] = [
   { value: "unpublished", label: "Unpublished" },
 ];
 
+const VISIBILITY_OPTIONS: { value: "_all" | "live" | "private"; label: string }[] = [
+  { value: "_all", label: "Live & private" },
+  { value: "live", label: "Live on Salebiz" },
+  { value: "private", label: "Private (off-market)" },
+];
+
 type Props = {
   result: Paginated<Listing & { listing_highlights?: ListingHighlight[] }>;
   categories: Category[];
@@ -74,9 +80,10 @@ export function BrokerListingsWithFilter({
   showOwnershipTabs,
 }: Props) {
   const { state, setFilter } = useTableUrlState({
-    filterKeys: ["status", "ownership"],
+    filterKeys: ["status", "ownership", "visibility"],
   });
   const ownership = state.filters.ownership ?? "all";
+  const visibilityValue = state.filters.visibility ?? "_all";
   const [categoryFilter, setCategoryFilter] = React.useState("");
   const [highlightFilter, setHighlightFilter] = React.useState("");
   const [categoryQuery, setCategoryQuery] = React.useState("");
@@ -167,6 +174,25 @@ export function BrokerListingsWithFilter({
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={visibilityValue}
+          onValueChange={(v) =>
+            startTransition(() =>
+              setFilter("visibility", v === "_all" ? null : v),
+            )
+          }
+        >
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Visibility" />
+          </SelectTrigger>
+          <SelectContent>
+            {VISIBILITY_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>

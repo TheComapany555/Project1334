@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       .select("id")
       .eq("id", listing_id)
       .eq("status", "published")
+      .eq("is_private", false)
       .single();
 
     if (!listing) {

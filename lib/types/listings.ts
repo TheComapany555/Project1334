@@ -62,6 +62,8 @@ export type Listing = {
   summary: string | null;
   description: string | null;
   status: ListingStatus;
+  /** Broker-only off-market flag. When true, hidden from all public surfaces (Private Listings). */
+  is_private: boolean;
   listing_tier: ListingTier;
   tier_product_id: string | null;
   tier_paid_at: string | null;

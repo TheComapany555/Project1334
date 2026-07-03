@@ -42,7 +42,7 @@ export default async function ListingInsightsPage({
         backHref={backHref}
         backLabel={backLabel}
         action={
-          listing.status === "published" && listing.slug ? (
+          listing.status === "published" && !listing.is_private && listing.slug ? (
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link
                 href={`/listing/${listing.slug}`}

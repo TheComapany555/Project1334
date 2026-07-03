@@ -31,7 +31,8 @@ export async function GET(
         .from("listings")
         .select("id", { count: "exact", head: true })
         .eq("broker_id", profile.id)
-        .eq("status", "published");
+        .eq("status", "published")
+        .eq("is_private", false);
       if (!count) {
         return NextResponse.json({ error: "Broker not found" }, { status: 404 });
       }

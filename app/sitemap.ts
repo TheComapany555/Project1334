@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from("listings")
     .select("slug, updated_at, published_at")
     .eq("status", "published")
+    .eq("is_private", false)
     .is("admin_removed_at", null)
     .order("published_at", { ascending: false });
 

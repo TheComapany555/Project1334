@@ -8,6 +8,7 @@ export async function GET() {
       .from("listings")
       .select("state")
       .eq("status", "published")
+      .eq("is_private", false)
       .not("state", "is", null);
 
     if (error) return NextResponse.json({ error: "Failed to fetch states" }, { status: 500 });

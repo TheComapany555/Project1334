@@ -28,7 +28,8 @@ export async function GET(request: Request) {
     let idBuilder = supabase
       .from("listings")
       .select("id", { count: "exact" })
-      .eq("status", "published");
+      .eq("status", "published")
+      .eq("is_private", false);
 
     if (query) {
       idBuilder = idBuilder.or(

@@ -48,11 +48,11 @@ export async function POST(request: Request) {
     // Verify listing exists and is published
     const { data: listing } = await supabase
       .from("listings")
-      .select("id, title, slug, status, broker_id")
+      .select("id, title, slug, status, broker_id, is_private")
       .eq("id", listing_id)
       .single();
 
-    if (!listing || listing.status !== "published") {
+    if (!listing || listing.status !== "published" || listing.is_private) {
       return NextResponse.json({ error: "Listing not found or not available" }, { status: 404 });
     }
 

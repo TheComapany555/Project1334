@@ -22,6 +22,7 @@ export async function GET(
       .select("*, category:categories(*), listing_images(*)")
       .eq("slug", slug)
       .eq("status", "published")
+      .eq("is_private", false)
       .single();
 
     if (error || !listing) {

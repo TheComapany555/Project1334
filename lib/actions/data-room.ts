@@ -99,10 +99,10 @@ export async function requestDataRoomAccess(
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, title, broker_id, status")
+    .select("id, title, broker_id, status, is_private")
     .eq("id", listingId)
     .single();
-  if (!listing || listing.status !== "published") {
+  if (!listing || listing.status !== "published" || listing.is_private) {
     return { ok: false, error: "Listing not available." };
   }
 

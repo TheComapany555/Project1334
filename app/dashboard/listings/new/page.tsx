@@ -25,6 +25,7 @@ import type {
 } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
+import { cn } from "@/lib/utils";
 import { matchTierProduct } from "@/lib/listing-tier-products";
 import { Editor } from "@/components/blocks/editor-00/editor";
 import {
@@ -152,6 +153,9 @@ export default function NewListingPage() {
   const [selectedTierProductId, setSelectedTierProductId] = useState<
     string | null
   >(null);
+  // "live" = listed on the public Salebiz marketplace; "private" = off-market,
+  // broker-only (managed in the dashboard/CRM, never shown publicly).
+  const [listingType, setListingType] = useState<"live" | "private">("live");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
@@ -276,7 +280,9 @@ export default function NewListingPage() {
   async function onPublish(isDraft: boolean) {
     setSubmitting(true);
     const values = form.getValues();
-    const isPaidTier = selectedTier !== "basic" && !isDraft;
+    const isPrivate = listingType === "private";
+    // Private (off-market) listings are always free (basic tier) — never a paid checkout.
+    const isPaidTier = !isPrivate && selectedTier !== "basic" && !isDraft;
 
     const result = await createListing({
       title: values.title,
@@ -298,8 +304,9 @@ export default function NewListingPage() {
         : values.description || null,
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
-      listing_tier: selectedTier,
-      tier_product_id: selectedTierProductId,
+      listing_tier: isPrivate ? "basic" : selectedTier,
+      tier_product_id: isPrivate ? null : selectedTierProductId,
+      is_private: isPrivate,
     });
     if (!result.ok) {
       setSubmitting(false);
@@ -327,7 +334,13 @@ export default function NewListingPage() {
         `/checkout?listing=${listingId}&product=${selectedTierProductId}&type=listing_tier`,
       );
     } else {
-      toast.success(isDraft ? "Draft saved." : "Listing published.");
+      toast.success(
+        isDraft
+          ? "Draft saved."
+          : isPrivate
+            ? "Private listing saved."
+            : "Listing published.",
+      );
       router.replace("/dashboard/listings");
     }
   }
@@ -901,24 +914,70 @@ export default function NewListingPage() {
                 </div>
               </div>
 
-              {/* Listing Tier Selection */}
+              {/* Listing type: public marketplace vs private/off-market */}
               <div className="space-y-3">
                 <div>
-                  <Label>Listing visibility</Label>
+                  <Label>Listing type</Label>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Choose how visible your listing will be. Standard and
-                    Featured levels require payment.
+                    Choose whether this listing goes on the public Salebiz
+                    marketplace or stays private (off-market).
                   </p>
                 </div>
-                <TierSelector
-                  products={tierProducts}
-                  selectedTier={selectedTier}
-                  onSelectTier={(tier, productId) => {
-                    setSelectedTier(tier);
-                    setSelectedTierProductId(productId);
-                  }}
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setListingType("live")}
+                    className={cn(
+                      "flex flex-col rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm",
+                      listingType === "live"
+                        ? "border-primary bg-primary/[0.02] ring-1 ring-primary/20"
+                        : "border-border hover:border-muted-foreground/30",
+                    )}
+                  >
+                    <p className="font-semibold text-sm">Live on Salebiz</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Published to the public marketplace so buyers can find it.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setListingType("private")}
+                    className={cn(
+                      "flex flex-col rounded-lg border-2 p-5 text-left transition-all hover:shadow-sm",
+                      listingType === "private"
+                        ? "border-primary bg-primary/[0.02] ring-1 ring-primary/20"
+                        : "border-border hover:border-muted-foreground/30",
+                    )}
+                  >
+                    <p className="font-semibold text-sm">Private (off-market)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Broker-only. Managed in your dashboard/CRM and never shown
+                      publicly. Free — no payment.
+                    </p>
+                  </button>
+                </div>
               </div>
+
+              {/* Listing Tier Selection — only relevant for public marketplace listings */}
+              {listingType === "live" && (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Listing visibility</Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Choose how visible your listing will be. Standard and
+                      Featured levels require payment.
+                    </p>
+                  </div>
+                  <TierSelector
+                    products={tierProducts}
+                    selectedTier={selectedTier}
+                    onSelectTier={(tier, productId) => {
+                      setSelectedTier(tier);
+                      setSelectedTierProductId(productId);
+                    }}
+                  />
+                </div>
+              )}
 
               <div className="flex justify-between pt-4">
                 <Button
@@ -949,9 +1008,11 @@ export default function NewListingPage() {
                   >
                     {submitting
                       ? "Saving…"
-                      : selectedTier === "basic"
-                        ? "Publish"
-                        : "Continue to payment"}
+                      : listingType === "private"
+                        ? "Save private listing"
+                        : selectedTier === "basic"
+                          ? "Publish"
+                          : "Continue to payment"}
                   </Button>
                 </div>
               </div>

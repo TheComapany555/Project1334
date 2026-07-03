@@ -32,7 +32,8 @@ export async function GET(request: Request) {
       .from("listings")
       .select("id, slug, title, asking_price, price_type, revenue, location_text, is_featured, category:categories(id, name), listing_images(id, url, sort_order)")
       .in("id", listingIds)
-      .eq("status", "published");
+      .eq("status", "published")
+      .eq("is_private", false);
 
     // Sort listings in the same order as favorites
     const listingMap = new Map((listings || []).map((l) => [l.id, l]));

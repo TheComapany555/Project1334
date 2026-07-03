@@ -97,6 +97,7 @@ export async function runBuyerAlertMatching(options?: {
         "id, slug, title, summary, description, category_id, state, suburb, asking_price, price_type, location_text, published_at",
       )
       .eq("status", "published")
+      .eq("is_private", false)
       .gte("published_at", cutoff.toISOString())
       .order("published_at", { ascending: true }),
     supabase
