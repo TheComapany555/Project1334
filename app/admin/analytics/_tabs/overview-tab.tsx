@@ -19,18 +19,18 @@ import { DonutChart } from "@/components/admin/analytics/donut-chart";
 import { formatCurrencyAUD } from "@/lib/utils/format";
 
 const PAYMENT_TYPE_COLORS = {
-  featured: "hsl(45, 100%, 51%)",
-  listing_tier: "var(--primary)",
-  subscription: "hsl(160, 84%, 39%)",
+  featured: "var(--chart-3)", // amber
+  listing_tier: "var(--chart-1)", // green
+  subscription: "var(--chart-2)", // blue
 };
 
 const SUB_STATUS_COLORS = {
-  active: "hsl(160, 84%, 39%)",
-  trialing: "hsl(189, 94%, 43%)",
-  past_due: "hsl(45, 100%, 51%)",
-  cancelled: "hsl(340, 60%, 60%)",
-  expired: "hsl(0, 0%, 60%)",
-  pending: "hsl(258, 90%, 66%)",
+  active: "var(--chart-1)", // green
+  trialing: "var(--chart-2)", // blue
+  past_due: "var(--chart-3)", // amber
+  cancelled: "var(--chart-5)", // magenta
+  expired: "var(--muted-foreground)", // neutral
+  pending: "var(--chart-4)", // violet
 };
 
 export function OverviewTab({ analytics }: { analytics: AdminAnalytics }) {
@@ -133,7 +133,7 @@ export function OverviewTab({ analytics }: { analytics: AdminAnalytics }) {
           }))}
           headlineValue={formatCurrencyAUD(kpis.totalRevenue)}
           headlineLabel="All time revenue"
-          color="hsl(160, 84%, 39%)"
+          color="var(--chart-1)"
           seriesLabel="Revenue"
           valueKind="currency"
           height={280}
@@ -156,7 +156,7 @@ export function OverviewTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Marketplace engagement"
           description="Buyer enquiries received each month."
           data={charts.enquiriesByMonth}
-          color="hsl(45, 100%, 51%)"
+          color="var(--chart-3)"
           seriesLabel="Enquiries"
           valueKind="count"
           height={240}

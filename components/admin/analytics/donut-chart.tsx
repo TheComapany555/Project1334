@@ -13,6 +13,8 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import { SURFACE_GAP, chartColor } from "@/lib/chart-theme";
 import { formatCurrencyAUD } from "@/lib/utils/format";
 
 type Segment = {
@@ -39,15 +41,6 @@ type Props = {
   height?: number;
 };
 
-const PALETTE = [
-  "var(--primary)",
-  "hsl(189, 94%, 43%)",
-  "hsl(45, 100%, 51%)",
-  "hsl(258, 90%, 66%)",
-  "hsl(340, 82%, 52%)",
-  "hsl(160, 84%, 39%)",
-];
-
 function formatValue(n: number, kind: ValueKind): string {
   if (kind === "currency") return formatCurrencyAUD(n);
   return n.toLocaleString("en-AU");
@@ -69,7 +62,7 @@ export function DonutChart({
   const config = data.reduce<ChartConfig>((acc, seg, i) => {
     acc[seg.key] = {
       label: seg.label,
-      color: colors?.[seg.key] ?? PALETTE[i % PALETTE.length],
+      color: colors?.[seg.key] ?? chartColor(i),
     };
     return acc;
   }, {} as ChartConfig);
@@ -77,7 +70,7 @@ export function DonutChart({
   const chartData = data.map((d, i) => ({
     name: d.label,
     value: showAmount ? (d.amount ?? 0) : d.count,
-    fill: colors?.[d.key] ?? PALETTE[i % PALETTE.length],
+    fill: colors?.[d.key] ?? chartColor(i),
   }));
 
   const total = chartData.reduce((s, d) => s + d.value, 0);
@@ -115,21 +108,15 @@ export function DonutChart({
                         };
                         const pct = total > 0 ? (p.value / total) * 100 : 0;
                         return (
-                          <div className="rounded-md border bg-background px-3 py-2 text-xs shadow-lg space-y-1">
-                            <p className="font-medium">{p.name}</p>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="h-2 w-2 rounded-full"
-                                style={{ background: p.fill }}
-                              />
-                              <span className="tabular-nums font-semibold">
-                                {formatValue(p.value, kind)}
-                              </span>
-                              <span className="text-muted-foreground tabular-nums">
-                                ({pct.toFixed(1)}%)
-                              </span>
-                            </div>
-                          </div>
+                          <ChartTip
+                            rows={[
+                              {
+                                color: p.fill,
+                                label: p.name,
+                                value: `${formatValue(p.value, kind)} · ${pct.toFixed(1)}%`,
+                              },
+                            ]}
+                          />
                         );
                       }}
                     />
@@ -138,9 +125,8 @@ export function DonutChart({
                       dataKey="value"
                       innerRadius="58%"
                       outerRadius="85%"
-                      strokeWidth={2}
-                      stroke="var(--background)"
                       paddingAngle={1}
+                      {...SURFACE_GAP}
                     >
                       {chartData.map((entry, i) => (
                         <Cell key={i} fill={entry.fill} />
@@ -169,11 +155,9 @@ export function DonutChart({
                     className="flex items-center gap-2 text-xs"
                   >
                     <span
-                      className="h-2 w-2 rounded-full shrink-0"
-                      style={{
-                        background:
-                          colors?.[seg.key] ?? PALETTE[i % PALETTE.length],
-                      }}
+                      className="h-2 w-2 rounded-[2px] shrink-0"
+                      style={{ backgroundColor: colors?.[seg.key] ?? chartColor(i) }}
+                      aria-hidden
                     />
                     <span className="text-foreground truncate">{seg.label}</span>
                     <span className="ml-auto tabular-nums font-medium">

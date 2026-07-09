@@ -140,6 +140,13 @@ function DesktopNav({
       {/* Buyer quick-access icon buttons */}
       {isBuyer && (
         <>
+          {/* Dashboard — surfaced in-nav so it isn't hidden behind the account menu */}
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/account">
+              <LayoutDashboard className="h-4 w-4 mr-1.5" aria-hidden />
+              Dashboard
+            </Link>
+          </Button>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild variant="ghost" size="sm" aria-label="Saved listings">

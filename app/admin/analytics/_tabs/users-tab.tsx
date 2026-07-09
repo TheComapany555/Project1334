@@ -6,9 +6,9 @@ import { TopAgenciesTable } from "../_tables/top-agencies-table";
 import { TopBrokersTable } from "../_tables/top-brokers-table";
 
 const STATUS_COLORS = {
-  active: "hsl(160, 84%, 39%)",
-  pending: "hsl(45, 100%, 51%)",
-  disabled: "hsl(340, 60%, 60%)",
+  active: "var(--chart-1)", // green
+  pending: "var(--chart-3)", // amber
+  disabled: "var(--chart-5)", // magenta
 };
 
 export function UsersTab({ analytics }: { analytics: AdminAnalytics }) {
@@ -21,7 +21,7 @@ export function UsersTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Agency signups"
           description="New agencies created per month."
           data={charts.newAgenciesByMonth}
-          color="hsl(258, 90%, 66%)"
+          color="var(--chart-4)"
           seriesLabel="Agencies"
           valueKind="count"
           headlineValue={String(kpis.totalAgencies)}
@@ -32,7 +32,7 @@ export function UsersTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Broker signups"
           description="New brokers per month (across all agencies)."
           data={charts.newBrokersByMonth}
-          color="hsl(189, 94%, 43%)"
+          color="var(--chart-2)"
           seriesLabel="Brokers"
           valueKind="count"
           headlineValue={String(kpis.totalBrokers)}

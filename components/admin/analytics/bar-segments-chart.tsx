@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -20,6 +21,14 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import {
+  BAR_MAX_SIZE,
+  BAR_RADIUS_RIGHT,
+  CHART_GRID,
+  CHART_TICK,
+  chartColor,
+} from "@/lib/chart-theme";
 import { formatCurrencyAUD } from "@/lib/utils/format";
 
 type Segment = {
@@ -39,20 +48,11 @@ type Props = {
   showAmount?: boolean;
   /** Implicit when showAmount=true. Otherwise format as count. */
   valueKind?: ValueKind;
-  /** Per-bar colors keyed by segment.key. Falls back to palette. */
+  /** Per-bar colors keyed by segment.key. Falls back to the categorical palette. */
   colors?: Record<string, string>;
   className?: string;
   height?: number;
 };
-
-const PALETTE = [
-  "var(--primary)",
-  "hsl(189, 94%, 43%)",
-  "hsl(45, 100%, 51%)",
-  "hsl(258, 90%, 66%)",
-  "hsl(340, 82%, 52%)",
-  "hsl(160, 84%, 39%)",
-];
 
 function formatValue(n: number, kind: ValueKind): string {
   if (kind === "currency") return formatCurrencyAUD(n);
@@ -74,7 +74,7 @@ export function BarSegmentsChart({
   const chartConfig = data.reduce<ChartConfig>((acc, seg, i) => {
     acc[seg.key] = {
       label: seg.label,
-      color: colors?.[seg.key] ?? PALETTE[i % PALETTE.length],
+      color: colors?.[seg.key] ?? chartColor(i),
     };
     return acc;
   }, {} as ChartConfig);
@@ -82,7 +82,7 @@ export function BarSegmentsChart({
   const chartData = data.map((d, i) => ({
     label: d.label,
     value: showAmount ? (d.amount ?? 0) : d.count,
-    fill: colors?.[d.key] ?? PALETTE[i % PALETTE.length],
+    fill: colors?.[d.key] ?? chartColor(i),
   }));
 
   const empty = chartData.every((d) => d.value === 0);
@@ -111,11 +111,7 @@ export function BarSegmentsChart({
                 layout="vertical"
                 margin={{ top: 4, right: 16, bottom: 0, left: 4 }}
               >
-                <CartesianGrid
-                  horizontal={false}
-                  strokeDasharray="3 3"
-                  className="stroke-border/40"
-                />
+                <CartesianGrid {...CHART_GRID} horizontal={false} />
                 <XAxis type="number" hide />
                 <YAxis
                   dataKey="label"
@@ -123,29 +119,37 @@ export function BarSegmentsChart({
                   tickLine={false}
                   axisLine={false}
                   width={120}
-                  fontSize={12}
+                  tick={CHART_TICK}
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const item = payload[0];
                     const v = item?.value as number;
-                    const label = (item?.payload as { label?: string })?.label;
+                    const row = item?.payload as { label?: string; fill?: string };
                     return (
-                      <div className="rounded-md border bg-background px-3 py-2 text-xs shadow-lg">
-                        <p className="font-medium mb-1">{label}</p>
-                        <p className="tabular-nums font-semibold">
-                          {formatValue(v, kind)}
-                        </p>
-                      </div>
+                      <ChartTip
+                        title={row?.label}
+                        rows={[
+                          {
+                            color: row?.fill,
+                            label: showAmount ? "Amount" : "Count",
+                            value: formatValue(v, kind),
+                          },
+                        ]}
+                      />
                     );
                   }}
                 />
                 <Bar
                   dataKey="value"
-                  radius={[0, 4, 4, 0]}
-                  maxBarSize={28}
-                />
+                  radius={BAR_RADIUS_RIGHT}
+                  maxBarSize={BAR_MAX_SIZE}
+                >
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>

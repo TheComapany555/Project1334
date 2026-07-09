@@ -17,8 +17,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Mail } from "lucide-react";
+import { ChartTip } from "@/components/ui/chart-tip";
 import type { EnquiriesChartDataPoint } from "@/lib/chart-data";
-import { CHART_BAR_HEIGHT, CHART_COLORS } from "@/lib/chart-theme";
+import {
+  BAR_CURSOR,
+  BAR_MAX_SIZE,
+  BAR_RADIUS_TOP,
+  CHART_BAR_HEIGHT,
+  CHART_COLORS,
+  CHART_GRID,
+  CHART_TICK,
+} from "@/lib/chart-theme";
 
 type ChartBarEnquiriesProps = {
   data: EnquiriesChartDataPoint[];
@@ -49,18 +58,13 @@ export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
         ) : (
           <ResponsiveContainer width="100%" height={CHART_BAR_HEIGHT}>
             <BarChart data={data} margin={{ top: 8, left: -6, right: 8, bottom: 4 }}>
-              <CartesianGrid
-                vertical={false}
-                strokeDasharray="3 3"
-                stroke="var(--border)"
-                opacity={0.5}
-              />
+              <CartesianGrid {...CHART_GRID} vertical={false} />
               <XAxis
                 dataKey="month"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={6}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                tick={CHART_TICK}
                 tickFormatter={(v) => (typeof v === "string" ? v.slice(0, 3) : String(v))}
               />
               <YAxis
@@ -68,27 +72,35 @@ export function ChartBarEnquiries({ data }: ChartBarEnquiriesProps) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={4}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                tick={CHART_TICK}
                 domain={[0, yMax]}
                 allowDecimals={false}
                 tickCount={Math.min(yMax + 1, 5)}
               />
               <Tooltip
-                cursor={{ fill: "var(--muted)", opacity: 0.2 }}
-                contentStyle={{
-                  background: "var(--background)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  fontSize: 11,
-                  boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+                cursor={BAR_CURSOR}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <ChartTip
+                      title={typeof label === "string" ? label : undefined}
+                      rows={[
+                        {
+                          color: CHART_COLORS.info,
+                          label: "Enquiries",
+                          value: (payload[0]?.value as number)?.toLocaleString("en-AU"),
+                        },
+                      ]}
+                    />
+                  );
                 }}
               />
               <Bar
                 dataKey="enquiries"
                 name="Enquiries"
                 fill={CHART_COLORS.info}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={36}
+                radius={BAR_RADIUS_TOP}
+                maxBarSize={BAR_MAX_SIZE}
               />
             </BarChart>
           </ResponsiveContainer>

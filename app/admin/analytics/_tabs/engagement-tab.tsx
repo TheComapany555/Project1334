@@ -65,7 +65,7 @@ export function EngagementTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Views, last 12 months"
           description="Listing detail-page views over time."
           data={charts.viewsByMonth}
-          color="hsl(189, 94%, 43%)"
+          color="var(--chart-2)"
           seriesLabel="Views"
           valueKind="count"
           height={240}
@@ -74,7 +74,7 @@ export function EngagementTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Enquiries, last 12 months"
           description="Buyer enquiries received per month."
           data={charts.enquiriesByMonth}
-          color="hsl(45, 100%, 51%)"
+          color="var(--chart-3)"
           seriesLabel="Enquiries"
           valueKind="count"
           height={240}
@@ -85,14 +85,14 @@ export function EngagementTab({ analytics }: { analytics: AdminAnalytics }) {
         <DonutChart
           title="Views by platform"
           data={charts.viewsByPlatform}
-          colors={{ web: "var(--primary)", mobile: "hsl(45, 100%, 51%)" }}
+          colors={{ web: "var(--chart-1)", mobile: "var(--chart-3)" }}
           totalLabel="Views"
           height={220}
         />
         <DonutChart
           title="Calls by platform"
           data={charts.callsByPlatform}
-          colors={{ web: "var(--primary)", mobile: "hsl(45, 100%, 51%)" }}
+          colors={{ web: "var(--chart-1)", mobile: "var(--chart-3)" }}
           totalLabel="Calls"
           height={220}
         />
@@ -100,7 +100,7 @@ export function EngagementTab({ analytics }: { analytics: AdminAnalytics }) {
           title="NDA signatures"
           description="Buyers accepting NDAs each month."
           data={charts.ndaSignaturesByMonth}
-          color="hsl(160, 84%, 39%)"
+          color="var(--chart-1)"
           seriesLabel="NDAs"
           valueKind="count"
           height={220}
@@ -136,23 +136,23 @@ function ShareInviteFunnel({
   accountCreated: number;
 }) {
   const stages = [
-    { label: "Invites sent", value: sent, color: "var(--primary)" },
+    { label: "Invites sent", value: sent, color: "var(--chart-1)" },
     {
       label: "Opened",
       value: opened,
-      color: "hsl(189, 94%, 43%)",
+      color: "var(--chart-2)",
       pct: sent > 0 ? (opened / sent) * 100 : 0,
     },
     {
       label: "NDA signed",
       value: ndaSigned,
-      color: "hsl(45, 100%, 51%)",
+      color: "var(--chart-3)",
       pct: sent > 0 ? (ndaSigned / sent) * 100 : 0,
     },
     {
       label: "Account created",
       value: accountCreated,
-      color: "hsl(160, 84%, 39%)",
+      color: "var(--chart-1)",
       pct: sent > 0 ? (accountCreated / sent) * 100 : 0,
     },
   ];

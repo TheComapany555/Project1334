@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ChartTip } from "@/components/ui/chart-tip";
 import { CHART_COLORS, CHART_DONUT_HEIGHT, CHART_DONUT_SIZE } from "@/lib/chart-theme";
 
 const COLORS = {
@@ -96,12 +97,24 @@ export function ChartRadialOverview({
                     tick={false}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: "var(--background)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      fontSize: 11,
-                      boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const item = payload[0]?.payload as {
+                        name: string;
+                        value: number;
+                        fill: string;
+                      };
+                      return (
+                        <ChartTip
+                          rows={[
+                            {
+                              color: item.fill,
+                              label: item.name,
+                              value: item.value.toLocaleString("en-AU"),
+                            },
+                          ]}
+                        />
+                      );
                     }}
                   />
                   <RadialBar
@@ -126,8 +139,9 @@ export function ChartRadialOverview({
                   className="flex items-center gap-1.5 text-xs text-muted-foreground"
                 >
                   <span
-                    className="h-2 w-2 rounded-full shrink-0"
+                    className="h-2 w-2 rounded-[2px] shrink-0"
                     style={{ backgroundColor: item.fill }}
+                    aria-hidden
                   />
                   <span className="truncate max-w-[80px]">{item.name}</span>
                   <span className="font-medium tabular-nums text-foreground">

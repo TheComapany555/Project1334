@@ -22,12 +22,20 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import {
+  BAR_CURSOR,
+  BAR_MAX_SIZE,
+  BAR_RADIUS_TOP,
+  CHART_GRID,
+  CHART_TICK,
+} from "@/lib/chart-theme";
 import type { RevenueTimePoint } from "@/lib/types/payment-analytics";
 
 const chartConfig = {
   revenue: {
     label: "Revenue",
-    color: "hsl(142, 71%, 45%)",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
@@ -48,6 +56,31 @@ function formatCurrency(cents: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(cents / 100);
+}
+
+function revenueTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value?: number | string }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const val = payload[0]?.value as number;
+  return (
+    <ChartTip
+      title={formatMonth(label ?? "")}
+      rows={[
+        {
+          color: "var(--color-revenue)",
+          label: "Revenue",
+          value: formatCurrency(val * 100),
+        },
+      ]}
+    />
+  );
 }
 
 export function RevenueChart({ data }: Props) {
@@ -86,14 +119,14 @@ export function RevenueChart({ data }: Props) {
           <ChartContainer config={chartConfig} className="h-[240px] w-full">
             {chartData.length === 1 ? (
               <BarChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -4 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+                <CartesianGrid {...CHART_GRID} vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
                   tickFormatter={formatMonth}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
                 <YAxis
                   tickLine={false}
@@ -101,43 +134,26 @@ export function RevenueChart({ data }: Props) {
                   tickMargin={8}
                   tickFormatter={(v) => `$${v}`}
                   width={52}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    const val = payload[0]?.value as number;
-                    return (
-                      <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-                        <p className="font-medium mb-1">{formatMonth(label)}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          <span className="text-muted-foreground">Revenue</span>
-                          <span className="ml-auto font-semibold tabular-nums">
-                            {formatCurrency(val * 100)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
+                <ChartTooltip cursor={BAR_CURSOR} content={revenueTooltip} />
                 <Bar
                   dataKey="revenueDisplay"
                   fill="var(--color-revenue)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={60}
+                  radius={BAR_RADIUS_TOP}
+                  maxBarSize={BAR_MAX_SIZE}
                 />
               </BarChart>
             ) : (
               <LineChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -4 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+                <CartesianGrid {...CHART_GRID} vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
                   tickFormatter={formatMonth}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
                 <YAxis
                   tickLine={false}
@@ -145,33 +161,16 @@ export function RevenueChart({ data }: Props) {
                   tickMargin={8}
                   tickFormatter={(v) => `$${v}`}
                   width={52}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    const val = payload[0]?.value as number;
-                    return (
-                      <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-                        <p className="font-medium mb-1">{formatMonth(label)}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          <span className="text-muted-foreground">Revenue</span>
-                          <span className="ml-auto font-semibold tabular-nums">
-                            {formatCurrency(val * 100)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
+                <ChartTooltip content={revenueTooltip} />
                 <Line
                   type="monotone"
                   dataKey="revenueDisplay"
                   stroke="var(--color-revenue)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: "var(--color-revenue)", strokeWidth: 0 }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
                 />
               </LineChart>
             )}

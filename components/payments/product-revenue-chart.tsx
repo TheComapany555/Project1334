@@ -14,12 +14,20 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import {
+  BAR_CURSOR,
+  BAR_MAX_SIZE,
+  BAR_RADIUS_TOP,
+  CHART_GRID,
+  CHART_TICK,
+} from "@/lib/chart-theme";
 import type { ProductRevenue } from "@/lib/types/payment-analytics";
 
 const chartConfig = {
   revenue: {
     label: "Revenue",
-    color: "hsl(199, 89%, 48%)",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
@@ -63,13 +71,13 @@ export function ProductRevenueChart({ data }: Props) {
         ) : (
           <ChartContainer config={chartConfig} className="h-[240px] w-full">
             <BarChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -4 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+              <CartesianGrid {...CHART_GRID} vertical={false} />
               <XAxis
                 dataKey="name"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                fontSize={11}
+                tick={CHART_TICK}
               />
               <YAxis
                 tickLine={false}
@@ -77,39 +85,41 @@ export function ProductRevenueChart({ data }: Props) {
                 tickMargin={8}
                 tickFormatter={(v) => `$${v}`}
                 width={52}
-                fontSize={11}
+                tick={CHART_TICK}
               />
               <ChartTooltip
-                cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+                cursor={BAR_CURSOR}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const entry = payload[0]?.payload;
+                  const entry = payload[0]?.payload as {
+                    fullName: string;
+                    rawRevenue: number;
+                    count: number;
+                  };
                   return (
-                    <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-                      <p className="font-medium mb-1">{entry.fullName}</p>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "hsl(199, 89%, 48%)" }} />
-                          <span className="text-muted-foreground">Revenue</span>
-                          <span className="ml-auto font-semibold tabular-nums">
-                            {formatCurrency(entry.rawRevenue)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full opacity-0" />
-                          <span className="text-muted-foreground">Transactions</span>
-                          <span className="ml-auto font-semibold tabular-nums">{entry.count}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <ChartTip
+                      title={entry.fullName}
+                      rows={[
+                        {
+                          color: "var(--color-revenue)",
+                          label: "Revenue",
+                          value: formatCurrency(entry.rawRevenue),
+                        },
+                        {
+                          label: "Transactions",
+                          value: entry.count,
+                          muted: true,
+                        },
+                      ]}
+                    />
                   );
                 }}
               />
               <Bar
                 dataKey="revenue"
                 fill="var(--color-revenue)"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={60}
+                radius={BAR_RADIUS_TOP}
+                maxBarSize={BAR_MAX_SIZE}
               />
             </BarChart>
           </ChartContainer>

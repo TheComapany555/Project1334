@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
   Area,
   AreaChart,
@@ -20,6 +21,8 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import { CHART_GRID, CHART_TICK } from "@/lib/chart-theme";
 import {
   formatCompactNumber,
   formatCurrencyAUD,
@@ -44,7 +47,7 @@ type Props = {
   /** Right-aligned big number above the chart, e.g. total revenue. */
   headlineValue?: string;
   headlineLabel?: string;
-  /** CSS color or token; defaults to primary. */
+  /** CSS color or token; defaults to the brand chart slot. */
   color?: string;
   /** Series label shown in tooltip. */
   seriesLabel?: string;
@@ -71,12 +74,13 @@ export function AreaTrendChart({
   data,
   headlineValue,
   headlineLabel,
-  color = "var(--primary)",
+  color = "var(--chart-1)",
   seriesLabel = "Value",
   valueKind = "count",
   className,
   height = 240,
 }: Props) {
+  const gradientId = `area-fill-${useId().replace(/:/g, "")}`;
   const chartConfig = {
     value: { label: seriesLabel, color },
   } satisfies ChartConfig;
@@ -123,11 +127,11 @@ export function AreaTrendChart({
                 margin={{ top: 8, right: 12, bottom: 0, left: -8 }}
               >
                 <defs>
-                  <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop
-                      offset="0%"
+                      offset="5%"
                       stopColor="var(--color-value)"
-                      stopOpacity={0.35}
+                      stopOpacity={0.18}
                     />
                     <stop
                       offset="95%"
@@ -136,18 +140,14 @@ export function AreaTrendChart({
                     />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  vertical={false}
-                  strokeDasharray="3 3"
-                  className="stroke-border/40"
-                />
+                <CartesianGrid {...CHART_GRID} vertical={false} />
                 <XAxis
                   dataKey="month"
                   tickFormatter={formatMonthShort}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={10}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
                 <YAxis
                   tickFormatter={(n: number) => formatYAxis(n, valueKind)}
@@ -155,30 +155,23 @@ export function AreaTrendChart({
                   axisLine={false}
                   tickMargin={6}
                   width={48}
-                  fontSize={11}
+                  tick={CHART_TICK}
                 />
                 <ChartTooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     const v = payload[0]?.value as number;
                     return (
-                      <div className="rounded-md border bg-background px-3 py-2 text-xs shadow-lg">
-                        <p className="font-medium mb-1">
-                          {formatMonthShort(label as string)}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ background: "var(--color-value)" }}
-                          />
-                          <span className="text-muted-foreground">
-                            {seriesLabel}
-                          </span>
-                          <span className="ml-auto font-semibold tabular-nums">
-                            {formatTooltip(v, valueKind, seriesLabel)}
-                          </span>
-                        </div>
-                      </div>
+                      <ChartTip
+                        title={formatMonthShort(label as string)}
+                        rows={[
+                          {
+                            color: "var(--color-value)",
+                            label: seriesLabel,
+                            value: formatTooltip(v, valueKind, seriesLabel),
+                          },
+                        ]}
+                      />
                     );
                   }}
                 />
@@ -187,7 +180,7 @@ export function AreaTrendChart({
                   dataKey="value"
                   stroke="var(--color-value)"
                   strokeWidth={2}
-                  fill="url(#areaFill)"
+                  fill={`url(#${gradientId})`}
                   activeDot={{ r: 4 }}
                 />
               </AreaChart>

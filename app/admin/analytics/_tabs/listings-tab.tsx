@@ -6,17 +6,17 @@ import { TopCategoriesTable } from "../_tables/top-categories-table";
 import { TopListingsTable } from "../_tables/top-listings-table";
 
 const LISTING_STATUS_COLORS = {
-  published: "hsl(160, 84%, 39%)",
-  draft: "hsl(0, 0%, 60%)",
-  under_offer: "hsl(45, 100%, 51%)",
-  sold: "var(--primary)",
-  unpublished: "hsl(340, 60%, 60%)",
+  published: "var(--chart-1)", // green
+  draft: "var(--muted-foreground)", // neutral
+  under_offer: "var(--chart-3)", // amber
+  sold: "var(--chart-2)", // blue
+  unpublished: "var(--chart-5)", // magenta
 };
 
 const TIER_COLORS = {
-  basic: "hsl(0, 0%, 60%)",
-  standard: "var(--primary)",
-  featured: "hsl(45, 100%, 51%)",
+  basic: "var(--muted-foreground)", // neutral
+  standard: "var(--chart-1)", // green
+  featured: "var(--chart-3)", // amber
 };
 
 export function ListingsTab({ analytics }: { analytics: AdminAnalytics }) {
@@ -29,7 +29,7 @@ export function ListingsTab({ analytics }: { analytics: AdminAnalytics }) {
           title="New listings, last 12 months"
           description="Listings created each month (including drafts)."
           data={charts.newListingsByMonth}
-          color="var(--primary)"
+          color="var(--chart-1)"
           seriesLabel="Listings"
           valueKind="count"
           headlineValue={String(kpis.publishedListings + kpis.draftListings)}
@@ -40,7 +40,7 @@ export function ListingsTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Views, last 12 months"
           description="All listing detail-page views, web and mobile."
           data={charts.viewsByMonth}
-          color="hsl(189, 94%, 43%)"
+          color="var(--chart-2)"
           seriesLabel="Views"
           valueKind="count"
           headlineValue={kpis.totalViews.toLocaleString("en-AU")}
@@ -69,7 +69,7 @@ export function ListingsTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Views by platform"
           description="Where buyers are reading listings."
           data={charts.viewsByPlatform}
-          colors={{ web: "var(--primary)", mobile: "hsl(45, 100%, 51%)" }}
+          colors={{ web: "var(--chart-1)", mobile: "var(--chart-3)" }}
           totalLabel="Views"
           height={220}
         />

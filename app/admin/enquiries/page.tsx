@@ -5,13 +5,14 @@ import { buildEnquiriesChartData } from "@/lib/chart-data";
 import { PageHeader } from "@/components/admin/page-header";
 import { ChartBarEnquiries } from "@/components/admin/chart-bar-enquiries";
 import { ChartDonut } from "@/components/admin/chart-donut";
+import { CHART_COLORS } from "@/lib/chart-theme";
 import { EnquiriesClientView } from "./enquiries-client-view";
 
 const REASON_COLORS: Record<string, string> = {
-  "General enquiry": "oklch(0.45 0.12 155)",
-  "Request viewing": "oklch(0.55 0.14 220)",
-  "Make an offer": "oklch(0.7 0.15 75)",
-  Other: "oklch(0.55 0.15 290)",
+  "General enquiry": CHART_COLORS.primary,
+  "Request viewing": CHART_COLORS.info,
+  "Make an offer": CHART_COLORS.warning,
+  Other: CHART_COLORS.purple,
 };
 
 export default async function AdminEnquiriesPage() {
@@ -39,7 +40,7 @@ export default async function AdminEnquiriesPage() {
   const reasonSegments = Array.from(reasonCounts.entries()).map(([name, value]) => ({
     name,
     value,
-    color: REASON_COLORS[name] || "oklch(0.6 0.18 15)",
+    color: REASON_COLORS[name] || CHART_COLORS.muted,
   }));
 
   return (

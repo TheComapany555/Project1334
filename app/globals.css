@@ -70,11 +70,13 @@
   --border: oklch(0.915 0.004 286);
   --input: oklch(0.915 0.004 286);
   --ring: oklch(0.57 0.17 146);
-  --chart-1: oklch(0.75 0.14 146);
-  --chart-2: oklch(0.62 0.17 146);
-  --chart-3: oklch(0.50 0.15 146);
-  --chart-4: oklch(0.70 0.10 160);
-  --chart-5: oklch(0.58 0.12 160);
+  /* Categorical chart palette — validated CVD-safe, assigned in fixed order:
+     green (brand) → blue → amber → violet → magenta. Chart-only vars. */
+  --chart-1: #16a34a;
+  --chart-2: #2a78d6;
+  --chart-3: #d97706;
+  --chart-4: #6d28d9;
+  --chart-5: #db2777;
   --success: oklch(0.57 0.17 146);
   --warning: oklch(0.75 0.18 62);
   --warning-foreground: oklch(0.45 0.15 55);
@@ -108,11 +110,12 @@
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.57 0.17 146);
-  --chart-1: oklch(0.75 0.15 146);
-  --chart-2: oklch(0.62 0.17 146);
-  --chart-3: oklch(0.50 0.15 146);
-  --chart-4: oklch(0.68 0.10 160);
-  --chart-5: oklch(0.54 0.11 160);
+  /* Categorical chart palette — dark-surface steps of the same five hues, validated */
+  --chart-1: #23a866;
+  --chart-2: #3f83db;
+  --chart-3: #b57e28;
+  --chart-4: #8b78d9;
+  --chart-5: #db5f95;
   --success: oklch(0.64 0.17 146);
   --warning: oklch(0.75 0.18 62);
   --warning-foreground: oklch(0.80 0.16 62);

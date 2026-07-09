@@ -7,7 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CHART_DONUT_HEIGHT, CHART_DONUT_SIZE } from "@/lib/chart-theme";
+import { ChartTip } from "@/components/ui/chart-tip";
+import {
+  CHART_DONUT_HEIGHT,
+  CHART_DONUT_SIZE,
+  SURFACE_GAP,
+} from "@/lib/chart-theme";
 
 export type DonutSegment = {
   name: string;
@@ -53,12 +58,21 @@ export function ChartDonut({ title, segments }: ChartDonutProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Tooltip
-                    contentStyle={{
-                      background: "var(--background)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      fontSize: 11,
-                      boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const seg = payload[0]?.payload as DonutSegment;
+                      const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+                      return (
+                        <ChartTip
+                          rows={[
+                            {
+                              color: seg.color,
+                              label: seg.name,
+                              value: `${seg.value.toLocaleString("en-AU")} · ${pct}%`,
+                            },
+                          ]}
+                        />
+                      );
                     }}
                   />
                   <Pie
@@ -70,7 +84,7 @@ export function ChartDonut({ title, segments }: ChartDonutProps) {
                     paddingAngle={2}
                     dataKey="value"
                     nameKey="name"
-                    strokeWidth={0}
+                    {...SURFACE_GAP}
                   >
                     {segments.map((seg) => (
                       <Cell key={seg.name} fill={seg.color} />
@@ -94,8 +108,9 @@ export function ChartDonut({ title, segments }: ChartDonutProps) {
                     className="flex items-center gap-1.5 text-xs text-muted-foreground"
                   >
                     <span
-                      className="h-2 w-2 rounded-full shrink-0"
+                      className="h-2 w-2 rounded-[2px] shrink-0"
                       style={{ backgroundColor: seg.color }}
+                      aria-hidden
                     />
                     <span className="truncate max-w-[120px]">{seg.name}</span>
                     <span className="font-medium tabular-nums text-foreground">

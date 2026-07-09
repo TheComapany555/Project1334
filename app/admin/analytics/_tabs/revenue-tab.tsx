@@ -6,25 +6,25 @@ import { RecentPaymentsTable } from "../_tables/recent-payments-table";
 import { formatCurrencyAUD } from "@/lib/utils/format";
 
 const PAYMENT_TYPE_COLORS = {
-  featured: "hsl(45, 100%, 51%)",
-  listing_tier: "var(--primary)",
-  subscription: "hsl(160, 84%, 39%)",
+  featured: "var(--chart-3)", // amber
+  listing_tier: "var(--chart-1)", // green
+  subscription: "var(--chart-2)", // blue
 };
 
 const SUB_STATUS_COLORS = {
-  active: "hsl(160, 84%, 39%)",
-  trialing: "hsl(189, 94%, 43%)",
-  past_due: "hsl(45, 100%, 51%)",
-  cancelled: "hsl(340, 60%, 60%)",
-  expired: "hsl(0, 0%, 60%)",
-  pending: "hsl(258, 90%, 66%)",
+  active: "var(--chart-1)", // green
+  trialing: "var(--chart-2)", // blue
+  past_due: "var(--chart-3)", // amber
+  cancelled: "var(--chart-5)", // magenta
+  expired: "var(--muted-foreground)", // neutral
+  pending: "var(--chart-4)", // violet
 };
 
 const PAYMENT_STATUS_COLORS = {
-  paid: "hsl(160, 84%, 39%)",
-  pending: "hsl(45, 100%, 51%)",
-  invoiced: "hsl(189, 94%, 43%)",
-  approved: "hsl(258, 90%, 66%)",
+  paid: "var(--chart-1)", // green
+  pending: "var(--chart-3)", // amber
+  invoiced: "var(--chart-2)", // blue
+  approved: "var(--chart-4)", // violet
 };
 
 export function RevenueTab({ analytics }: { analytics: AdminAnalytics }) {
@@ -43,7 +43,7 @@ export function RevenueTab({ analytics }: { analytics: AdminAnalytics }) {
           }))}
           headlineValue={formatCurrencyAUD(kpis.totalRevenue)}
           headlineLabel="All time revenue"
-          color="hsl(160, 84%, 39%)"
+          color="var(--chart-1)"
           seriesLabel="Revenue"
           valueKind="currency"
           height={280}
@@ -67,7 +67,7 @@ export function RevenueTab({ analytics }: { analytics: AdminAnalytics }) {
           data={charts.mrrByMonth}
           headlineValue={formatCurrencyAUD(kpis.mrr)}
           headlineLabel="Current MRR"
-          color="var(--primary)"
+          color="var(--chart-1)"
           seriesLabel="MRR"
           valueKind="currency"
           height={260}
@@ -95,7 +95,7 @@ export function RevenueTab({ analytics }: { analytics: AdminAnalytics }) {
           title="Transactions per month"
           description="Number of paid transactions, last 12 months."
           data={charts.paymentsByMonth}
-          color="hsl(258, 90%, 66%)"
+          color="var(--chart-4)"
           seriesLabel="Transactions"
           valueKind="count"
           height={240}

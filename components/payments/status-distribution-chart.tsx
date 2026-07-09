@@ -14,13 +14,15 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ChartTip } from "@/components/ui/chart-tip";
+import { CHART_COLORS, SURFACE_GAP } from "@/lib/chart-theme";
 import type { StatusDistribution } from "@/lib/types/payment-analytics";
 
 const STATUS_COLORS: Record<string, string> = {
-  paid: "hsl(142, 71%, 45%)",
-  pending: "hsl(38, 92%, 50%)",
-  invoiced: "hsl(262, 83%, 58%)",
-  approved: "hsl(199, 89%, 48%)",
+  paid: CHART_COLORS.primary, // green
+  pending: CHART_COLORS.warning, // amber
+  invoiced: CHART_COLORS.purple, // violet
+  approved: CHART_COLORS.info, // blue
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -29,6 +31,10 @@ const STATUS_LABELS: Record<string, string> = {
   invoiced: "Invoiced",
   approved: "Approved",
 };
+
+function statusColor(status: string): string {
+  return STATUS_COLORS[status] ?? CHART_COLORS.muted;
+}
 
 type Props = {
   data: StatusDistribution[];
@@ -49,7 +55,7 @@ export function StatusDistributionChart({ data }: Props) {
     for (const d of data) {
       config[d.status] = {
         label: STATUS_LABELS[d.status] ?? d.status,
-        color: STATUS_COLORS[d.status] ?? "hsl(var(--muted-foreground))",
+        color: statusColor(d.status),
       };
     }
     return config;
@@ -81,30 +87,21 @@ export function StatusDistributionChart({ data }: Props) {
                     const amount = entry?.payload?.amount as number;
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
-                      <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-                        <p className="font-medium mb-1">
-                          {STATUS_LABELS[statusKey] ?? statusKey}
-                        </p>
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: STATUS_COLORS[statusKey] }}
-                            />
-                            <span className="text-muted-foreground">Count</span>
-                            <span className="ml-auto font-semibold tabular-nums">
-                              {count} ({pct}%)
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full opacity-0" />
-                            <span className="text-muted-foreground">Amount</span>
-                            <span className="ml-auto font-semibold tabular-nums">
-                              {formatCurrency(amount)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      <ChartTip
+                        title={STATUS_LABELS[statusKey] ?? statusKey}
+                        rows={[
+                          {
+                            color: statusColor(statusKey),
+                            label: "Count",
+                            value: `${count} (${pct}%)`,
+                          },
+                          {
+                            label: "Amount",
+                            value: formatCurrency(amount),
+                            muted: true,
+                          },
+                        ]}
+                      />
                     );
                   }}
                 />
@@ -116,14 +113,10 @@ export function StatusDistributionChart({ data }: Props) {
                   cy="50%"
                   innerRadius={48}
                   outerRadius={72}
-                  strokeWidth={2}
-                  stroke="hsl(var(--background))"
+                  {...SURFACE_GAP}
                 >
                   {data.map((entry) => (
-                    <Cell
-                      key={entry.status}
-                      fill={STATUS_COLORS[entry.status] ?? "hsl(var(--muted-foreground))"}
-                    />
+                    <Cell key={entry.status} fill={statusColor(entry.status)} />
                   ))}
                   <Label
                     content={({ viewBox }) => {
@@ -150,8 +143,9 @@ export function StatusDistributionChart({ data }: Props) {
               {data.map((d) => (
                 <div key={d.status} className="flex items-center gap-1.5 text-xs">
                   <span
-                    className="h-2.5 w-2.5 rounded-sm shrink-0"
-                    style={{ backgroundColor: STATUS_COLORS[d.status] }}
+                    className="h-2.5 w-2.5 rounded-[2px] shrink-0"
+                    style={{ backgroundColor: statusColor(d.status) }}
+                    aria-hidden
                   />
                   <span className="text-muted-foreground">
                     {STATUS_LABELS[d.status] ?? d.status}
