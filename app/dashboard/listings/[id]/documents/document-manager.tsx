@@ -69,7 +69,7 @@ import {
   type DocumentApprovalStatus,
   type ListingDocument,
 } from "@/lib/types/documents";
-import { cn } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 import {
   Upload,
   FileText,
@@ -92,13 +92,6 @@ type Props = {
   listingTitle: string;
   initialDocuments: ListingDocument[];
 };
-
-function formatFileSize(bytes: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function DocumentManager({
   listingId,

@@ -43,6 +43,15 @@ export function formatRelativeTime(iso: string): string {
   return formatDate(iso)
 }
 
+/** Human-readable file size (base 1024). "—" when unknown. */
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (!bytes) return "—"
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
+
 /** Format price for display (AUD). POA or number. */
 export function formatPrice(amount: number | null, priceType?: string): string {
   if (priceType === "poa" || amount == null) return "POA"

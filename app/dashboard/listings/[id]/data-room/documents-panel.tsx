@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useTransition,
   type DragEvent,
 } from "react";
 import { toast } from "sonner";
@@ -52,7 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 import {
   approveListingDocument,
   deleteListingDocument,
@@ -82,12 +81,11 @@ import type {
 import {
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Edit3,
   Eye,
   Folder,
+  FolderInput,
   FolderPlus,
   Lock,
   MoreHorizontal,
@@ -98,6 +96,8 @@ import {
   X,
 } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/listings/document-preview-modal";
+import { FileTreeTable } from "@/components/data-room/file-tree-table";
+import { SelectionToolbar } from "@/components/data-room/selection-toolbar";
 
 type Props = {
   listingId: string;
@@ -116,11 +116,14 @@ export function DocumentsPanel({ listingId }: Props) {
   const [foldersFlat, setFoldersFlat] = useState<DocumentFolder[]>([]);
   const [documents, setDocuments] = useState<ListingDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkWorking, setBulkWorking] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
   const [editFolder, setEditFolder] = useState<DocumentFolder | null>(null);
   const [editFolderName, setEditFolderName] = useState("");
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<DocumentFolder | null>(null);
@@ -132,9 +135,10 @@ export function DocumentsPanel({ listingId }: Props) {
   const [previewDoc, setPreviewDoc] = useState<ListingDocument | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[] | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [, startTransition] = useTransition();
   const dragCounter = useRef(0);
+  const didInitExpand = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -142,6 +146,16 @@ export function DocumentsPanel({ listingId }: Props) {
     setTree(result.root);
     setFoldersFlat(result.foldersFlat);
     setDocuments(result.documents);
+    // Drop selections that no longer point at an existing document.
+    setSelectedIds((prev) => {
+      const valid = new Set(result.documents.map((d) => d.id));
+      return new Set([...prev].filter((id) => valid.has(id)));
+    });
+    // Start with every folder expanded on first load.
+    if (!didInitExpand.current && result.foldersFlat.length > 0) {
+      didInitExpand.current = true;
+      setExpandedIds(new Set(result.foldersFlat.map((f) => f.id)));
+    }
     setLoading(false);
   }, [listingId]);
 
@@ -176,44 +190,12 @@ export function DocumentsPanel({ listingId }: Props) {
     return out;
   }, [tree]);
 
-  const documentsInCurrentFolder = useMemo(() => {
-    const filtered = documents.filter((d) =>
-      currentFolderId === null
-        ? d.folder_id === null
-        : d.folder_id === currentFolderId,
+  const newFolderParentName = useMemo(() => {
+    if (!newFolderParentId) return "Root";
+    return (
+      flatFolders.find((f) => f.id === newFolderParentId)?.path ?? "Folder"
     );
-    if (!search.trim()) return filtered;
-    const q = search.trim().toLowerCase();
-    return filtered.filter(
-      (d) =>
-        d.name.toLowerCase().includes(q) ||
-        (d.description ?? "").toLowerCase().includes(q),
-    );
-  }, [documents, currentFolderId, search]);
-
-  // Global search: ignore current folder when search text is present.
-  const globalSearchResults = useMemo(() => {
-    if (!search.trim()) return null;
-    const q = search.trim().toLowerCase();
-    return documents.filter(
-      (d) =>
-        d.name.toLowerCase().includes(q) ||
-        (d.description ?? "").toLowerCase().includes(q),
-    );
-  }, [documents, search]);
-
-  const subFoldersOfCurrent = useMemo(() => {
-    return foldersFlat.filter((f) =>
-      currentFolderId === null
-        ? f.parent_folder_id === null
-        : f.parent_folder_id === currentFolderId,
-    );
-  }, [foldersFlat, currentFolderId]);
-
-  const currentFolderName = useMemo(() => {
-    if (!currentFolderId) return "All documents";
-    return foldersFlat.find((f) => f.id === currentFolderId)?.name ?? "Folder";
-  }, [foldersFlat, currentFolderId]);
+  }, [flatFolders, newFolderParentId]);
 
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
@@ -224,12 +206,18 @@ export function DocumentsPanel({ listingId }: Props) {
     });
   }
 
+  function openCreateFolder(parentId: string | null) {
+    setNewFolderParentId(parentId);
+    setNewFolderName("");
+    setCreatingFolder(true);
+  }
+
   async function handleCreateFolder() {
     const name = newFolderName.trim();
     if (!name) return;
     const res = await createFolder({
       listingId,
-      parentFolderId: currentFolderId,
+      parentFolderId: newFolderParentId,
       name,
     });
     if (!res.ok) {
@@ -239,8 +227,9 @@ export function DocumentsPanel({ listingId }: Props) {
     toast.success("Folder created.");
     setCreatingFolder(false);
     setNewFolderName("");
-    if (currentFolderId) {
-      setExpandedIds((prev) => new Set(prev).add(currentFolderId));
+    if (newFolderParentId) {
+      const parentId = newFolderParentId;
+      setExpandedIds((prev) => new Set(prev).add(parentId));
     }
     await refresh();
   }
@@ -269,9 +258,6 @@ export function DocumentsPanel({ listingId }: Props) {
       return;
     }
     toast.success("Folder deleted.");
-    if (currentFolderId === deleteFolderTarget.id) {
-      setCurrentFolderId(deleteFolderTarget.parent_folder_id);
-    }
     setDeleteFolderTarget(null);
     await refresh();
   }
@@ -286,6 +272,52 @@ export function DocumentsPanel({ listingId }: Props) {
       return;
     }
     toast.success("Document moved.");
+    await refresh();
+  }
+
+  async function handleBulkMove(targetFolderId: string | null) {
+    const ids = [...selectedIds];
+    if (ids.length === 0 || bulkWorking) return;
+    setBulkWorking(true);
+    const res = await moveDocuments({
+      documentIds: ids,
+      folderId: targetFolderId,
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+    } else {
+      toast.success(`Moved ${ids.length} document${ids.length === 1 ? "" : "s"}.`);
+      setSelectedIds(new Set());
+      await refresh();
+    }
+    setBulkWorking(false);
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    setBulkDeleteOpen(false);
+    if (ids.length === 0 || bulkWorking) return;
+    setBulkWorking(true);
+    const toastId = toast.loading(`Deleting 1 of ${ids.length}…`);
+    let failed = 0;
+    for (const [index, id] of ids.entries()) {
+      toast.loading(`Deleting ${index + 1} of ${ids.length}…`, { id: toastId });
+      const res = await deleteListingDocument(listingId, id);
+      if (!res.ok) failed += 1;
+    }
+    if (failed > 0) {
+      toast.error(
+        `Deleted ${ids.length - failed} of ${ids.length} documents. ${failed} failed.`,
+        { id: toastId },
+      );
+    } else {
+      toast.success(
+        `Deleted ${ids.length} document${ids.length === 1 ? "" : "s"}.`,
+        { id: toastId },
+      );
+    }
+    setSelectedIds(new Set());
+    setBulkWorking(false);
     await refresh();
   }
 
@@ -409,17 +441,74 @@ export function DocumentsPanel({ listingId }: Props) {
     e.preventDefault();
     e.stopPropagation();
   }
-  async function onDrop(e: DragEvent<HTMLDivElement>) {
+  function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     dragCounter.current = 0;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      startTransition(() => {
-        uploadFiles(e.dataTransfer.files, currentFolderId);
-      });
+      // Open the upload dialog pre-filled so the broker picks the destination.
+      setDroppedFiles(Array.from(e.dataTransfer.files));
+      setUploadOpen(true);
     }
   }
+
+  const headerMeta =
+    selectedIds.size > 0 ? (
+      <SelectionToolbar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={bulkWorking}
+            >
+              <FolderInput className="size-4" aria-hidden />
+              Move to…
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
+            <DropdownMenuLabel>Destination</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => handleBulkMove(null)}>
+              Root
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {flatFolders.length === 0 ? (
+              <DropdownMenuItem disabled>No folders yet</DropdownMenuItem>
+            ) : (
+              flatFolders.map((f) => (
+                <DropdownMenuItem
+                  key={f.id}
+                  onSelect={() => handleBulkMove(f.id)}
+                >
+                  <span style={{ paddingLeft: f.depth * 12 }}>{f.name}</span>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive"
+          onClick={() => setBulkDeleteOpen(true)}
+          disabled={bulkWorking}
+        >
+          <Trash2 className="size-4" aria-hidden />
+          Delete
+        </Button>
+      </SelectionToolbar>
+    ) : (
+      <p className="text-sm text-muted-foreground">
+        {foldersFlat.length} {foldersFlat.length === 1 ? "folder" : "folders"} ·{" "}
+        {documents.length} {documents.length === 1 ? "file" : "files"}
+      </p>
+    );
 
   return (
     <div
@@ -432,9 +521,7 @@ export function DocumentsPanel({ listingId }: Props) {
       {isDragging && (
         <div className="fixed inset-0 z-40 bg-primary/10 border-4 border-dashed border-primary pointer-events-none flex items-center justify-center">
           <div className="rounded-lg bg-background px-6 py-4 shadow-lg border border-border">
-            <p className="text-lg font-medium">
-              Drop files to upload into {currentFolderName}
-            </p>
+            <p className="text-lg font-medium">Drop files to upload</p>
           </div>
         </div>
       )}
@@ -452,7 +539,7 @@ export function DocumentsPanel({ listingId }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCreatingFolder(true)}
+          onClick={() => openCreateFolder(null)}
           className="gap-1"
         >
           <FolderPlus className="h-4 w-4" />
@@ -464,127 +551,86 @@ export function DocumentsPanel({ listingId }: Props) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4">
-        <div className="rounded-lg border border-border bg-card">
-          <div className="px-3 py-2 border-b border-border">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Folders
-            </p>
-          </div>
-          <div className="p-1 max-h-[600px] overflow-y-auto">
-            <FolderTreeItem
-              label="All documents"
-              count={documents.filter((d) => d.folder_id === null).length}
-              active={currentFolderId === null}
-              depth={0}
-              onClick={() => {
-                setCurrentFolderId(null);
-                setSearch("");
-              }}
-            />
-            {tree?.children.map((node) => (
-              <FolderNode
-                key={node.id}
-                node={node}
-                depth={0}
-                expandedIds={expandedIds}
-                currentFolderId={currentFolderId}
-                onToggle={toggleExpand}
-                onSelect={(id) => {
-                  setCurrentFolderId(id);
-                  setSearch("");
-                }}
-                onRename={(f) => {
-                  setEditFolder(f);
-                  setEditFolderName(f.name);
-                }}
-                onDelete={(f) => setDeleteFolderTarget(f)}
-                documents={documents}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">
-                {search.trim()
-                  ? `Search results (${globalSearchResults?.length ?? 0})`
-                  : currentFolderName}
-              </p>
-              {!search.trim() && (
-                <p className="text-xs text-muted-foreground">
-                  {subFoldersOfCurrent.length} folder(s) ·{" "}
-                  {documentsInCurrentFolder.length} file(s)
-                </p>
-              )}
-            </div>
-          </div>
-          <div>
-            {loading ? (
-              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                Loading…
-              </div>
-            ) : search.trim() ? (
-              <DocList
-                docs={globalSearchResults ?? []}
-                folders={flatFolders}
-                showFolderPath
-                onApprove={handleApproveDoc}
-                onReset={handleResetDoc}
-                onReject={(d) => {
-                  setRejectDoc(d);
-                  setRejectReason("");
-                }}
-                onRename={(d) => {
-                  setRenameDoc(d);
-                  setRenameDocName(d.name);
-                  setRenameDocDescription(d.description ?? "");
-                }}
-                onMove={handleMoveDoc}
-                onDelete={(d) => setDeleteDocTarget(d)}
-                onPreview={setPreviewDoc}
-              />
-            ) : (
-              <>
-                {subFoldersOfCurrent.length > 0 && (
-                  <div className="divide-y divide-border">
-                    {subFoldersOfCurrent.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => setCurrentFolderId(f.id)}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/40"
-                      >
-                        <Folder className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{f.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <DocList
-                  docs={documentsInCurrentFolder}
-                  folders={flatFolders}
-                  onApprove={handleApproveDoc}
-                  onReset={handleResetDoc}
-                  onReject={(d) => {
-                    setRejectDoc(d);
-                    setRejectReason("");
-                  }}
-                  onRename={(d) => {
-                    setRenameDoc(d);
-                    setRenameDocName(d.name);
-                    setRenameDocDescription(d.description ?? "");
-                  }}
-                  onMove={handleMoveDoc}
-                  onDelete={(d) => setDeleteDocTarget(d)}
-                  onPreview={setPreviewDoc}
-                />
-              </>
+      <FileTreeTable
+        folders={foldersFlat}
+        documents={documents}
+        expandedIds={expandedIds}
+        onToggleExpand={toggleExpand}
+        searchQuery={search}
+        selectable
+        selectedFileIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onFileOpen={setPreviewDoc}
+        headerMeta={headerMeta}
+        loading={loading}
+        modifiedColumnLabel="Modified"
+        modifiedField="updated_at"
+        renderFileBadges={(d) => (
+          <>
+            {d.is_confidential && (
+              <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
+                <Lock className="h-2.5 w-2.5" />
+                Confidential
+              </Badge>
             )}
+            <ApprovalBadge status={d.approval_status} />
+            {d.category && d.category !== "other" && (
+              <span className="hidden shrink-0 text-xs text-muted-foreground lg:inline">
+                {DOCUMENT_CATEGORY_LABELS[d.category as DocumentCategory] ??
+                  d.category}
+              </span>
+            )}
+          </>
+        )}
+        renderFileActions={(d) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Preview ${d.name}`}
+              onClick={() => setPreviewDoc(d)}
+            >
+              <Eye className="size-4" aria-hidden />
+            </Button>
+            <DocRowMenu
+              doc={d}
+              folders={flatFolders}
+              onRename={(doc) => {
+                setRenameDoc(doc);
+                setRenameDocName(doc.name);
+                setRenameDocDescription(doc.description ?? "");
+              }}
+              onMove={handleMoveDoc}
+              onApprove={handleApproveDoc}
+              onReject={(doc) => {
+                setRejectDoc(doc);
+                setRejectReason("");
+              }}
+              onReset={handleResetDoc}
+              onDelete={(doc) => setDeleteDocTarget(doc)}
+            />
           </div>
-        </div>
-      </div>
+        )}
+        renderFolderActions={(folder) => (
+          <FolderRowMenu
+            folder={folder}
+            onNewSubfolder={(f) => openCreateFolder(f.id)}
+            onRename={(f) => {
+              setEditFolder(f);
+              setEditFolderName(f.name);
+            }}
+            onDelete={(f) => setDeleteFolderTarget(f)}
+          />
+        )}
+        emptyState={
+          <p className="text-sm text-muted-foreground">
+            {search.trim()
+              ? "No documents match your search."
+              : "No files here. Drop files anywhere on the page to upload."}
+          </p>
+        }
+      />
 
       {/* Create folder dialog */}
       <Dialog open={creatingFolder} onOpenChange={setCreatingFolder}>
@@ -593,24 +639,47 @@ export function DocumentsPanel({ listingId }: Props) {
             <DialogTitle>New folder</DialogTitle>
             <DialogDescription>
               Create a folder inside{" "}
-              <span className="font-medium">{currentFolderName}</span>.
+              <span className="font-medium">{newFolderParentName}</span>.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="new-folder-name">Folder name</Label>
-            <Input
-              id="new-folder-name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="e.g. 2025 Financials"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleCreateFolder();
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="new-folder-name">Folder name</Label>
+              <Input
+                id="new-folder-name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="e.g. 2025 Financials"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateFolder();
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Parent folder</Label>
+              <Select
+                value={newFolderParentId ?? "__root__"}
+                onValueChange={(v) =>
+                  setNewFolderParentId(v === "__root__" ? null : v)
                 }
-              }}
-            />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__root__">Root</SelectItem>
+                  {flatFolders.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.path}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreatingFolder(false)}>
@@ -705,6 +774,31 @@ export function DocumentsPanel({ listingId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.size}{" "}
+              {selectedIds.size === 1 ? "document" : "documents"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The selected documents will be permanently removed. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Rename/edit document dialog */}
       <Dialog
         open={!!renameDoc}
@@ -783,11 +877,16 @@ export function DocumentsPanel({ listingId }: Props) {
       {/* Upload dialog */}
       <UploadDialog
         open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
+        onClose={() => {
+          setUploadOpen(false);
+          setDroppedFiles(null);
+        }}
         folders={flatFolders}
-        defaultFolderId={currentFolderId}
+        defaultFolderId={null}
+        initialFiles={droppedFiles ?? undefined}
         onUpload={async (files, folderId, confidential) => {
           setUploadOpen(false);
+          setDroppedFiles(null);
           await uploadFiles(files, folderId, confidential);
         }}
       />
@@ -804,289 +903,130 @@ export function DocumentsPanel({ listingId }: Props) {
   );
 }
 
-function FolderTreeItem({
-  label,
-  count,
-  active,
-  depth,
-  onClick,
-}: {
-  label: string;
-  count?: number;
-  active: boolean;
-  depth: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-left text-sm hover:bg-muted/50",
-        active && "bg-primary/10 text-foreground font-medium",
-      )}
-      style={{ paddingLeft: 8 + depth * 16 }}
-    >
-      <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
-      <span className="flex-1 truncate">{label}</span>
-      {typeof count === "number" && count > 0 && (
-        <span className="text-[10px] text-muted-foreground">{count}</span>
-      )}
-    </button>
-  );
-}
-
-function FolderNode({
-  node,
-  depth,
-  expandedIds,
-  currentFolderId,
-  onToggle,
-  onSelect,
+function FolderRowMenu({
+  folder,
+  onNewSubfolder,
   onRename,
   onDelete,
-  documents,
 }: {
-  node: FolderTreeNode;
-  depth: number;
-  expandedIds: Set<string>;
-  currentFolderId: string | null;
-  onToggle: (id: string) => void;
-  onSelect: (id: string) => void;
+  folder: DocumentFolder;
+  onNewSubfolder: (f: DocumentFolder) => void;
   onRename: (f: DocumentFolder) => void;
   onDelete: (f: DocumentFolder) => void;
-  documents: ListingDocument[];
 }) {
-  const expanded = expandedIds.has(node.id);
-  const hasChildren = node.children.length > 0;
-  const folderDocCount = documents.filter((d) => d.folder_id === node.id).length;
-
   return (
-    <div>
-      <div
-        className={cn(
-          "group flex items-center gap-1 rounded hover:bg-muted/50",
-          currentFolderId === node.id && "bg-primary/10",
-        )}
-      >
-        <button
-          onClick={() => hasChildren && onToggle(node.id)}
-          className={cn(
-            "h-6 w-5 shrink-0 flex items-center justify-center",
-            !hasChildren && "invisible",
-          )}
-          style={{ marginLeft: depth * 12 }}
-          aria-label={expanded ? "Collapse" : "Expand"}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Actions for ${folder.name}`}
         >
-          {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
-          onClick={() => onSelect(node.id)}
-          className="flex-1 flex items-center gap-1.5 py-1.5 text-left text-sm truncate"
-        >
-          <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="truncate">{node.name}</span>
-          {folderDocCount > 0 && (
-            <span className="text-[10px] text-muted-foreground">
-              {folderDocCount}
-            </span>
-          )}
-        </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="opacity-0 group-hover:opacity-100 mr-1"
-              aria-label="Folder actions"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onSelect={() => onRename(node)}>
-              <Edit3 className="h-3.5 w-3.5" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => onDelete(node)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {expanded &&
-        node.children.map((child) => (
-          <FolderNode
-            key={child.id}
-            node={child}
-            depth={depth + 1}
-            expandedIds={expandedIds}
-            currentFolderId={currentFolderId}
-            onToggle={onToggle}
-            onSelect={onSelect}
-            onRename={onRename}
-            onDelete={onDelete}
-            documents={documents}
-          />
-        ))}
-    </div>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem onSelect={() => onNewSubfolder(folder)}>
+          <FolderPlus className="h-3.5 w-3.5" />
+          New subfolder
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onRename(folder)}>
+          <Edit3 className="h-3.5 w-3.5" />
+          Rename
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={() => onDelete(folder)}>
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-function DocList({
-  docs,
+function DocRowMenu({
+  doc,
   folders,
-  showFolderPath,
-  onApprove,
-  onReset,
-  onReject,
   onRename,
   onMove,
+  onApprove,
+  onReject,
+  onReset,
   onDelete,
-  onPreview,
 }: {
-  docs: ListingDocument[];
+  doc: ListingDocument;
   folders: FlatFolder[];
-  showFolderPath?: boolean;
-  onApprove: (d: ListingDocument) => void;
-  onReset: (d: ListingDocument) => void;
-  onReject: (d: ListingDocument) => void;
   onRename: (d: ListingDocument) => void;
   onMove: (docId: string, folderId: string | null) => void;
+  onApprove: (d: ListingDocument) => void;
+  onReject: (d: ListingDocument) => void;
+  onReset: (d: ListingDocument) => void;
   onDelete: (d: ListingDocument) => void;
-  onPreview: (d: ListingDocument) => void;
 }) {
-  if (docs.length === 0) {
-    return (
-      <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-        No files here. Drop files anywhere on the page to upload.
-      </div>
-    );
-  }
-  const folderById = new Map(folders.map((f) => [f.id, f]));
   return (
-    <div className="divide-y divide-border">
-      {docs.map((d) => (
-        <div key={d.id} className="px-4 py-3 flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium truncate">{d.name}</p>
-              {d.is_confidential && (
-                <Badge variant="secondary" className="text-[10px] gap-1">
-                  <Lock className="h-2.5 w-2.5" />
-                  Confidential
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
-              <ApprovalBadge status={d.approval_status} />
-              {d.category && d.category !== "other" && (
-                <span>{DOCUMENT_CATEGORY_LABELS[d.category as DocumentCategory] ?? d.category}</span>
-              )}
-              {d.file_size && <span>{formatFileSize(d.file_size)}</span>}
-              {showFolderPath && (
-                <span>
-                  {d.folder_id
-                    ? folderById.get(d.folder_id)?.path ?? "—"
-                    : "Root"}
-                </span>
-              )}
-            </div>
-            {d.description && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">
-                {d.description}
-              </p>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${doc.name}`}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onSelect={() => onRename(doc)}>
+          <Edit3 className="h-3.5 w-3.5" />
+          Rename / edit
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Folder className="h-3.5 w-3.5" />
+            Move to…
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+            <DropdownMenuLabel>Destination</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => onMove(doc.id, null)}>
+              Root
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {folders.length === 0 ? (
+              <DropdownMenuItem disabled>No folders yet</DropdownMenuItem>
+            ) : (
+              folders.map((f) => (
+                <DropdownMenuItem
+                  key={f.id}
+                  onSelect={() => onMove(doc.id, f.id)}
+                  disabled={f.id === doc.folder_id}
+                >
+                  <span style={{ paddingLeft: f.depth * 12 }}>{f.name}</span>
+                </DropdownMenuItem>
+              ))
             )}
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onPreview(d)}
-            className="gap-1"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Preview
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Document actions">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={() => onRename(d)}>
-                <Edit3 className="h-3.5 w-3.5" />
-                Rename / edit
-              </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Folder className="h-3.5 w-3.5" />
-                  Move to…
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                  <DropdownMenuLabel>Destination</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={() => onMove(d.id, null)}>
-                    Root
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {folders.length === 0 ? (
-                    <DropdownMenuItem disabled>
-                      No folders yet
-                    </DropdownMenuItem>
-                  ) : (
-                    folders.map((f) => (
-                      <DropdownMenuItem
-                        key={f.id}
-                        onSelect={() => onMove(d.id, f.id)}
-                        disabled={f.id === d.folder_id}
-                      >
-                        <span style={{ paddingLeft: f.depth * 12 }}>
-                          {f.name}
-                        </span>
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              {d.approval_status !== "approved" && (
-                <DropdownMenuItem onSelect={() => onApprove(d)}>
-                  <Check className="h-3.5 w-3.5" />
-                  Approve
-                </DropdownMenuItem>
-              )}
-              {d.approval_status !== "rejected" && (
-                <DropdownMenuItem onSelect={() => onReject(d)}>
-                  <X className="h-3.5 w-3.5" />
-                  Reject
-                </DropdownMenuItem>
-              )}
-              {d.approval_status !== "pending" && (
-                <DropdownMenuItem onSelect={() => onReset(d)}>
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Set to pending
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={() => onDelete(d)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ))}
-    </div>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        {doc.approval_status !== "approved" && (
+          <DropdownMenuItem onSelect={() => onApprove(doc)}>
+            <Check className="h-3.5 w-3.5" />
+            Approve
+          </DropdownMenuItem>
+        )}
+        {doc.approval_status !== "rejected" && (
+          <DropdownMenuItem onSelect={() => onReject(doc)}>
+            <X className="h-3.5 w-3.5" />
+            Reject
+          </DropdownMenuItem>
+        )}
+        {doc.approval_status !== "pending" && (
+          <DropdownMenuItem onSelect={() => onReset(doc)}>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Set to pending
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={() => onDelete(doc)}>
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1098,7 +1038,12 @@ function ApprovalBadge({ status }: { status: ListingDocument["approval_status"] 
   };
   const Cfg = map[status];
   return (
-    <span className={cn("inline-flex items-center gap-1", Cfg.color)}>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 text-xs",
+        Cfg.color,
+      )}
+    >
       <Cfg.icon className="h-3 w-3" />
       {DOCUMENT_APPROVAL_LABELS[status]}
     </span>
@@ -1110,12 +1055,14 @@ function UploadDialog({
   onClose,
   folders,
   defaultFolderId,
+  initialFiles,
   onUpload,
 }: {
   open: boolean;
   onClose: () => void;
   folders: FlatFolder[];
   defaultFolderId: string | null;
+  initialFiles?: File[];
   onUpload: (
     files: File[],
     folderId: string | null,
@@ -1129,6 +1076,10 @@ function UploadDialog({
   useEffect(() => {
     setFolderId(defaultFolderId);
   }, [defaultFolderId]);
+
+  useEffect(() => {
+    if (open) setFiles(initialFiles ?? []);
+  }, [open, initialFiles]);
 
   function handleClose() {
     setFiles([]);
@@ -1218,11 +1169,4 @@ function UploadDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function formatFileSize(bytes: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

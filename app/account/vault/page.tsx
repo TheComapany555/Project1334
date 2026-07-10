@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
+import { formatDate } from "@/lib/utils";
 import { getBuyerVaultListings } from "@/lib/actions/data-room";
 import { PublicHeader } from "@/components/public-header";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
@@ -28,14 +29,15 @@ export const metadata: Metadata = {
   description: "Documents brokers have shared with you.",
 };
 
-const STATUS_TONE: Record<DataRoomAccessStatus, string> = {
-  pending:
-    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  approved:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  denied: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
-  revoked: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  expired: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+const STATUS_VARIANT: Record<
+  DataRoomAccessStatus,
+  "success" | "warning" | "destructive" | "secondary"
+> = {
+  pending: "warning",
+  approved: "success",
+  denied: "destructive",
+  revoked: "secondary",
+  expired: "secondary",
 };
 
 export default async function BuyerVaultPage() {
@@ -97,57 +99,55 @@ export default async function BuyerVaultPage() {
                 return (
                   <Card key={access.id} className="overflow-hidden">
                     <CardContent className="py-4 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <Link
-                          href={`/listing/${listing.slug}`}
-                          className="text-base font-medium hover:underline"
-                        >
-                          {listing.title}
-                        </Link>
-                        {listing.location_text && (
-                          <p className="text-xs text-muted-foreground">
-                            {listing.location_text}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium ${STATUS_TONE[status]}`}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/listing/${listing.slug}`}
+                            className="min-w-0 truncate text-base font-medium hover:underline"
+                          >
+                            {listing.title}
+                          </Link>
+                          <Badge
+                            variant={STATUS_VARIANT[status]}
+                            className="shrink-0 gap-1"
                           >
                             <StatusIcon status={status} />
                             {DATA_ROOM_ACCESS_STATUS_LABELS[status]}
-                          </span>
+                          </Badge>
+                          {isApproved && !expired && !access.download_allowed && (
+                            <Badge variant="outline" className="shrink-0 text-[10px]">
+                              Preview only
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {listing.location_text && (
+                            <span className="truncate">
+                              {listing.location_text}
+                            </span>
+                          )}
                           {isApproved && !expired && (
                             <>
-                              <span className="text-muted-foreground inline-flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
                                 {file_count} file{file_count === 1 ? "" : "s"}
                               </span>
                               {last_file_added_at && (
-                                <span className="text-muted-foreground">
+                                <span>
                                   Last update {formatDate(last_file_added_at)}
                                 </span>
                               )}
                               {access.expires_at && (
-                                <span className="text-muted-foreground inline-flex items-center gap-1">
+                                <span className="inline-flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   Expires {formatDate(access.expires_at)}
                                 </span>
-                              )}
-                              {!access.download_allowed && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px]"
-                                >
-                                  Preview only
-                                </Badge>
                               )}
                             </>
                           )}
                           {access.status === "denied" &&
                             access.denial_reason && (
-                              <span className="text-muted-foreground">
-                                {access.denial_reason}
-                              </span>
+                              <span>{access.denial_reason}</span>
                             )}
                         </div>
                       </div>
@@ -193,16 +193,4 @@ function StatusIcon({ status }: { status: DataRoomAccessStatus }) {
     return <ShieldOff className="h-3 w-3" />;
   if (status === "pending") return <Clock className="h-3 w-3" />;
   return <ShieldOff className="h-3 w-3" />;
-}
-
-function formatDate(value: string): string {
-  try {
-    return new Date(value).toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return value;
-  }
 }
