@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
@@ -10,6 +11,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -63,6 +65,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
+  // Search Console fallback for URL-prefix properties; the sc-domain property
+  // is already DNS-verified, so this only renders if the env var is set.
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export default function RootLayout({
@@ -74,6 +81,7 @@ export default function RootLayout({
         <TopLoader />
         <Providers>{children}</Providers>
         <SpeedInsights />
+        {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
       </body>
     </html>
   );
