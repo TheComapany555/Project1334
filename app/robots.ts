@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
+const SITE_URL = (process.env.NEXTAUTH_URL ?? "https://salebiz.com.au").replace(
+  /\/$/,
+  "",
+);
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,7 +11,17 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard/", "/admin/", "/api/", "/auth/", "/checkout/"],
+        disallow: [
+          "/account/",
+          "/admin/",
+          "/api/",
+          "/auth/",
+          "/checkout/",
+          "/dashboard/",
+          "/invite/",
+          "/saved/",
+          "/site-locked/",
+        ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
