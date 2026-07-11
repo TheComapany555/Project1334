@@ -9,18 +9,21 @@ import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { getSiteUrl } from "@/lib/site-url";
+
+const SITE_URL = getSiteUrl();
 
 export const metadata: Metadata = {
   title: "Browse Businesses for Sale",
   description:
     "Search and filter businesses for sale across Australia. Browse by industry, location, price range, and more on Salebiz.",
   alternates: {
-    canonical: `${process.env.NEXTAUTH_URL ?? "https://salebiz.com.au"}/search`,
+    canonical: `${SITE_URL}/search`,
   },
 };
 
 const PAGE_SIZE = 12;
-export const SORT_OPTIONS = [
+const SORT_OPTIONS = [
   { value: "trending", label: "Trending" },
   { value: "newest", label: "Newest first" },
   { value: "price_asc", label: "Price: low to high" },
@@ -180,7 +183,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 <div className="flex items-center gap-2 flex-wrap">
                   {keyword && (
                     <Badge variant="secondary" className="gap-1">
-                      "{keyword}"
+                      &quot;{keyword}&quot;
                     </Badge>
                   )}
                   {activeFilters > 0 && (

@@ -28,12 +28,13 @@ import {
   Building2,
   ExternalLink,
 } from "lucide-react";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const revalidate = 600;
 
 type Props = { params: Promise<{ slug: string }> };
 
-const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
+const SITE_URL = getSiteUrl();
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;

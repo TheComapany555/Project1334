@@ -1,13 +1,11 @@
 import type { MetadataRoute } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getSiteUrl } from "@/lib/site-url";
 
 // Regenerate sitemap every hour
 export const revalidate = 3600;
 
-const SITE_URL = (process.env.NEXTAUTH_URL ?? "https://salebiz.com.au").replace(
-  /\/$/,
-  "",
-);
+const SITE_URL = getSiteUrl();
 
 type ChangeFrequency = NonNullable<
   MetadataRoute.Sitemap[number]["changeFrequency"]

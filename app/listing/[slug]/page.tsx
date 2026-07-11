@@ -49,13 +49,14 @@ import { ListingViewTracker } from "@/components/listings/listing-view-tracker";
 import { ListingImageGallery } from "@/components/listings/listing-image-gallery";
 import { CallTrackingButton } from "@/components/listings/call-tracking-button";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getSiteUrl } from "@/lib/site-url";
 
 // Revalidate listing pages every 10 minutes
 export const revalidate = 600;
 
 type Props = { params: Promise<{ slug: string }> };
 
-const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
+const SITE_URL = getSiteUrl();
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;

@@ -1,9 +1,7 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/site-url";
 
-const SITE_URL = (process.env.NEXTAUTH_URL ?? "https://salebiz.com.au").replace(
-  /\/$/,
-  "",
-);
+const SITE_URL = getSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {

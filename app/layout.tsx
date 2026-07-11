@@ -4,13 +4,14 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
+import { getSiteUrl } from "@/lib/site-url";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-const SITE_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
+const SITE_URL = getSiteUrl();
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
