@@ -90,6 +90,19 @@ export async function runBuyerAlertMatching(options?: {
 
   const supabase = createServiceRoleClient();
 
+  // Coming-soon mode hides listings from buyers — don't email listing alerts.
+  // (Queried directly, not via lib/actions, so the plain-tsx cron path stays
+  // free of Next.js server-action imports.)
+  const { data: siteSettings } = await supabase
+    .from("site_settings")
+    .select("listings_coming_soon")
+    .eq("id", true)
+    .maybeSingle();
+  if (siteSettings?.listings_coming_soon) {
+    summary.finishedAt = new Date().toISOString();
+    return summary;
+  }
+
   const [{ data: listings }, { data: prefs }] = await Promise.all([
     supabase
       .from("listings")

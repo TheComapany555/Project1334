@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-client";
 import { searchListings, getCategories, getSubcategories, getListingHighlights } from "@/lib/actions/listings";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/public-header";
@@ -77,7 +79,11 @@ function countActiveFilters(p: {
 }
 
 export default async function SearchPage({ searchParams }: Props) {
-  const [params, session] = await Promise.all([searchParams, getSession()]);
+  const [params, session, comingSoon] = await Promise.all([
+    searchParams,
+    getSession(),
+    getListingsComingSoon(),
+  ]);
 
   const keyword = parseStr(params.q);
   const category = parseStr(params.category);
@@ -101,24 +107,26 @@ export default async function SearchPage({ searchParams }: Props) {
   const page = Math.max(1, parseNum(params.page) ?? 1);
 
   const [result, categories, subcategories, highlights] = await Promise.all([
-    searchListings({
-      keyword: keyword ?? null,
-      category: category ?? null,
-      subcategory: subcategory ?? null,
-      highlight_id: highlight ?? null,
-      state: state ?? null,
-      suburb: suburb ?? null,
-      region: region ?? null,
-      price_min: price_min ?? null,
-      price_max: price_max ?? null,
-      revenue_min: revenue_min ?? null,
-      revenue_max: revenue_max ?? null,
-      profit_min: profit_min ?? null,
-      profit_max: profit_max ?? null,
-      sort,
-      page,
-      page_size: PAGE_SIZE,
-    }),
+    comingSoon
+      ? { listings: [], total: 0, page: 1, page_size: PAGE_SIZE, total_pages: 0 }
+      : searchListings({
+          keyword: keyword ?? null,
+          category: category ?? null,
+          subcategory: subcategory ?? null,
+          highlight_id: highlight ?? null,
+          state: state ?? null,
+          suburb: suburb ?? null,
+          region: region ?? null,
+          price_min: price_min ?? null,
+          price_max: price_max ?? null,
+          revenue_min: revenue_min ?? null,
+          revenue_max: revenue_max ?? null,
+          profit_min: profit_min ?? null,
+          profit_max: profit_max ?? null,
+          sort,
+          page,
+          page_size: PAGE_SIZE,
+        }),
     getCategories(),
     getSubcategories(),
     getListingHighlights(),
@@ -179,7 +187,7 @@ export default async function SearchPage({ searchParams }: Props) {
               </div>
 
               {/* Results summary — shown when a search is active */}
-              {isFiltered && (
+              {isFiltered && !comingSoon && (
                 <div className="flex items-center gap-2 flex-wrap">
                   {keyword && (
                     <Badge variant="secondary" className="gap-1">
@@ -208,29 +216,35 @@ export default async function SearchPage({ searchParams }: Props) {
             <Separator />
           </div>
 
-          {/* ── Search form ── */}
-          <SearchForm
-            categories={categories}
-            subcategories={subcategories}
-            highlights={highlights}
-            defaultValues={formValues}
-            sortOptions={SORT_OPTIONS}
-          />
+          {comingSoon ? (
+            <ListingsComingSoon />
+          ) : (
+            <>
+              {/* ── Search form ── */}
+              <SearchForm
+                categories={categories}
+                subcategories={subcategories}
+                highlights={highlights}
+                defaultValues={formValues}
+                sortOptions={SORT_OPTIONS}
+              />
 
-          {/* ── Search Ad Slot ── */}
-          <div className="pt-2 pb-4">
-            <AdSlot placement="search" layout="banner" limit={1} />
-          </div>
+              {/* ── Search Ad Slot ── */}
+              <div className="pt-2 pb-4">
+                <AdSlot placement="search" layout="banner" limit={1} />
+              </div>
 
-          {/* ── Results ── */}
-          <SearchResults
-            listings={result.listings}
-            total={result.total}
-            page={result.page}
-            pageSize={result.page_size}
-            totalPages={result.total_pages}
-            currentParams={formValues}
-          />
+              {/* ── Results ── */}
+              <SearchResults
+                listings={result.listings}
+                total={result.total}
+                page={result.page}
+                pageSize={result.page_size}
+                totalPages={result.total_pages}
+                currentParams={formValues}
+              />
+            </>
+          )}
         </div>
       </main>
 

@@ -4,6 +4,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getListingBySlug } from "@/lib/actions/listings";
 import { getListingBySlugAdmin } from "@/lib/actions/admin-listings";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -59,6 +61,10 @@ type Props = { params: Promise<{ slug: string }> };
 const SITE_URL = getSiteUrl();
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  // While coming-soon mode is on, never leak listing details via meta tags.
+  if (await getListingsComingSoon()) {
+    return { title: "Coming soon", robots: { index: false, follow: false } };
+  }
   const { slug } = await params;
   const listing = await getListingBySlug(slug);
   if (!listing) {
@@ -113,8 +119,24 @@ function formatPrice(listing: {
 export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
 
+  const [session, comingSoon] = await Promise.all([
+    getSession(),
+    getListingsComingSoon(),
+  ]);
+
+  // Coming-soon mode hides listings from everyone except admins (preview).
+  if (comingSoon && session?.user?.role !== "admin") {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <PublicHeader session={session} maxWidth="max-w-6xl" />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
+          <ListingsComingSoon />
+        </main>
+      </div>
+    );
+  }
+
   // Try public view first; if not found, try admin view (no status filter)
-  const session = await getSession();
   let listing = await getListingBySlug(slug);
   let isAdminPreview = false;
   if (!listing) {

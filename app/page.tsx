@@ -6,6 +6,8 @@ import {
   getHomepageFeaturedListings,
   getHomepageRecentListings,
 } from "@/lib/actions/listings";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,14 +220,19 @@ export default async function HomePage() {
   // Featured first so we can exclude its IDs from the recent fetch before
   // diversifying — that way the visible Recent grid is always a full 12 items
   // of distinct brokers/agencies, not a leftover after filtering.
-  const [session, featuredListings, highlights] = await Promise.all([
+  const [session, comingSoon, highlights] = await Promise.all([
     getSession(),
-    getHomepageFeaturedListings(12),
+    getListingsComingSoon(),
     getListingHighlights(),
   ]);
-  const recentListings = await getHomepageRecentListings(12, {
-    excludeIds: featuredListings.map((l) => l.id),
-  });
+  const featuredListings = comingSoon
+    ? []
+    : await getHomepageFeaturedListings(12);
+  const recentListings = comingSoon
+    ? []
+    : await getHomepageRecentListings(12, {
+        excludeIds: featuredListings.map((l) => l.id),
+      });
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -378,179 +385,187 @@ export default async function HomePage() {
           </MotionDiv>
         </section>
 
-        {/* ── Featured listings ───────────────────────────────────────────── */}
-        {featuredListings.length > 0 && (
-          <section className="container px-4 sm:px-6 max-w-7xl mx-auto pt-12 sm:pt-16 md:pt-20">
+        {comingSoon ? (
+          <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
+            <ListingsComingSoon />
+          </section>
+        ) : (
+          <>
+          {/* ── Featured listings ───────────────────────────────────────────── */}
+          {featuredListings.length > 0 && (
+            <section className="container px-4 sm:px-6 max-w-7xl mx-auto pt-12 sm:pt-16 md:pt-20">
+              <MotionDiv
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.3 }}
+                variants={fadeUp}
+                transition={{ duration: 0.5 }}
+                className="flex items-end justify-between gap-4 mb-7 sm:mb-10"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Featured listings
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+                    Browse our featured listings.
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-primary hover:text-primary/80 text-xs sm:text-sm px-2 sm:px-3"
+                >
+                  <Link href="/search" className="flex items-center gap-0.5">
+                    View all <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </MotionDiv>
+
+              <MotionUl
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.1 }}
+                variants={staggerContainer}
+                className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+              >
+                {featuredListings.slice(0, 12).map((listing) => (
+                  <MotionLi
+                    key={listing.id}
+                    variants={fadeUp}
+                    transition={{ duration: 0.4 }}
+                    className="h-full"
+                  >
+                    <ListingCard
+                      listing={listing}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    />
+                  </MotionLi>
+                ))}
+              </MotionUl>
+            </section>
+          )}
+
+          {/* ── Recent listings ─────────────────────────────────────────────── */}
+          <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
+            {/* Section header */}
             <MotionDiv
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.3 }}
               variants={fadeUp}
               transition={{ duration: 0.5 }}
-              className="flex items-end justify-between gap-4 mb-7 sm:mb-10"
+              className="flex flex-col gap-4 mb-7 sm:mb-10"
             >
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Featured listings
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-                  Browse our featured listings.
-                </p>
-              </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="shrink-0 text-primary hover:text-primary/80 text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <Link href="/search" className="flex items-center gap-0.5">
-                  View all <ChevronRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </MotionDiv>
-
-            <MotionUl
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.1 }}
-              variants={staggerContainer}
-              className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-            >
-              {featuredListings.slice(0, 12).map((listing) => (
-                <MotionLi
-                  key={listing.id}
-                  variants={fadeUp}
-                  transition={{ duration: 0.4 }}
-                  className="h-full"
-                >
-                  <ListingCard
-                    listing={listing}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
-                </MotionLi>
-              ))}
-            </MotionUl>
-          </section>
-        )}
-
-        {/* ── Recent listings ─────────────────────────────────────────────── */}
-        <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-12 sm:py-20 md:py-24">
-          {/* Section header */}
-          <MotionDiv
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={fadeUp}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col gap-4 mb-7 sm:mb-10"
-          >
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  Recently added listings
-                </h2>
-              </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="shrink-0 text-primary hover:text-primary/80 text-xs sm:text-sm px-2 sm:px-3"
-              >
-                <Link href="/search" className="flex items-center gap-0.5">
-                  View all <ChevronRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-
-            {/* Highlight filter tags */}
-            {highlights.length > 0 && (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs text-muted-foreground">
-                  Filter by tag:
-                </span>
-                {highlights.map((h) => (
-                  <Button
-                    key={h.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    asChild
-                  >
-                    <Link
-                      href={`/search?highlight=${encodeURIComponent(h.id)}`}
-                    >
-                      {h.label}
-                    </Link>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </MotionDiv>
-
-          {recentListings.length > 0 ? (
-            <>
-              {/* Mobile: horizontal swipe. Tablet+: grid */}
-              <MotionUl
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.1 }}
-                variants={staggerContainer}
-                className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4"
-              >
-                {recentListings.map((listing) => (
-                  <MotionLi
-                    key={listing.id}
-                    variants={fadeUp}
-                    transition={{ duration: 0.4 }}
-                    className="min-w-[75vw] snap-start sm:min-w-0 sm:h-full"
-                  >
-                    <ListingCard
-                      listing={listing}
-                      sizes="(max-width: 640px) 75vw, (max-width: 1024px) 50vw, 25vw"
-                    />
-                  </MotionLi>
-                ))}
-              </MotionUl>
-
-              <MotionDiv
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeUp}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="mt-10 sm:mt-12 text-center"
-              >
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Recently added listings
+                  </h2>
+                </div>
                 <Button
                   asChild
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto px-8 sm:px-10 transition-transform duration-150 active:scale-[0.98]"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-primary hover:text-primary/80 text-xs sm:text-sm px-2 sm:px-3"
                 >
-                  <Link href="/search">
-                    See all listings
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  <Link href="/search" className="flex items-center gap-0.5">
+                    View all <ChevronRight className="h-4 w-4" />
                   </Link>
                 </Button>
-              </MotionDiv>
-            </>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-14 sm:py-18 text-center">
-              <Building2 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="font-medium text-foreground">No listings yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Be the first to list a business for sale.
-              </p>
-              {!session?.user && (
-                <Button
-                  asChild
-                  className="mt-5 bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Link href="/auth/register">Get started</Link>
-                </Button>
+              </div>
+
+              {/* Highlight filter tags */}
+              {highlights.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-muted-foreground">
+                    Filter by tag:
+                  </span>
+                  {highlights.map((h) => (
+                    <Button
+                      key={h.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      asChild
+                    >
+                      <Link
+                        href={`/search?highlight=${encodeURIComponent(h.id)}`}
+                      >
+                        {h.label}
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
               )}
-            </div>
-          )}
-        </section>
+            </MotionDiv>
+
+            {recentListings.length > 0 ? (
+              <>
+                {/* Mobile: horizontal swipe. Tablet+: grid */}
+                <MotionUl
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.1 }}
+                  variants={staggerContainer}
+                  className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:gap-5 sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4"
+                >
+                  {recentListings.map((listing) => (
+                    <MotionLi
+                      key={listing.id}
+                      variants={fadeUp}
+                      transition={{ duration: 0.4 }}
+                      className="min-w-[75vw] snap-start sm:min-w-0 sm:h-full"
+                    >
+                      <ListingCard
+                        listing={listing}
+                        sizes="(max-width: 640px) 75vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    </MotionLi>
+                  ))}
+                </MotionUl>
+
+                <MotionDiv
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={fadeUp}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="mt-10 sm:mt-12 text-center"
+                >
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto px-8 sm:px-10 transition-transform duration-150 active:scale-[0.98]"
+                  >
+                    <Link href="/search">
+                      See all listings
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </MotionDiv>
+              </>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-14 sm:py-18 text-center">
+                <Building2 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="font-medium text-foreground">No listings yet</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Be the first to list a business for sale.
+                </p>
+                {!session?.user && (
+                  <Button
+                    asChild
+                    className="mt-5 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Link href="/auth/register">Get started</Link>
+                  </Button>
+                )}
+              </div>
+            )}
+          </section>
+          </>
+        )}
 
         {/* ── Homepage Ad Slot ──────────────────────────────────────────── */}
         <section className="container px-4 sm:px-6 max-w-7xl mx-auto py-8 sm:py-12 md:py-16">

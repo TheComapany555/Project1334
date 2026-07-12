@@ -8,6 +8,8 @@ import {
 } from "@/lib/actions/comparison";
 import { PublicHeader } from "@/components/public-header";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { ComparisonTable } from "./comparison-table";
 
 export const metadata: Metadata = {
@@ -21,10 +23,13 @@ export default async function ComparePage() {
     redirect("/auth/login?callbackUrl=/compare");
   }
 
-  const [listingIds, allPickerListings] = await Promise.all([
-    getComparisonListingIds(),
-    getAllPublishedListingsForPicker(),
-  ]);
+  const comingSoon = await getListingsComingSoon();
+  const [listingIds, allPickerListings] = comingSoon
+    ? [[], []]
+    : await Promise.all([
+        getComparisonListingIds(),
+        getAllPublishedListingsForPicker(),
+      ]);
 
   const listings =
     listingIds.length > 0 ? await getComparisonListings(listingIds) : [];
@@ -51,10 +56,14 @@ export default async function ComparePage() {
           </p>
         </div>
 
-        <ComparisonTable
-          listings={listings}
-          allListings={allPickerListings}
-        />
+        {comingSoon ? (
+          <ListingsComingSoon />
+        ) : (
+          <ComparisonTable
+            listings={listings}
+            allListings={allPickerListings}
+          />
+        )}
       </main>
     </div>
   );

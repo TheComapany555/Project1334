@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import { getSiteUrl } from "@/lib/site-url";
 
 // Regenerate sitemap every hour
@@ -37,6 +38,8 @@ function isPresent<T>(value: T | null | undefined): value is T {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceRoleClient();
+  // Coming-soon mode: keep listing URLs out of the sitemap while hidden.
+  const comingSoon = await getListingsComingSoon();
 
   // Fetch all published listing slugs + updated dates
   const [
@@ -46,14 +49,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { data: categories },
     { data: subcategories },
   ] = await Promise.all([
-    supabase
-      .from("listings")
-      .select("slug, updated_at, published_at")
-      .eq("status", "published")
-      .eq("is_private", false)
-      .is("admin_removed_at", null)
-      .not("slug", "is", null)
-      .order("published_at", { ascending: false }),
+    comingSoon
+      ? { data: null }
+      : supabase
+          .from("listings")
+          .select("slug, updated_at, published_at")
+          .eq("status", "published")
+          .eq("is_private", false)
+          .is("admin_removed_at", null)
+          .not("slug", "is", null)
+          .order("published_at", { ascending: false }),
     supabase
       .from("profiles")
       .select("slug, updated_at")

@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { getAgencyBySlug } from "@/lib/actions/agencies";
 import { getPublishedListingsByAgencyId } from "@/lib/actions/listings";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -77,7 +79,10 @@ export default async function AgencyPublicPage({ params }: Props) {
   const [session, agency] = await Promise.all([getSession(), getAgencyBySlug(slug)]);
   if (!agency) notFound();
 
-  const listings = await getPublishedListingsByAgencyId(agency.id);
+  const comingSoon = await getListingsComingSoon();
+  const listings = comingSoon
+    ? []
+    : await getPublishedListingsByAgencyId(agency.id);
   const social = agency.social_links;
   const hasSocial = social?.linkedin || social?.facebook || social?.instagram;
   const hasContact = agency.phone || agency.email || agency.website;
@@ -224,46 +229,50 @@ export default async function AgencyPublicPage({ params }: Props) {
             </div>
 
             <div className="min-w-0 space-y-4">
-              <Card className="min-w-0">
-                <CardHeader className="flex min-w-0 flex-row items-center justify-between gap-2 pb-2">
-                  <div>
-                    <CardTitle className="text-base">Listings</CardTitle>
-                    <CardDescription>
-                      {listings.length === 0
-                        ? "No published listings yet"
-                        : `${listings.length} active ${listings.length === 1 ? "listing" : "listings"}`}
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <Separator />
-                <CardContent className="min-w-0 pt-4">
-                  {listings.length > 0 ? (
-                    <div className="grid min-w-0 gap-3">
-                      {listings.map((listing) => {
-                        const thumb = listing.listing_images?.[0]?.url;
-                        const location =
-                          listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
-                        return (
-                          <PublicProfileListingRow
-                            key={listing.id}
-                            href={`/listing/${listing.slug}`}
-                            title={listing.title}
-                            imageUrl={thumb}
-                            location={location || null}
-                            categoryName={listing.category?.name ?? null}
-                            priceLabel={formatPrice(listing)}
-                          />
-                        );
-                      })}
+              {comingSoon ? (
+                <ListingsComingSoon />
+              ) : (
+                <Card className="min-w-0">
+                  <CardHeader className="flex min-w-0 flex-row items-center justify-between gap-2 pb-2">
+                    <div>
+                      <CardTitle className="text-base">Listings</CardTitle>
+                      <CardDescription>
+                        {listings.length === 0
+                          ? "No published listings yet"
+                          : `${listings.length} active ${listings.length === 1 ? "listing" : "listings"}`}
+                      </CardDescription>
                     </div>
-                  ) : (
-                    <div className="py-10 flex flex-col items-center gap-2 text-center">
-                      <Building2 className="h-8 w-8 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">No published listings yet.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <Separator />
+                  <CardContent className="min-w-0 pt-4">
+                    {listings.length > 0 ? (
+                      <div className="grid min-w-0 gap-3">
+                        {listings.map((listing) => {
+                          const thumb = listing.listing_images?.[0]?.url;
+                          const location =
+                            listing.location_text || [listing.suburb, listing.state].filter(Boolean).join(", ");
+                          return (
+                            <PublicProfileListingRow
+                              key={listing.id}
+                              href={`/listing/${listing.slug}`}
+                              title={listing.title}
+                              imageUrl={thumb}
+                              location={location || null}
+                              categoryName={listing.category?.name ?? null}
+                              priceLabel={formatPrice(listing)}
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-10 flex flex-col items-center gap-2 text-center">
+                        <Building2 className="h-8 w-8 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">No published listings yet.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

@@ -4,7 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
 import { getUserFavorites } from "@/lib/actions/favorites";
+import type { Listing } from "@/lib/types/listings";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { PublicHeader } from "@/components/public-header";
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,9 +45,12 @@ export default async function SavedListingsPage() {
     redirect("/auth/login?callbackUrl=/saved");
   }
 
+  const comingSoon = await getListingsComingSoon();
   const [{ listings, listingIds }, comparisonIds] = await Promise.all([
-    getUserFavorites(),
-    getComparisonListingIds(),
+    comingSoon
+      ? { listings: [] as Listing[], listingIds: [] as string[] }
+      : getUserFavorites(),
+    comingSoon ? ([] as string[]) : getComparisonListingIds(),
   ]);
 
   return (
@@ -78,7 +84,9 @@ export default async function SavedListingsPage() {
           )}
         </div>
 
-        {listings.length === 0 ? (
+        {comingSoon ? (
+          <ListingsComingSoon />
+        ) : listings.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center space-y-4">
               <Heart className="h-12 w-12 mx-auto text-muted-foreground" />

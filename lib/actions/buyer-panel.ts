@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import type {
   BuyerAlertPreference,
   BuyerEnquiryRow,
@@ -43,6 +44,18 @@ function pickCover(images: ListingRow["listing_images"]): string | null {
 export async function getBuyerPanelSnapshot(): Promise<BuyerPanelSnapshot> {
   const { userId, email } = await requireBuyer();
   const supabase = createServiceRoleClient();
+
+  // Coming-soon mode: buyers see no listing data anywhere, so the panel
+  // renders its normal empty states.
+  if (await getListingsComingSoon()) {
+    return {
+      saved: { items: [], total: 0 },
+      enquiries: { items: [], total: 0 },
+      sentToMe: { items: [], total: 0 },
+      matched: { items: [], total: 0 },
+      alerts: [],
+    };
+  }
 
   // Saved listings (auto-saved on enquiry, plus manual favourites)
   const savedPromise = (async () => {
