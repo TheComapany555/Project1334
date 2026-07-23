@@ -252,3 +252,87 @@ export async function adminRestoreListing(listingId: string): Promise<{ ok: bool
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/** Admin: count draft listings eligible for bulk publish (excludes admin-removed). */
+export async function countAdminDraftListings(): Promise<number> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { count } = await supabase
+    .from("listings")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "draft")
+    .is("admin_removed_at", null);
+  return count ?? 0;
+}
+
+export type BulkPublishSkipReason = "payment_required" | "subscription_inactive";
+
+export type BulkPublishDraftsResult =
+  | { ok: true; published: number; skipped: { id: string; title: string; reason: BulkPublishSkipReason }[] }
+  | { ok: false; error: string };
+
+/**
+ * Admin: publish every draft listing platform-wide, mirroring the publish gates
+ * in `updateListingStatus` — drafts under an inactive agency subscription, or on
+ * an unpaid non-basic tier (unless private), are skipped and reported.
+ */
+export async function adminBulkPublishDrafts(): Promise<BulkPublishDraftsResult> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { checkAgencySubscriptionAccess } = await import("@/lib/subscriptions/agency-access");
+
+  const { data: drafts, error: fetchError } = await supabase
+    .from("listings")
+    .select("id, title, agency_id, listing_tier, tier_paid_at, is_private")
+    .eq("status", "draft")
+    .is("admin_removed_at", null);
+  if (fetchError) return { ok: false, error: fetchError.message };
+
+  const candidates = drafts ?? [];
+  if (candidates.length === 0) return { ok: true, published: 0, skipped: [] };
+
+  const agencyIds = [...new Set(candidates.map((l) => l.agency_id).filter((id): id is string => !!id))];
+  const agencyAccess = new Map<string, boolean>();
+  await Promise.all(
+    agencyIds.map(async (agencyId) => {
+      const access = await checkAgencySubscriptionAccess(supabase, agencyId);
+      agencyAccess.set(agencyId, access.allowed);
+    }),
+  );
+
+  const publishableIds: string[] = [];
+  const skipped: { id: string; title: string; reason: BulkPublishSkipReason }[] = [];
+  for (const listing of candidates) {
+    const title = listing.title ?? "Untitled listing";
+    if (listing.agency_id && !agencyAccess.get(listing.agency_id)) {
+      skipped.push({ id: listing.id, title, reason: "subscription_inactive" });
+      continue;
+    }
+    const tier = listing.listing_tier ?? "basic";
+    if (!listing.is_private && tier !== "basic" && !listing.tier_paid_at) {
+      skipped.push({ id: listing.id, title, reason: "payment_required" });
+      continue;
+    }
+    publishableIds.push(listing.id);
+  }
+
+  const nowIso = new Date().toISOString();
+  const CHUNK_SIZE = 100;
+  let published = 0;
+  for (let i = 0; i < publishableIds.length; i += CHUNK_SIZE) {
+    const chunk = publishableIds.slice(i, i + CHUNK_SIZE);
+    const { error } = await supabase
+      .from("listings")
+      .update({ status: "published", published_at: nowIso, updated_at: nowIso })
+      .in("id", chunk)
+      .eq("status", "draft");
+    if (error) {
+      return { ok: false, error: `Published ${published} listings before failing: ${error.message}` };
+    }
+    published += chunk.length;
+  }
+
+  // Intentionally no notifyAdmins here: the admin is the actor, and one
+  // notification per listing would flood the admin inbox.
+  return { ok: true, published, skipped };
+}

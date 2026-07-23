@@ -1,8 +1,9 @@
-import { listAdminListings } from "@/lib/actions/admin-listings";
+import { countAdminDraftListings, listAdminListings } from "@/lib/actions/admin-listings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/page-header";
 import { FileText } from "lucide-react";
 import { AdminListingsTable } from "./listings-table";
+import { PublishAllDraftsButton } from "./publish-all-drafts";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
 
 type SP = { [key: string]: string | string[] | undefined };
@@ -26,14 +27,17 @@ export default async function AdminListingsPage({
   const visibility = pickStr(sp.visibility);
   const featured = pickStr(sp.featured);
 
-  const result = await listAdminListings({
-    page,
-    pageSize,
-    q,
-    status,
-    visibility,
-    featured,
-  });
+  const [result, draftCount] = await Promise.all([
+    listAdminListings({
+      page,
+      pageSize,
+      q,
+      status,
+      visibility,
+      featured,
+    }),
+    countAdminDraftListings(),
+  ]);
 
   const hasFilters = !!(q || status || visibility || featured);
 
@@ -42,6 +46,7 @@ export default async function AdminListingsPage({
       <PageHeader
         title="Listings"
         description="Moderate listings. Removed listings are hidden from search and public pages."
+        action={<PublishAllDraftsButton draftCount={draftCount} />}
       />
       <Card>
         <CardHeader>
