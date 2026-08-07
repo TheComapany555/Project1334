@@ -4,7 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { getAgencyBySlug } from "@/lib/actions/agencies";
-import { isIndexableAgency } from "@/lib/seo/profile-quality";
+import { NOINDEX_ROBOTS } from "@/lib/seo/noindex";
 import { getPublishedListingsByAgencyId } from "@/lib/actions/listings";
 import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
@@ -51,10 +51,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    // Mirrors the sitemap filter — see the broker page for the rationale.
-    ...(isIndexableAgency(agency)
-      ? null
-      : { robots: { index: false, follow: true } }),
+    // Not indexed by standing policy — see the broker page for the rationale.
+    robots: NOINDEX_ROBOTS,
     alternates: { canonical: url },
     openGraph: {
       type: "website",

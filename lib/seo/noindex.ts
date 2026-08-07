@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 
 /**
- * Standing policy: listing pages, /search and the category views are kept out
- * of search engines.
+ * Standing policy: only the homepage and the legal pages (/privacy, /terms) are
+ * indexed. Everything database-driven is kept out of search engines — listing
+ * pages, /search and its category views, and broker/agency profiles.
  *
  * This is a deliberate product decision, NOT a coming-soon workaround — do not
- * make it conditional on `listings_coming_soon`. Listings stay excluded even
- * once they are publicly visible.
+ * make it conditional on `listings_coming_soon`. These pages stay excluded even
+ * once listings are publicly visible.
  *
  * `follow: true` is intentional: crawlers may still traverse these pages to
- * reach broker and agency profiles, which ARE indexed. Only indexing is
- * withheld, not discovery.
+ * reach the indexed static pages. Only indexing is withheld, not discovery.
  *
- * Sitemap membership must stay in lockstep — a URL that is noindex here must
- * never appear in app/sitemap.ts, or the two signals contradict each other.
+ * Sitemap membership must stay in lockstep — app/sitemap.ts lists the static
+ * pages only, and nothing marked noindex here may be added to it.
  */
 export const NOINDEX_ROBOTS: Metadata["robots"] = {
   index: false,
@@ -22,6 +22,5 @@ export const NOINDEX_ROBOTS: Metadata["robots"] = {
 
 /** Documentation anchor referenced from app/sitemap.ts. */
 export const NOINDEX_REASON =
-  "Listings, /search and category pages are excluded from search indexing by " +
-  "standing policy; only the homepage, legal pages and real broker/agency " +
-  "profiles are indexed.";
+  "Only the homepage and legal pages are indexed by standing policy; listings, " +
+  "/search, category views and broker/agency profiles are all excluded.";
