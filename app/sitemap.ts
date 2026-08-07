@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import { getSiteUrl } from "@/lib/site-url";
+import {
+  isIndexableAgency,
+  isIndexableBrokerProfile,
+} from "@/lib/seo/profile-quality";
 
 // Regenerate sitemap every hour
 export const revalidate = 3600;
@@ -36,69 +39,43 @@ function isPresent<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
+/**
+ * Public sitemap.
+ *
+ * Scope is deliberately narrow and fixed: the homepage, the legal pages, and
+ * broker/agency profiles that carry real content. Individual listing pages,
+ * /search and the category views are intentionally NOT indexed — see
+ * `NOINDEX_REASON` in lib/seo/noindex.ts for the single source of that policy.
+ *
+ * This is a standing decision, not a coming-soon workaround: it must not start
+ * emitting listing URLs when listings become publicly visible. Anything added
+ * here must also be indexable in the page's own robots metadata, or the two
+ * signals contradict each other.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceRoleClient();
-  // Coming-soon mode: keep listing URLs out of the sitemap while hidden.
-  const comingSoon = await getListingsComingSoon();
 
-  // Fetch all published listing slugs + updated dates
-  const [
-    { data: listings },
-    { data: brokers },
-    { data: agencies },
-    { data: categories },
-    { data: subcategories },
-  ] = await Promise.all([
-    comingSoon
-      ? { data: null }
-      : supabase
-          .from("listings")
-          .select("slug, updated_at, published_at")
-          .eq("status", "published")
-          .eq("is_private", false)
-          .is("admin_removed_at", null)
-          .not("slug", "is", null)
-          .order("published_at", { ascending: false }),
+  const [{ data: brokers }, { data: agencies }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("slug, updated_at")
+      .select("slug, updated_at, name, bio, photo_url, company")
       .eq("role", "broker")
       .not("slug", "is", null)
       .order("updated_at", { ascending: false }),
     supabase
       .from("agencies")
-      .select("slug, updated_at")
+      .select("slug, updated_at, name, bio, logo_url")
       .eq("status", "active")
       .not("slug", "is", null)
       .order("updated_at", { ascending: false }),
-    supabase
-      .from("categories")
-      .select("slug")
-      .eq("active", true)
-      .not("slug", "is", null)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("subcategories")
-      .select("id")
-      .eq("active", true)
-      .order("name", { ascending: true }),
   ]);
 
   const now = new Date();
 
-  // Static pages
+  // /compare and /saved are excluded as well: both redirect signed-out visitors
+  // to login, so a crawler never reaches indexable content there.
   const staticPages: MetadataRoute.Sitemap = [
     entry("/", { lastModified: now, changeFrequency: "daily", priority: 1 }),
-    entry("/search", {
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    }),
-    entry("/compare", {
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    }),
     entry("/privacy", {
       lastModified: now,
       changeFrequency: "yearly",
@@ -111,21 +88,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   ];
 
-  // Listing pages
-  const listingPages: MetadataRoute.Sitemap = (listings ?? [])
-    .map((l) =>
-      l.slug
-        ? entry(`/listing/${l.slug}`, {
-            lastModified: l.updated_at ?? l.published_at,
-            changeFrequency: "weekly",
-            priority: 0.8,
-          })
-        : null,
-    )
-    .filter(isPresent);
-
-  // Broker pages
+  // Broker pages. Gated on the shared quality rules so test accounts and thin
+  // name-only profiles stay out — submitting them alongside real profiles is a
+  // low-quality signal that suppresses crawling of the whole site.
   const brokerPages: MetadataRoute.Sitemap = (brokers ?? [])
+    .filter((b) => isIndexableBrokerProfile(b))
     .map((b) =>
       b.slug
         ? entry(`/broker/${b.slug}`, {
@@ -139,6 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Agency pages
   const agencyPages: MetadataRoute.Sitemap = (agencies ?? [])
+    .filter((a) => isIndexableAgency(a))
     .map((a) =>
       a.slug
         ? entry(`/agency/${a.slug}`, {
@@ -150,36 +118,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
     .filter(isPresent);
 
-  // Category search pages
-  const categoryPages: MetadataRoute.Sitemap = (categories ?? [])
-    .map((c) =>
-      c.slug
-        ? entry(`/search?category=${encodeURIComponent(c.slug)}`, {
-            lastModified: now,
-            changeFrequency: "daily",
-            priority: 0.7,
-          })
-        : null,
-    )
-    .filter(isPresent);
-
-  // Subcategory search pages. The app filters these by id because slugs can
-  // repeat across parent categories.
-  const subcategoryPages: MetadataRoute.Sitemap = (subcategories ?? []).map(
-    (s) =>
-      entry(`/search?subcategory=${encodeURIComponent(s.id)}`, {
-        lastModified: now,
-        changeFrequency: "daily",
-        priority: 0.65,
-      }),
-  );
-
-  return [
-    ...staticPages,
-    ...listingPages,
-    ...brokerPages,
-    ...agencyPages,
-    ...categoryPages,
-    ...subcategoryPages,
-  ];
+  return [...staticPages, ...brokerPages, ...agencyPages];
 }

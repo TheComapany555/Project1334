@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-client";
 import { getProfileBySlug } from "@/lib/actions/profile";
+import { isIndexableBrokerProfile } from "@/lib/seo/profile-quality";
 import { getPublishedListingsByBrokerId } from "@/lib/actions/listings";
 import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
@@ -53,6 +54,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    // Test accounts and thin name-only profiles stay out of the index. This
+    // mirrors the sitemap's filter so a page is never omitted there but left
+    // indexable here (it would still be crawled via internal links).
+    ...(isIndexableBrokerProfile(profile)
+      ? null
+      : { robots: { index: false, follow: true } }),
     alternates: { canonical: url },
     openGraph: {
       type: "profile",

@@ -15,6 +15,9 @@ import { ComparisonTable } from "./comparison-table";
 export const metadata: Metadata = {
   title: "Compare Listings",
   description: "Compare business listings side-by-side",
+  // Signed-out visitors (including crawlers) are redirected to login, so there
+  // is no indexable content here. Kept out of the sitemap for the same reason.
+  robots: { index: false, follow: true },
 };
 
 export default async function ComparePage() {

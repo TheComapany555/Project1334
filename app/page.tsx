@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { getSession } from "@/lib/auth-client";
+import { getSiteUrl } from "@/lib/site-url";
 import {
   getListingHighlights,
   getHomepageFeaturedListings,
@@ -63,6 +65,8 @@ function formatPrice(listing: Listing): string {
   }
   return "—";
 }
+
+const SITE_URL = getSiteUrl();
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const STATS = [
@@ -216,6 +220,52 @@ function ListingCard({ listing, sizes }: { listing: Listing; sizes: string }) {
 }
 
 // ─── Page (Server Component) ───────────────────────────────────────────────────
+export const metadata: Metadata = {
+  title: "Businesses for Sale in Australia",
+  description:
+    "Browse verified businesses for sale across Australia. Search by industry, location and price, and connect directly with licensed business brokers on Salebiz.",
+  alternates: { canonical: SITE_URL },
+};
+
+/**
+ * Site-wide identity markup. WebSite (with SearchAction) is what lets Google
+ * render a sitelinks search box, and Organization backs the brand knowledge
+ * panel — both belong on the homepage only, not on every page.
+ */
+const SITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "Salebiz",
+      description:
+        "Australia's trusted marketplace for buying and selling businesses.",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "en-AU",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+        },
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Salebiz",
+      url: SITE_URL,
+      logo: { "@type": "ImageObject", url: SALEBIZ_LOGO_URL },
+      description:
+        "Australia's trusted marketplace for buying and selling businesses, connecting buyers with licensed business brokers nationwide.",
+      areaServed: { "@type": "Country", name: "Australia" },
+    },
+  ],
+};
+
 export default async function HomePage() {
   // Featured first so we can exclude its IDs from the recent fetch before
   // diversifying — that way the visible Recent grid is always a full 12 items
@@ -236,6 +286,10 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }}
+      />
       <PublicHeader session={session} variant="full" />
 
       <main className="flex-1">

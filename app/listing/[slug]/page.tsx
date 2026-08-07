@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getListingBySlug } from "@/lib/actions/listings";
 import { getListingBySlugAdmin } from "@/lib/actions/admin-listings";
 import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { NOINDEX_ROBOTS } from "@/lib/seo/noindex";
 import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const listing = await getListingBySlug(slug);
   if (!listing) {
-    return { title: "Listing not found" };
+    return { title: "Listing not found", robots: NOINDEX_ROBOTS };
   }
   const location =
     listing.location_text ||
@@ -82,6 +83,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    // Listing pages are not indexed by standing policy (see lib/seo/noindex.ts).
+    // The OpenGraph/Twitter tags below are kept regardless: they drive link
+    // previews when a broker shares a listing, which noindex does not affect.
+    robots: NOINDEX_ROBOTS,
     alternates: { canonical: url },
     openGraph: {
       type: "article",

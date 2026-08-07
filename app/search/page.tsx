@@ -11,17 +11,17 @@ import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { SearchForm } from "@/app/search/search-form";
 import { SearchResults } from "@/app/search/search-results";
 import { AdSlot } from "@/components/ads/ad-slot";
-import { getSiteUrl } from "@/lib/site-url";
-
-const SITE_URL = getSiteUrl();
+import { NOINDEX_ROBOTS } from "@/lib/seo/noindex";
 
 export const metadata: Metadata = {
   title: "Browse Businesses for Sale",
   description:
     "Search and filter businesses for sale across Australia. Browse by industry, location, price range, and more on Salebiz.",
-  alternates: {
-    canonical: `${SITE_URL}/search`,
-  },
+  // /search and every filtered view of it (including ?category=) are excluded
+  // from indexing by standing policy — see lib/seo/noindex.ts. Because none of
+  // these URLs are indexed, they need no per-variant canonical: there are no
+  // duplicate search results to consolidate.
+  robots: NOINDEX_ROBOTS,
 };
 
 const PAGE_SIZE = 12;
