@@ -1,9 +1,15 @@
-import { getListingsComingSoonDetails } from "@/lib/actions/site-settings";
+import {
+  getListingsComingSoonDetails,
+  getBasicListingsSearchableDetails,
+} from "@/lib/actions/site-settings";
 import { PageHeader } from "@/components/admin/page-header";
 import { SettingsForm } from "./settings-form";
 
 export default async function AdminSettingsPage() {
-  const { enabled, updatedAt } = await getListingsComingSoonDetails();
+  const [{ enabled, updatedAt }, basic] = await Promise.all([
+    getListingsComingSoonDetails(),
+    getBasicListingsSearchableDetails(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -11,7 +17,12 @@ export default async function AdminSettingsPage() {
         title="Settings"
         description="Global site settings. Changes take effect immediately."
       />
-      <SettingsForm initialComingSoon={enabled} initialUpdatedAt={updatedAt} />
+      <SettingsForm
+        initialComingSoon={enabled}
+        initialUpdatedAt={updatedAt}
+        initialBasicSearchable={basic.enabled}
+        basicSearchableAvailable={basic.available}
+      />
     </div>
   );
 }

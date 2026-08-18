@@ -4,7 +4,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { generateListingSlug } from "@/lib/slug";
-import { normaliseHeader, type ListingImportRow } from "@/lib/listings-import";
+import {
+  normaliseHeader,
+  IMPORT_TIERS,
+  type ListingImportRow,
+  type ListingImportTier,
+} from "@/lib/listings-import";
 import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
 import { syncSubscriptionById } from "@/lib/payments/activate-subscription";
 
@@ -40,8 +45,14 @@ async function requireBroker() {
  */
 export async function importListings(
   rows: ListingImportRow[],
+  opts: { tier?: ListingImportTier } = {},
 ): Promise<ImportListingsResult> {
   const { userId, agencyId } = await requireBroker();
+  // Imported listings land on Basic unless the importer explicitly asks for a
+  // paid tier. NB: Basic listings are excluded from homepage/search unless an
+  // admin has enabled `basic_listings_searchable` in /admin/settings.
+  const importTier: ListingImportTier =
+    opts.tier && IMPORT_TIERS.includes(opts.tier) ? opts.tier : "basic";
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return { ok: true, created: 0, skipped: 0, categoryMatched: 0, categoryUnmatched: 0 };
@@ -128,7 +139,7 @@ export async function importListings(
         summary: r.summary ?? null,
         description: r.description ?? null,
         status: "draft" as const,
-        listing_tier: "basic" as const,
+        listing_tier: importTier,
       };
     })
     .filter((p): p is NonNullable<typeof p> => p !== null);

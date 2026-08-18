@@ -21,6 +21,7 @@ import {
   type Paginated,
 } from "@/lib/types/pagination";
 import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
+import { getBasicListingsSearchable } from "@/lib/actions/site-settings";
 
 // Homepage feeds over-fetch by this factor before diversifying, so a few
 // dominant brokers can't lock out the visible window. Capped at the
@@ -491,12 +492,18 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   if (params.profit_max != null) query = query.lte("profit", Number(params.profit_max));
 
   const nowIso = new Date().toISOString();
-  query = query.or(
-    publicMarketplaceVisibilityFilter(
-      categoryFilterApplied ? "category" : "homepage",
-      nowIso,
-    ),
-  );
+  // Basic (free) listings are normally excluded from the marketplace — paid
+  // tiers buy that exposure. Admins can lift the gate globally from
+  // /admin/settings, which is what makes a wholly-Basic imported catalogue
+  // visible without dismantling the paywall.
+  if (!(await getBasicListingsSearchable())) {
+    query = query.or(
+      publicMarketplaceVisibilityFilter(
+        categoryFilterApplied ? "category" : "homepage",
+        nowIso,
+      ),
+    );
+  }
 
   // Featured listings rank first, scoped to the surface being viewed:
   // - Category-filtered queries promote listings featured in that category.

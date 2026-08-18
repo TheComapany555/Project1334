@@ -33,6 +33,14 @@ export type ListingImportColumn = (typeof LISTING_IMPORT_COLUMNS)[number];
 export const MAX_IMPORT_ROWS = 2000;
 
 /**
+ * Tiers an import may assign. Defaults to "basic" (free). Note that Basic
+ * listings are kept off the homepage/search unless an admin has switched on
+ * `basic_listings_searchable` — paid tiers are what normally buy that exposure.
+ */
+export const IMPORT_TIERS = ["basic", "standard", "featured"] as const;
+export type ListingImportTier = (typeof IMPORT_TIERS)[number];
+
+/**
  * Rows sent to the server per chunk. Smaller than the contact import because
  * each listing is a full insert (+ slug); keeps every call well under the
  * function-timeout window.
