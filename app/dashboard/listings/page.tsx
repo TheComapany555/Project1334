@@ -23,6 +23,7 @@ import { ImportListingsButton } from "@/components/dashboard/import-listings-but
 import { ImportReaxmlButton } from "@/components/dashboard/import-reaxml-button";
 import { PlusIcon, Building2Icon } from "lucide-react";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 type SP = { [key: string]: string | string[] | undefined };
 
@@ -53,17 +54,19 @@ export default async function ListingsPage({
       ? visibilityParam
       : undefined;
 
-  const [result, brokerSlug, categories, highlights, session] = await Promise.all([
+  const [result, brokerSlug, categories, highlights, session, billingEnabled] = await Promise.all([
     listBrokerListings({ page, pageSize, q, status, ownership, visibility }),
     getBrokerSlug(),
     getCategories(),
     getListingHighlights(),
     getSession(),
+    isBillingEnabled(),
   ]);
 
   const isAgencyOwner = session?.user?.agencyRole === "owner";
   const isAgencyMember = !!session?.user?.agencyId && !isAgencyOwner;
-  const canFeature = !session?.user?.agencyId || isAgencyOwner;
+  // Featured upgrades are a paid product, hidden entirely in free mode.
+  const canFeature = billingEnabled && (!session?.user?.agencyId || isAgencyOwner);
 
   // Agency owners can assign listings to their brokers — load the team for the picker.
   const agencyBrokers = isAgencyOwner ? await getAgencyBrokers() : [];
@@ -168,6 +171,7 @@ export default async function ListingsPage({
                   brokerSlug={brokerSlug ?? undefined}
                   isAgencyOwner={isAgencyOwner}
                   canFeature={canFeature}
+                  billingEnabled={billingEnabled}
                   agencyBrokers={agencyBrokers}
                   showOwnershipTabs={isAgencyMember}
                 />

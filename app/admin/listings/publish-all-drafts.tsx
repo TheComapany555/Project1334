@@ -26,7 +26,14 @@ const SKIP_REASON_LABELS: Record<BulkPublishSkipReason, string> = {
 
 type SkippedListing = { id: string; title: string; reason: BulkPublishSkipReason };
 
-export function PublishAllDraftsButton({ draftCount }: { draftCount: number }) {
+export function PublishAllDraftsButton({
+  draftCount,
+  billingEnabled = true,
+}: {
+  draftCount: number;
+  /** False in free mode: no billing gates apply, so every draft publishes. */
+  billingEnabled?: boolean;
+}) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -94,9 +101,9 @@ export function PublishAllDraftsButton({ draftCount }: { draftCount: number }) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Publish all draft listings?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will publish all {draftCount} draft listings platform-wide. Listings that
-                  require tier payment or belong to an agency without an active subscription will
-                  be skipped — billing rules are not bypassed.
+                  {billingEnabled
+                    ? `This will publish all ${draftCount} draft listings platform-wide. Listings that require tier payment or belong to an agency without an active subscription will be skipped. Billing rules are not bypassed.`
+                    : `This will publish all ${draftCount} draft listings platform-wide. Billing is switched off (free mode), so no listings are held back for payment or subscription reasons.`}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

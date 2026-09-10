@@ -21,6 +21,7 @@ import {
   reorderListingImages,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
+import { getBillingEnabled } from "@/lib/actions/site-settings";
 import { SUGGESTED_REGIONS, type Category, type Subcategory, type Listing, type ListingHighlight, type ListingTier } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
@@ -120,6 +121,12 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
 
   // Can change tier only if draft and not yet paid, or admin can always change
   const canChangeTier = isAdmin || (listing.status === "draft" && !listing.tier_paid_at);
+  // Free mode (billing switched off): the visibility-tier card and "Continue to
+  // payment" are hidden; publishing is a single free step.
+  const [billingEnabled, setBillingEnabled] = useState(true);
+  useEffect(() => {
+    getBillingEnabled().then(setBillingEnabled).catch(() => setBillingEnabled(false));
+  }, []);
   const [descriptionEditorState, setDescriptionEditorState] = useState<SerializedEditorState | undefined>(() => {
     if (!listing.description) return undefined;
     try {
@@ -285,8 +292,8 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
       toast.error(result.error ?? "Failed to save.");
       return;
     }
-    if (selectedTier === "basic") {
-      // Basic tier: publish directly
+    if (!billingEnabled || selectedTier === "basic") {
+      // Basic tier (or free mode): publish directly
       const statusResult = await updateListingStatus(listing.id, "published");
       if (statusResult.ok) {
         toast.success("Listing published.");
@@ -773,38 +780,40 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           </CardContent>
         </Card>
 
-        {/* Listing Tier */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Listing visibility</CardTitle>
-            <CardDescription>
-              {canChangeTier
-                ? "Choose how visible your listing will be."
-                : "Visibility level is locked after payment."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {canChangeTier ? (
-              <TierSelector
-                products={tierProducts}
-                selectedTier={selectedTier}
-                onSelectTier={(tier, productId) => {
-                  setSelectedTier(tier);
-                  setSelectedTierProductId(productId);
-                }}
-              />
-            ) : (
-              <div className="flex items-center gap-2">
-                <TierBadge tier={(listing.listing_tier as ListingTier) ?? "basic"} />
-                {listing.tier_paid_at && (
-                  <span className="text-xs text-muted-foreground">
-                    Paid
-                  </span>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Listing Tier, hidden in free mode (billing switched off) */}
+        {billingEnabled && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Listing visibility</CardTitle>
+              <CardDescription>
+                {canChangeTier
+                  ? "Choose how visible your listing will be."
+                  : "Visibility level is locked after payment."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {canChangeTier ? (
+                <TierSelector
+                  products={tierProducts}
+                  selectedTier={selectedTier}
+                  onSelectTier={(tier, productId) => {
+                    setSelectedTier(tier);
+                    setSelectedTierProductId(productId);
+                  }}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <TierBadge tier={(listing.listing_tier as ListingTier) ?? "basic"} />
+                  {listing.tier_paid_at && (
+                    <span className="text-xs text-muted-foreground">
+                      Paid
+                    </span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Private (off-market) vs Live on Salebiz. Broker-only — admins manage
             marketplace state via the admin tools. */}
@@ -895,7 +904,7 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
               onClick={onPayAndPublish}
               disabled={saving}
             >
-              {selectedTier === "basic" ? "Publish" : "Continue to payment"}
+              {!billingEnabled || selectedTier === "basic" ? "Publish" : "Continue to payment"}
             </Button>
           )}
           {canUnderOffer && (

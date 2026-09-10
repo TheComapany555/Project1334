@@ -181,6 +181,11 @@ export async function createProduct(form: {
   await requireAdmin();
   const supabase = createServiceRoleClient();
 
+  // $0 is allowed (free plan / free product); negative never is.
+  if (!Number.isFinite(form.price) || form.price < 0) {
+    return { ok: false, error: "Price cannot be negative." };
+  }
+
   const { data, error } = await supabase
     .from("products")
     .insert({
@@ -225,6 +230,10 @@ export async function updateProduct(
 ): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
+
+  if (form.price !== undefined && (!Number.isFinite(form.price) || form.price < 0)) {
+    return { ok: false, error: "Price cannot be negative." };
+  }
 
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),

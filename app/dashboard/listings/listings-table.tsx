@@ -122,6 +122,8 @@ type Props = {
   brokerSlug?: string;
   isAgencyOwner?: boolean;
   canFeature?: boolean;
+  /** False in free mode: hides "Unpaid / Payment pending" hints on tier badges. */
+  billingEnabled?: boolean;
   /** Brokers in the agency — enables the owner's "assign to broker" UI. */
   agencyBrokers?: AgencyBroker[];
 };
@@ -183,6 +185,7 @@ export function ListingsTable({
   brokerSlug,
   isAgencyOwner,
   canFeature,
+  billingEnabled = true,
   agencyBrokers = [],
 }: Props) {
   const router = useRouter();
@@ -431,7 +434,8 @@ export function ListingsTable({
             <TierBadge
               tier={(row.original.listing_tier as ListingTier) ?? "basic"}
             />
-            {row.original.listing_tier !== "basic" &&
+            {billingEnabled &&
+              row.original.listing_tier !== "basic" &&
               !row.original.tier_paid_at && (
                 <span className="text-[10px] text-amber-600 dark:text-amber-400">
                   {row.original.status === "draft"
@@ -722,7 +726,7 @@ export function ListingsTable({
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAgencyOwner, brokerSlug, canFeature, canAssign, selectedIds, toggleOne, toggleAll, openAssignFor]);
+  }, [isAgencyOwner, brokerSlug, canFeature, billingEnabled, canAssign, selectedIds, toggleOne, toggleAll, openAssignFor]);
 
   if (result.total === 0 && !state.q && !state.filters.status) {
     return (

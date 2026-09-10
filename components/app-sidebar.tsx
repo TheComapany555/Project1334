@@ -60,15 +60,17 @@ const brokerNav = [
     url: "/dashboard/analytics",
     icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
   },
-  { title: "Payments", url: "/dashboard/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} /> },
+  // Hidden in free mode (billing switched off); see `billingEnabled` prop.
+  { title: "Payments", url: "/dashboard/payments", icon: <HugeiconsIcon icon={Wallet02Icon} strokeWidth={2} />, billingOnly: true },
   { title: "Integrations", url: "/dashboard/integrations", icon: <HugeiconsIcon icon={ApiIcon} strokeWidth={2} /> },
   { title: "Support", url: "/dashboard/support", icon: <HugeiconsIcon icon={CustomerService01Icon} strokeWidth={2} /> },
 ]
 
 export function AppSidebar({
   user,
+  billingEnabled = true,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { user: SidebarUser }) {
+}: React.ComponentProps<typeof Sidebar> & { user: SidebarUser; billingEnabled?: boolean }) {
   const pathname = usePathname()
   const workspaceActive = workspaceActivePaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
@@ -80,7 +82,7 @@ export function AppSidebar({
     avatar: user.photoUrl ?? "",
   }
 
-  const navItems = brokerNav
+  const navItems = brokerNav.filter((item) => billingEnabled || !item.billingOnly)
 
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>

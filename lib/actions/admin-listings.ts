@@ -275,11 +275,14 @@ export type BulkPublishDraftsResult =
  * Admin: publish every draft listing platform-wide, mirroring the publish gates
  * in `updateListingStatus` — drafts under an inactive agency subscription, or on
  * an unpaid non-basic tier (unless private), are skipped and reported.
+ * In free mode (billing switched off) neither gate applies and every draft publishes.
  */
 export async function adminBulkPublishDrafts(): Promise<BulkPublishDraftsResult> {
   await requireAdmin();
   const supabase = createServiceRoleClient();
   const { checkAgencySubscriptionAccess } = await import("@/lib/subscriptions/agency-access");
+  const { isBillingEnabled } = await import("@/lib/billing-mode");
+  const billingEnabled = await isBillingEnabled();
 
   const { data: drafts, error: fetchError } = await supabase
     .from("listings")
@@ -309,7 +312,7 @@ export async function adminBulkPublishDrafts(): Promise<BulkPublishDraftsResult>
       continue;
     }
     const tier = listing.listing_tier ?? "basic";
-    if (!listing.is_private && tier !== "basic" && !listing.tier_paid_at) {
+    if (billingEnabled && !listing.is_private && tier !== "basic" && !listing.tier_paid_at) {
       skipped.push({ id: listing.id, title, reason: "payment_required" });
       continue;
     }

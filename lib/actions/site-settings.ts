@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 async function requireAdmin() {
   const { getServerSession } = await import("next-auth");
@@ -48,6 +49,58 @@ export async function getBasicListingsSearchable(): Promise<boolean> {
     .maybeSingle();
   if (error || !data) return false;
   return data.basic_listings_searchable === true;
+}
+
+/**
+ * True when billing (subscriptions + listing tiers) is switched on. False =
+ * FREE MODE. Server-action wrapper around `isBillingEnabled` so client
+ * components (listing forms, subscribe page) can ask too. Fails open to free;
+ * see lib/billing-mode.ts.
+ */
+export async function getBillingEnabled(): Promise<boolean> {
+  return isBillingEnabled();
+}
+
+/** Admin-only read for the billing / free-mode toggle. */
+export async function getBillingEnabledDetails(): Promise<{
+  enabled: boolean;
+  available: boolean;
+}> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("billing_enabled")
+    .eq("id", true)
+    .maybeSingle();
+  // `available: false` = migration not applied; the site is then simply in
+  // free mode and the switch is disabled with an explanation.
+  if (error) return { enabled: false, available: false };
+  return { enabled: data?.billing_enabled === true, available: true };
+}
+
+export async function setBillingEnabled(
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert({ id: true, billing_enabled: enabled }, { onConflict: "id" })
+    .select("updated_at")
+    .single();
+  if (error) {
+    return {
+      ok: false,
+      error:
+        "Could not save the setting. Check that the billing_enabled migration has been applied.",
+    };
+  }
+  // Homepage copy + listing visibility depend on this flag and are ISR-cached.
+  revalidatePath("/", "layout");
+  revalidatePath("/search");
+  revalidatePath("/sitemap.xml");
+  return { ok: true };
 }
 
 /** Admin-only read used by /admin/settings (includes last-changed time). */

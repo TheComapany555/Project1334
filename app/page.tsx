@@ -9,6 +9,7 @@ import {
   getHomepageRecentListings,
 } from "@/lib/actions/listings";
 import { getListingsComingSoon } from "@/lib/actions/site-settings";
+import { isBillingEnabled } from "@/lib/billing-mode";
 import { ListingsComingSoon } from "@/components/listings/listings-coming-soon";
 import type { Listing } from "@/lib/types/listings";
 import { Button } from "@/components/ui/button";
@@ -270,10 +271,11 @@ export default async function HomePage() {
   // Featured first so we can exclude its IDs from the recent fetch before
   // diversifying — that way the visible Recent grid is always a full 12 items
   // of distinct brokers/agencies, not a leftover after filtering.
-  const [session, comingSoon, highlights] = await Promise.all([
+  const [session, comingSoon, highlights, billingEnabled] = await Promise.all([
     getSession(),
     getListingsComingSoon(),
     getListingHighlights(),
+    isBillingEnabled(),
   ]);
   const featuredListings = comingSoon
     ? []
@@ -793,11 +795,14 @@ export default async function HomePage() {
                     </span>
                     <div>
                       <p className="text-sm font-medium">
-                        Subscribe &amp; invite your team
+                        {billingEnabled
+                          ? "Subscribe & invite your team"
+                          : "Invite your team"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Choose a subscription plan and invite brokers to join
-                        your agency.
+                        {billingEnabled
+                          ? "Choose a subscription plan and invite brokers to join your agency."
+                          : "Invite brokers to join your agency. Salebiz is free to use right now."}
                       </p>
                     </div>
                   </li>
@@ -810,8 +815,9 @@ export default async function HomePage() {
                         List businesses for sale
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Create listings, choose a visibility level, and start
-                        receiving buyer enquiries.
+                        {billingEnabled
+                          ? "Create listings, choose a visibility level, and start receiving buyer enquiries."
+                          : "Create listings, publish them for free, and start receiving buyer enquiries."}
                       </p>
                     </div>
                   </li>

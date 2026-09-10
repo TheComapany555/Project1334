@@ -1,8 +1,10 @@
 import type { createServiceRoleClient } from "@/lib/supabase/admin";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 type SupabaseAdmin = ReturnType<typeof createServiceRoleClient>;
 
 export type AgencySubscriptionAccessReason =
+  | "free_mode"
   | "solo_broker"
   | "exempt"
   | "active"
@@ -17,13 +19,18 @@ export type AgencySubscriptionAccess = {
 };
 
 /**
- * Unified gate for listing create/import: solo brokers pass; waived agencies pass;
+ * Unified gate for listing create/import: free mode (billing switched off in
+ * /admin/settings) passes everyone; solo brokers pass; waived agencies pass;
  * otherwise require active, trialing, or in-grace past_due subscription.
  */
 export async function checkAgencySubscriptionAccess(
   supabase: SupabaseAdmin,
   agencyId: string | null,
 ): Promise<AgencySubscriptionAccess> {
+  if (!(await isBillingEnabled())) {
+    return { allowed: true, reason: "free_mode" };
+  }
+
   if (!agencyId) {
     return { allowed: true, reason: "solo_broker" };
   }

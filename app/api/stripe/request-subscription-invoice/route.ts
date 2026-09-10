@@ -86,6 +86,18 @@ export async function POST(req: NextRequest) {
   const finalPrice = quote.monthly_total_cents;
   const finalCurrency = quote.currency;
 
+  // A $0 plan needs no invoice; it is activated directly via
+  // `activateFreeSubscription` from the plan page.
+  if (finalPrice === 0) {
+    return NextResponse.json(
+      {
+        error: "This plan is free for your agency, so no invoice is needed. Activate it from the plan page.",
+        code: "FREE_PLAN",
+      },
+      { status: 400 },
+    );
+  }
+
   // Create a pending subscription record with the seat snapshot so admin
   // knows what the agency was sized for at request time.
   const { data: subRecord, error: subError } = await supabase

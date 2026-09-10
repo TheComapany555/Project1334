@@ -101,8 +101,8 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
 
   async function onSubmit(values: FormValues) {
     const priceNum = parseFloat(values.price);
-    if (isNaN(priceNum) || priceNum < 0.01) {
-      toast.error("Price must be at least $0.01");
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast.error("Price must be zero or more");
       return;
     }
     const durationNum = values.duration_days ? parseInt(values.duration_days, 10) : null;
@@ -362,11 +362,18 @@ export function ProductForm({ product, categories, initialFeaturedScope }: Produ
             id="price"
             type="number"
             step="0.01"
-            min="0.01"
+            min="0"
             {...register("price")}
-            placeholder="49.00"
+            placeholder="49.00 (0 = free)"
           />
           <FieldError message={errors.price?.message} />
+          {isSubscription && (
+            <p className="text-xs text-muted-foreground">
+              Set 0 to make this a free plan. Agencies activate it instantly
+              with no card or Stripe billing. Set the extra broker price to 0
+              as well if seats should also be free.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">

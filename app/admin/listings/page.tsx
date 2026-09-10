@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import { AdminListingsTable } from "./listings-table";
 import { PublishAllDraftsButton } from "./publish-all-drafts";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 type SP = { [key: string]: string | string[] | undefined };
 
@@ -27,7 +28,7 @@ export default async function AdminListingsPage({
   const visibility = pickStr(sp.visibility);
   const featured = pickStr(sp.featured);
 
-  const [result, draftCount] = await Promise.all([
+  const [result, draftCount, billingEnabled] = await Promise.all([
     listAdminListings({
       page,
       pageSize,
@@ -37,6 +38,7 @@ export default async function AdminListingsPage({
       featured,
     }),
     countAdminDraftListings(),
+    isBillingEnabled(),
   ]);
 
   const hasFilters = !!(q || status || visibility || featured);
@@ -46,7 +48,7 @@ export default async function AdminListingsPage({
       <PageHeader
         title="Listings"
         description="Moderate listings. Removed listings are hidden from search and public pages."
-        action={<PublishAllDraftsButton draftCount={draftCount} />}
+        action={<PublishAllDraftsButton draftCount={draftCount} billingEnabled={billingEnabled} />}
       />
       <Card>
         <CardHeader>

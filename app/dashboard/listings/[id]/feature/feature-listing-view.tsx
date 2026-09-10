@@ -47,6 +47,8 @@ type Props = {
     category: Product[];
     both: Product[];
   };
+  /** False in free mode: renders a "featured upgrades are paused" notice instead. */
+  billingEnabled?: boolean;
 };
 
 function formatPrice(cents: number, currency: string): string {
@@ -84,8 +86,42 @@ const SCOPE_DESCRIPTIONS: Record<FeaturedScope, (categoryName?: string) => strin
       : "Featured on the homepage AND at the top of its category page.",
 };
 
-export function FeatureListingView({ listing, options }: Props) {
+export function FeatureListingView({ listing, options, billingEnabled = true }: Props) {
   const router = useRouter();
+
+  // Free mode (billing switched off in admin settings): featured upgrades are a
+  // paid product, so there is nothing to buy here.
+  if (!billingEnabled) {
+    return (
+      <div className="max-w-xl mx-auto space-y-6">
+        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+          <Link href="/dashboard/listings">
+            <ArrowLeft className="h-4 w-4" />
+            Back to listings
+          </Link>
+        </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-500" />
+              Featured upgrades are paused
+            </CardTitle>
+            <CardDescription>
+              Salebiz is currently free to use, so paid featured placements are
+              not available right now. Every published listing already appears
+              on the homepage and in search.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{listing.title}</span>{" "}
+              is live and discoverable at no cost.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const [selectedScope, setSelectedScope] = useState<FeaturedScope>("homepage");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

@@ -5,10 +5,12 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   Building2,
+  CreditCard,
   ExternalLink,
   Eye,
   EyeOff,
   FileText,
+  Gift,
   Heart,
   Home,
   Loader2,
@@ -40,8 +42,16 @@ import { Switch } from "@/components/ui/switch";
 import {
   setListingsComingSoon,
   setBasicListingsSearchable,
+  setBillingEnabled,
 } from "@/lib/actions/site-settings";
 import { cn } from "@/lib/utils";
+
+const FREE_MODE_EFFECTS = [
+  "No subscription needed. Every broker and agency gets the full dashboard",
+  "Listings publish immediately, with no visibility-level payment",
+  "All published listings appear on the homepage and in search",
+  "Subscribe, Payments and Featured-upgrade pages are hidden from brokers",
+] as const;
 
 const AFFECTED_SURFACES = [
   { icon: Home, label: "Homepage listings" },
@@ -57,12 +67,39 @@ export function SettingsForm({
   initialUpdatedAt,
   initialBasicSearchable,
   basicSearchableAvailable,
+  initialBillingEnabled,
+  billingAvailable,
 }: {
   initialComingSoon: boolean;
   initialUpdatedAt: string | null;
   initialBasicSearchable: boolean;
   basicSearchableAvailable: boolean;
+  initialBillingEnabled: boolean;
+  billingAvailable: boolean;
 }) {
+  const [billingEnabled, setBillingEnabledState] = useState(initialBillingEnabled);
+  const [pendingBillingNext, setPendingBillingNext] = useState<boolean | null>(null);
+  const [isBillingPending, startBillingTransition] = useTransition();
+
+  function confirmBillingChange() {
+    if (pendingBillingNext === null) return;
+    const next = pendingBillingNext;
+    setPendingBillingNext(null);
+    startBillingTransition(async () => {
+      const result = await setBillingEnabled(next);
+      if (result.ok) {
+        setBillingEnabledState(next);
+        toast.success(
+          next
+            ? "Billing is on. Subscriptions and listing payments apply again."
+            : "Free mode is on. All paywalls are switched off.",
+        );
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
   const [comingSoon, setComingSoon] = useState(initialComingSoon);
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
   // The direction the admin is about to confirm; null = dialog closed.
@@ -114,6 +151,122 @@ export function SettingsForm({
 
   return (
     <>
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <CardTitle>Payments &amp; pricing</CardTitle>
+            <CardDescription>
+              Switch all subscription and listing paywalls on or off across the
+              platform. Nothing is deleted: plans, prices and existing
+              subscriptions are kept and apply again when billing is turned back
+              on.
+            </CardDescription>
+          </div>
+          <Badge variant={billingEnabled ? "secondary" : "success"}>
+            {billingEnabled ? "Billing on" : "Free mode"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!billingAvailable && (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-muted-foreground">
+              This setting needs the{" "}
+              <code className="text-xs">billing_enabled</code> migration to be
+              applied to the database before it can be changed. Until then the
+              platform runs in free mode.
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "flex items-start gap-3 rounded-lg border p-4",
+              billingEnabled
+                ? "border-border bg-muted/40"
+                : "border-success/30 bg-success/10",
+            )}
+          >
+            <div
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+                billingEnabled
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-success/15 text-success",
+              )}
+            >
+              {billingEnabled ? (
+                <CreditCard className="h-4.5 w-4.5" aria-hidden />
+              ) : (
+                <Gift className="h-4.5 w-4.5" aria-hidden />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {billingEnabled
+                  ? "Billing is on"
+                  : "Free mode is on, everything is free"}
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">
+                {billingEnabled
+                  ? "Agencies need an active subscription to use the dashboard, and Standard/Featured listings require payment before they publish. Per-agency waivers and $0 plans still work."
+                  : "No subscription or listing payment is required anywhere. Brokers and agencies can sign up, create listings and publish straight away."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-6 rounded-lg border border-border p-4">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="billing-enabled" className="text-sm font-medium">
+                Charge for subscriptions and listings
+              </Label>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Turn this off to make the whole platform free. Turn it back on
+                whenever you want to start charging again. Changes apply
+                instantly, no deploy needed.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              {isBillingPending && (
+                <Loader2
+                  className="h-4 w-4 animate-spin text-muted-foreground"
+                  aria-label="Saving"
+                />
+              )}
+              <Switch
+                id="billing-enabled"
+                checked={billingEnabled}
+                onCheckedChange={(next) => setPendingBillingNext(next)}
+                disabled={isBillingPending || !billingAvailable}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              What free mode does
+            </p>
+            <ul className="mt-3 space-y-2">
+              {FREE_MODE_EFFECTS.map((line) => (
+                <li
+                  key={line}
+                  className="flex items-start gap-2 text-sm text-muted-foreground"
+                >
+                  <span
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                    aria-hidden
+                  />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Existing paid Stripe subscriptions keep billing as normal either
+            way. To stop charging a specific agency, use &ldquo;Waive
+            subscription&rdquo; on that agency instead.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1.5">
@@ -338,6 +491,34 @@ export function SettingsForm({
           </p>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={pendingBillingNext !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingBillingNext(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingBillingNext
+                ? "Turn billing back on?"
+                : "Make the whole platform free?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingBillingNext
+                ? "Agencies without an active subscription (or a waiver) will see the subscription lock screen again, new Standard and Featured listings will require payment before publishing, and Basic listings will drop out of browse and search unless the Basic-listings toggle below is on. Listings that are already published stay published."
+                : "Every paywall switches off immediately: no subscription is needed to use the dashboard, listings publish without payment, all published listings become discoverable, and the Subscribe / Payments / Featured-upgrade pages are hidden from brokers. Plans and prices are kept so you can switch billing back on later."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBillingChange}>
+              {pendingBillingNext ? "Turn billing on" : "Make everything free"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={pendingBasicNext !== null}

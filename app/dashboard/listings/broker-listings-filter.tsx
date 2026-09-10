@@ -59,6 +59,8 @@ type Props = {
   brokerSlug?: string;
   isAgencyOwner?: boolean;
   canFeature?: boolean;
+  /** False in free mode: hides payment hints on tier badges. */
+  billingEnabled?: boolean;
   agencyBrokers?: AgencyBroker[];
   /** Show the "Created by me / Assigned to me" scope switch (agency members). */
   showOwnershipTabs?: boolean;
@@ -76,6 +78,7 @@ export function BrokerListingsWithFilter({
   brokerSlug,
   isAgencyOwner,
   canFeature,
+  billingEnabled,
   agencyBrokers,
   showOwnershipTabs,
 }: Props) {
@@ -279,6 +282,7 @@ export function BrokerListingsWithFilter({
         brokerSlug={brokerSlug}
         isAgencyOwner={isAgencyOwner}
         canFeature={canFeature}
+        billingEnabled={billingEnabled}
         agencyBrokers={agencyBrokers}
       />
     </div>

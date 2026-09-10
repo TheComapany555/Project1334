@@ -76,9 +76,14 @@ export async function activateSubscriptionFromPaymentIntent(
       paymentIntent.metadata?.extra_seat_price ?? "0",
     );
     const seatQuantity = Number(paymentIntent.metadata?.seat_quantity ?? "1");
-    const basePriceCents = Number(
-      paymentIntent.metadata?.base_price_cents ?? "0",
-    );
+    // Presence-based: a $0 per-agency override is a real price, not "missing".
+    // Only fall back to the product's list price when the snapshot is absent
+    // (older PaymentIntents created before the snapshot existed).
+    const basePriceSnapshot = paymentIntent.metadata?.base_price_cents;
+    const basePriceCents: number | null =
+      basePriceSnapshot != null && basePriceSnapshot !== ""
+        ? Number(basePriceSnapshot)
+        : null;
 
     const customer = await stripe.customers.create({
       email: agencyEmail || undefined,
@@ -95,7 +100,7 @@ export async function activateSubscriptionFromPaymentIntent(
     if (product) {
       const basePrice = await stripe.prices.create({
         currency: product.currency,
-        unit_amount: basePriceCents || product.price,
+        unit_amount: basePriceCents ?? product.price,
         recurring: { interval: "month" },
         product_data: {
           name: product.name,

@@ -9,6 +9,7 @@ import type {
   SubscriptionForAdmin,
 } from "@/lib/types/subscriptions";
 import { notifyAgencyBrokers } from "@/lib/actions/notifications";
+import { quoteAgencyPlan } from "@/lib/actions/subscription-pricing";
 import {
   buildPaginated,
   normalizePagination,
@@ -259,6 +260,41 @@ export async function getAllSubscriptions(
   return rows;
 }
 
+/**
+ * Insert an already-active, Stripe-less `agency_subscriptions` row. Shared by
+ * the admin comp path and the $0-plan self-activation path. All `stripe_*`
+ * columns stay null; nothing in the app requires them (Manage-billing is
+ * hidden, admin page shows "Manual", webhooks never match the row).
+ */
+async function insertActiveSubscriptionRow(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  input: {
+    agencyId: string;
+    productId: string | null;
+    periodStart: Date;
+    /** null = never expires (nothing renews or expires a Stripe-less row). */
+    periodEnd: Date | null;
+    quantity?: number;
+    includedSeatsSnapshot?: number | null;
+    extraSeatPriceSnapshot?: number | null;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const row: Record<string, unknown> = {
+    agency_id: input.agencyId,
+    plan_product_id: input.productId,
+    status: "active",
+    current_period_start: input.periodStart.toISOString(),
+    current_period_end: input.periodEnd ? input.periodEnd.toISOString() : null,
+  };
+  if (input.quantity !== undefined) row.quantity = input.quantity;
+  if (input.includedSeatsSnapshot !== undefined) row.included_seats_snapshot = input.includedSeatsSnapshot;
+  if (input.extraSeatPriceSnapshot !== undefined) row.extra_seat_price_snapshot = input.extraSeatPriceSnapshot;
+
+  const { error } = await supabase.from("agency_subscriptions").insert(row);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 /** Admin: manually create a subscription for an agency (bypass Stripe). */
 export async function adminCreateSubscription(
   agencyId: string,
@@ -271,15 +307,91 @@ export async function adminCreateSubscription(
   const now = new Date();
   const periodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
-  const { error } = await supabase.from("agency_subscriptions").insert({
-    agency_id: agencyId,
-    plan_product_id: productId,
-    status: "active",
-    current_period_start: now.toISOString(),
-    current_period_end: periodEnd.toISOString(),
+  return insertActiveSubscriptionRow(supabase, {
+    agencyId,
+    productId,
+    periodStart: now,
+    periodEnd,
   });
+}
 
-  if (error) return { ok: false, error: error.message };
+/**
+ * Agency owner: activate a $0 subscription plan with no Stripe interaction.
+ *
+ * Admins can price a plan at $0 (and its extra-broker price at $0) to offer a
+ * genuinely free plan alongside paid ones. Stripe rejects $0 PaymentIntents, so
+ * a free plan is activated by inserting the active row directly, the same
+ * thing `adminCreateSubscription` does when comping an agency.
+ *
+ * The server re-quotes the plan for this agency and requires the monthly total
+ * to be exactly 0 (base + extra seats, with per-agency overrides applied); the
+ * UI's "Activate free plan" button is only a hint, this check is authoritative.
+ *
+ * Caveat: a plan with base $0 but extra-seat price > $0 lets an agency whose
+ * headcount fits the included seats activate free and later add brokers that
+ * are never billed (no Stripe subscription → no seat true-up). The admin plan
+ * form points this out; set both prices to 0 for a truly free plan.
+ */
+export async function activateFreeSubscription(
+  productId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { agencyId } = await requireAgencyOwner();
+  const supabase = createServiceRoleClient();
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("id")
+    .eq("id", productId)
+    .eq("status", "active")
+    .eq("product_type", "subscription")
+    .maybeSingle();
+  if (!product) return { ok: false, error: "Subscription plan not found." };
+
+  const { data: existing } = await supabase
+    .from("agency_subscriptions")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .in("status", ["active", "trialing", "past_due"])
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: false, error: "Your agency already has an active subscription." };
+
+  const quote = await quoteAgencyPlan(agencyId, productId);
+  if (!quote) return { ok: false, error: "Could not price this plan for your agency." };
+  if (quote.monthly_total_cents !== 0) {
+    return {
+      ok: false,
+      error: "This plan isn't free for your agency. Please complete checkout instead.",
+    };
+  }
+
+  // A stale pending/expired/cancelled row (e.g. an abandoned card checkout)
+  // would collide with the partial unique index on active-ish statuses.
+  await supabase
+    .from("agency_subscriptions")
+    .delete()
+    .eq("agency_id", agencyId)
+    .in("status", ["pending", "expired", "cancelled"]);
+
+  const result = await insertActiveSubscriptionRow(supabase, {
+    agencyId,
+    productId,
+    periodStart: new Date(),
+    periodEnd: null,
+    quantity: quote.current_seats,
+    includedSeatsSnapshot: quote.included_seats,
+    extraSeatPriceSnapshot: quote.extra_seat_price_cents,
+  });
+  if (!result.ok) return result;
+
+  notifyAgencyBrokers({
+    agencyId,
+    type: "subscription_activated",
+    title: "Your free plan is active",
+    message: `${quote.plan_name} is now active for your agency at no cost.`,
+    link: "/dashboard/subscribe",
+  }).catch(() => {});
+
   return { ok: true };
 }
 

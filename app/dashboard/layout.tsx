@@ -9,6 +9,7 @@ import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 import { SubscriptionGate } from "@/components/subscription/subscription-gate";
 import { BuyerProfilePanelMount } from "@/components/dashboard/buyer-profile-panel";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
+import { isBillingEnabled } from "@/lib/billing-mode";
 import type { SubscriptionStatus } from "@/lib/types/subscriptions";
 
 export default async function DashboardLayout({
@@ -28,11 +29,16 @@ export default async function DashboardLayout({
     redirect("/auth/error?error=EmailVerification");
   }
 
-  const navInfo = await getProfileNavInfo(session.user.id);
+  const [navInfo, billingEnabled] = await Promise.all([
+    getProfileNavInfo(session.user.id),
+    isBillingEnabled(),
+  ]);
 
+  // Free mode (billing switched off in /admin/settings): no subscription gate
+  // at all, so skip the subscription lookups entirely.
   let subscriptionStatus: SubscriptionStatus | null = null;
   let subscriptionExempt = false;
-  if (session.user.agencyId) {
+  if (session.user.agencyId && billingEnabled) {
     const [sub, exempt] = await Promise.all([
       getAgencySubscriptionStatus(session.user.agencyId),
       isAgencySubscriptionExempt(session.user.agencyId),
@@ -61,7 +67,7 @@ export default async function DashboardLayout({
   };
 
   const isOwner = session.user.agencyRole === "owner";
-  const needsSubscription = !!session.user.agencyId;
+  const needsSubscription = !!session.user.agencyId && billingEnabled;
 
   return (
     <DashboardLoader>
@@ -74,7 +80,7 @@ export default async function DashboardLayout({
           } as React.CSSProperties
         }
       >
-        <AppSidebar user={user} />
+        <AppSidebar user={user} billingEnabled={billingEnabled} />
         <SidebarInset>
           <ImpersonationBanner />
           <SiteHeader user={user} />

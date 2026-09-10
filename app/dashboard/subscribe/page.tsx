@@ -23,8 +23,10 @@ import {
   Sparkles,
   ListChecks,
   Check,
+  Gift,
 } from "lucide-react";
 import { getMySubscription } from "@/lib/actions/subscriptions";
+import { getBillingEnabled } from "@/lib/actions/site-settings";
 import { getActiveProducts } from "@/lib/actions/products";
 import {
   getMyPlanQuotes,
@@ -48,11 +50,55 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 function formatPrice(cents: number, currency: string): string {
+  if (cents === 0) return "Free";
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: 0,
   }).format(cents / 100);
+}
+
+/** "$49/mo" for paid amounts, plain "Free" for $0 (no dangling "/mo"). */
+function formatMonthly(cents: number, currency: string): string {
+  return cents === 0 ? "Free" : `${formatPrice(cents, currency)}/mo`;
+}
+
+// ─── Free mode (billing switched off) ────────────────────────────────────────
+
+function FreeModeView() {
+  return (
+    <div className="max-w-xl mx-auto space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-950 mx-auto mb-2">
+          <Gift className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight">Salebiz is free to use</h1>
+        <p className="text-sm text-muted-foreground">
+          Billing is currently switched off. No subscription is needed, and every
+          feature is available to your agency at no cost.
+        </p>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">What&apos;s included</CardTitle>
+          <CardDescription>Everything, for every broker in your agency.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-2">
+          {PLAN_FEATURES.map((f) => (
+            <div key={f.text} className="flex items-center gap-2.5 text-sm">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                <f.icon className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span>{f.text}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <p className="text-xs text-muted-foreground text-center">
+        If paid plans are introduced later, you&apos;ll be able to choose one here.
+      </p>
+    </div>
+  );
 }
 
 // Where "Contact sales" emails go. Configurable via env so it's easy to point
@@ -134,8 +180,9 @@ function ActiveSubscriptionView({
               </div>
               {pricing && (
                 <CardDescription>
-                  {formatPrice(pricing.current_period_total_cents, pricing.currency)}
-                  /month
+                  {pricing.current_period_total_cents === 0
+                    ? "Free"
+                    : `${formatPrice(pricing.current_period_total_cents, pricing.currency)}/month`}
                   {tiered && (
                     <span className="text-muted-foreground">
                       {" "}— {pricing.billed_seats} broker
@@ -233,7 +280,9 @@ function ActiveSubscriptionView({
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-2">
-              This subscription is managed by an administrator. Contact support for changes.
+              {pricing?.current_period_total_cents === 0
+                ? "You're on a free plan, so there's nothing to bill."
+                : "This subscription is managed by an administrator. Contact support for changes."}
             </p>
           )}
         </CardContent>
@@ -384,7 +433,9 @@ function NoSubscriptionView({
                         ? formatPrice(q.base_price_cents, q.currency)
                         : formatPrice(plan.price, plan.currency)}
                     </span>
-                    <span className="text-sm text-muted-foreground">/mo</span>
+                    {(q ? q.base_price_cents : plan.price) > 0 && (
+                      <span className="text-sm text-muted-foreground">/mo</span>
+                    )}
                   </div>
                   <CardDescription className="text-xs pt-1">
                     {plan.description}
@@ -440,7 +491,7 @@ function NoSubscriptionView({
                       <div className="flex justify-between font-medium">
                         <span>You&apos;d pay</span>
                         <span>
-                          {formatPrice(q.monthly_total_cents, q.currency)}/mo
+                          {formatMonthly(q.monthly_total_cents, q.currency)}
                         </span>
                       </div>
                     </div>
@@ -458,7 +509,9 @@ function NoSubscriptionView({
                     variant={isRecommended ? "default" : "outline"}
                     className="mt-auto w-full"
                   >
-                    Choose {plan.name}
+                    {q?.monthly_total_cents === 0
+                      ? "Activate free plan"
+                      : `Choose ${plan.name}`}
                   </Button>
                 </CardContent>
               </Card>
@@ -572,14 +625,16 @@ function CheckoutView({
           Complete your subscription
         </h1>
         <p className="text-sm text-muted-foreground">
-          {quote && quote.pricing_model === "tiered_seats" ? (
+          {quote && quote.monthly_total_cents === 0 ? (
+            "This plan is free for your agency. No payment details needed."
+          ) : quote && quote.pricing_model === "tiered_seats" ? (
             <>
               {quote.plan_name}: {formatPrice(quote.base_price_cents, quote.currency)} base
               {quote.extra_seats > 0 && (
                 <>
                   {" "}+ {quote.extra_seats} × {formatPrice(quote.extra_seat_price_cents ?? 0, quote.currency)}
                 </>
-              )}{" "}= <strong>{formatPrice(quote.monthly_total_cents, quote.currency)}/mo</strong>
+              )}{" "}= <strong>{formatMonthly(quote.monthly_total_cents, quote.currency)}</strong>
             </>
           ) : (
             "Enter your payment details to activate your agency."
@@ -604,6 +659,8 @@ export default function SubscribePage() {
   const [loading, setLoading] = useState(true);
   const [managing, setManaging] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Product | null>(null);
+  // Free mode (billing switched off in admin settings): no plans, no checkout.
+  const [billingEnabled, setBillingEnabled] = useState(true);
 
   useEffect(() => {
     if (searchParams.get("cancelled") === "true") {
@@ -617,7 +674,9 @@ export default function SubscribePage() {
       getActiveProducts(),
       getMyPlanQuotes().catch(() => [] as ResolvedPlanQuote[]),
       getMySubscriptionPricing().catch(() => null),
-    ]).then(([sub, products, q, p]) => {
+      getBillingEnabled().catch(() => false),
+    ]).then(([sub, products, q, p, billing]) => {
+      setBillingEnabled(billing);
       setSubscription(sub);
       setPricing(p);
       const subscriptionProducts = products.filter(
@@ -661,6 +720,10 @@ export default function SubscribePage() {
         <p className="text-sm text-muted-foreground">Loading subscription…</p>
       </div>
     );
+  }
+
+  if (!billingEnabled) {
+    return <FreeModeView />;
   }
 
   const isActive = ["active", "trialing"].includes(subscription?.status ?? "");

@@ -85,5 +85,6 @@ hooks/  middleware.ts  public/
 | Categories (admin) | [lib/actions/admin-categories.ts](lib/actions/admin-categories.ts), [app/admin/categories/](app/admin/categories/) |
 | Create / edit form | [app/dashboard/listings/new/page.tsx](app/dashboard/listings/new/page.tsx), [app/dashboard/listings/[id]/edit/edit-listing-form.tsx](app/dashboard/listings/[id]/edit/edit-listing-form.tsx) |
 | Public detail | [app/listing/[slug]/page.tsx](app/listing/[slug]/page.tsx) |
+| Billing on/off ("free mode") + paywall gates | [lib/billing-mode.ts](lib/billing-mode.ts) (`isBillingEnabled`, fails open to free), [lib/subscriptions/agency-access.ts](lib/subscriptions/agency-access.ts), admin switch on `/admin/settings`; $0-plan activation `activateFreeSubscription` in [lib/actions/subscriptions.ts](lib/actions/subscriptions.ts) |
 | Supabase service client | [lib/supabase/admin.ts](lib/supabase/admin.ts) |
 | Migrations | [supabase/migrations/](supabase/migrations/) |

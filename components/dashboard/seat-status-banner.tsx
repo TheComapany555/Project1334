@@ -12,6 +12,7 @@ import {
   getMySubscriptionPricing,
   type CurrentSubscriptionPricing,
 } from "@/lib/actions/subscription-pricing";
+import { getBillingEnabled } from "@/lib/actions/site-settings";
 
 function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat("en-AU", {
@@ -35,10 +36,15 @@ export function SeatStatusBanner({ brokerCount }: { brokerCount: number }) {
 
   useEffect(() => {
     let cancelled = false;
-    getMySubscriptionPricing()
-      .then((p) => {
+    // Free mode (billing switched off): seats cost nothing, so there is no
+    // billing projection to show.
+    Promise.all([
+      getBillingEnabled().catch(() => false),
+      getMySubscriptionPricing(),
+    ])
+      .then(([billing, p]) => {
         if (!cancelled) {
-          setPricing(p);
+          setPricing(billing ? p : null);
           setLoading(false);
         }
       })

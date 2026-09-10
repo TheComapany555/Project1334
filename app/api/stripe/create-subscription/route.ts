@@ -81,6 +81,34 @@ export async function POST(req: NextRequest) {
     .eq("id", agencyId)
     .single();
 
+  // Resolve agency-specific pricing using the unified quote helper BEFORE
+  // creating any pending row, so a rejected request leaves nothing behind.
+  // Returns base price + per-seat overage based on current broker count,
+  // with admin overrides applied.
+  const quote = await quoteAgencyPlan(agencyId, productId);
+  if (!quote) {
+    return NextResponse.json(
+      { error: "Failed to price subscription plan" },
+      { status: 500 },
+    );
+  }
+
+  // Stripe cannot take a $0 (or sub-minimum) card payment. A $0 plan is
+  // activated without Stripe via `activateFreeSubscription`; anything else
+  // below the minimum goes through invoicing / admin activation.
+  if (quote.monthly_total_cents < STRIPE_MIN_CHARGE_CENTS) {
+    const isFree = quote.monthly_total_cents === 0;
+    return NextResponse.json(
+      {
+        error: isFree
+          ? "This plan is free for your agency. Activate it without payment from the plan page."
+          : "This plan's total is below the minimum card charge. Use “Request invoice” or contact sales.",
+        code: isFree ? "FREE_PLAN" : "BELOW_MINIMUM",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     // Try to insert a pending subscription record. If one already exists (race condition),
     // reuse it instead of failing.
@@ -115,17 +143,6 @@ export async function POST(req: NextRequest) {
       }
     } else {
       subRecordId = subRecord.id;
-    }
-
-    // Resolve agency-specific pricing using the unified quote helper.
-    // Returns base price + per-seat overage based on current broker count,
-    // with admin overrides applied.
-    const quote = await quoteAgencyPlan(agencyId, productId);
-    if (!quote) {
-      return NextResponse.json(
-        { error: "Failed to price subscription plan" },
-        { status: 500 },
-      );
     }
 
     // First-month charge = base + any extra-seat overage at sign-up time.

@@ -17,6 +17,7 @@ import {
   uploadListingImage,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
+import { getBillingEnabled } from "@/lib/actions/site-settings";
 import type {
   Category,
   Subcategory,
@@ -153,6 +154,9 @@ export default function NewListingPage() {
   const [selectedTierProductId, setSelectedTierProductId] = useState<
     string | null
   >(null);
+  // Free mode (billing switched off in admin settings): no visibility tiers,
+  // no checkout; every listing is created as Basic and publishes straight away.
+  const [billingEnabled, setBillingEnabled] = useState(true);
   // "live" = listed on the public Salebiz marketplace; "private" = off-market,
   // broker-only (managed in the dashboard/CRM, never shown publicly).
   const [listingType, setListingType] = useState<"live" | "private">("live");
@@ -178,25 +182,33 @@ export default function NewListingPage() {
       getSubcategories(),
       getListingHighlights(),
       getActiveProducts("listing_tier"),
-    ]).then(([cats, subs, hls, products]) => {
+      getBillingEnabled().catch(() => false),
+    ]).then(([cats, subs, hls, products, billing]) => {
       setCategories(cats);
       setSubcategories(subs);
       setHighlights(hls);
       setTierProducts(products);
-      const standardProduct = matchTierProduct(products, "standard");
-      if (standardProduct) {
-        setSelectedTierProductId(standardProduct.id);
+      setBillingEnabled(billing);
+      if (!billing) {
+        setSelectedTier("basic");
+        setSelectedTierProductId(null);
+      } else {
+        const standardProduct = matchTierProduct(products, "standard");
+        if (standardProduct) {
+          setSelectedTierProductId(standardProduct.id);
+        }
       }
       setLoading(false);
     });
   }, []);
 
   useEffect(() => {
+    if (!billingEnabled) return;
     const product = matchTierProduct(tierProducts, selectedTier);
     if (product && product.id !== selectedTierProductId) {
       setSelectedTierProductId(product.id);
     }
-  }, [tierProducts, selectedTier, selectedTierProductId]);
+  }, [billingEnabled, tierProducts, selectedTier, selectedTierProductId]);
 
   // Auto-fill postcode whenever the user has a suburb but no postcode (covers
   // both manual typing and city-level autocomplete picks that omit postcode).
@@ -282,7 +294,9 @@ export default function NewListingPage() {
     const values = form.getValues();
     const isPrivate = listingType === "private";
     // Private (off-market) listings are always free (basic tier) — never a paid checkout.
-    const isPaidTier = !isPrivate && selectedTier !== "basic" && !isDraft;
+    // In free mode nothing is paid: the server forces Basic regardless of what is sent.
+    const effectiveTier: ListingTier = isPrivate || !billingEnabled ? "basic" : selectedTier;
+    const isPaidTier = billingEnabled && !isPrivate && selectedTier !== "basic" && !isDraft;
 
     const result = await createListing({
       title: values.title,
@@ -304,8 +318,8 @@ export default function NewListingPage() {
         : values.description || null,
       highlight_ids: values.highlight_ids ?? [],
       status: isDraft ? "draft" : "published",
-      listing_tier: isPrivate ? "basic" : selectedTier,
-      tier_product_id: isPrivate ? null : selectedTierProductId,
+      listing_tier: effectiveTier,
+      tier_product_id: effectiveTier === "basic" ? null : selectedTierProductId,
       is_private: isPrivate,
     });
     if (!result.ok) {
@@ -876,9 +890,13 @@ export default function NewListingPage() {
         {step === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Highlights, visibility & publish</CardTitle>
+              <CardTitle>
+                {billingEnabled ? "Highlights, visibility & publish" : "Highlights & publish"}
+              </CardTitle>
               <CardDescription>
-                Add highlight tags and choose your listing visibility level.
+                {billingEnabled
+                  ? "Add highlight tags and choose your listing visibility level."
+                  : "Add highlight tags, choose live or private, and publish."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -958,8 +976,9 @@ export default function NewListingPage() {
                 </div>
               </div>
 
-              {/* Listing Tier Selection — only relevant for public marketplace listings */}
-              {listingType === "live" && (
+              {/* Listing Tier Selection, only relevant for public marketplace listings,
+                  and hidden entirely in free mode (billing switched off). */}
+              {listingType === "live" && billingEnabled && (
                 <div className="space-y-3">
                   <div>
                     <Label>Listing visibility</Label>

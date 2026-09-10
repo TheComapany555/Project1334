@@ -27,11 +27,13 @@ import {
   X,
 } from "lucide-react";
 import { validateSubscriptionDiscount } from "@/lib/actions/discount-codes";
+import { activateFreeSubscription } from "@/lib/actions/subscriptions";
 import type { Product } from "@/lib/types/products";
 import type { ResolvedPlanQuote } from "@/lib/actions/subscription-pricing";
 import type { DiscountValidationResult } from "@/lib/types/discount-codes";
 
 function formatPrice(cents: number, currency: string): string {
+  if (cents === 0) return "Free";
   const formatted = new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: currency.toUpperCase(),
@@ -202,6 +204,10 @@ export function SubscriptionCheckout({ product, quote }: Props) {
   const extraSeats = quote?.extra_seats ?? 0;
   const extraSeatCents = quote?.extra_seat_price_cents ?? 0;
   const totalCents = quote?.monthly_total_cents ?? product.price;
+  // $0 plan: no Stripe at all; activated directly via `activateFreeSubscription`.
+  const isFree = totalCents === 0;
+  const [activatingFree, setActivatingFree] = useState(false);
+  const [freeError, setFreeError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -302,11 +308,81 @@ export function SubscriptionCheckout({ product, quote }: Props) {
   }
 
   useEffect(() => {
+    // Never request a PaymentIntent for a free plan, since Stripe rejects $0.
+    if (isFree) return;
     initializePayment(null);
-  }, [initializePayment]);
+  }, [initializePayment, isFree]);
+
+  async function handleActivateFree() {
+    setActivatingFree(true);
+    setFreeError(null);
+    try {
+      const result = await activateFreeSubscription(product.id);
+      if (!result.ok) {
+        setFreeError(result.error ?? "Could not activate the plan.");
+        return;
+      }
+      setShowSuccess(true);
+    } catch {
+      setFreeError("Network error. Please try again.");
+    } finally {
+      setActivatingFree(false);
+    }
+  }
 
   if (showSuccess) {
     return <SuccessView />;
+  }
+
+  if (isFree) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <div className="rounded-xl border bg-card p-5 sm:p-7 space-y-5">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">No payment required</h2>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{product.name}</span>{" "}
+              is free for your agency
+              {quote && quote.included_seats != null ? (
+                <>
+                  {" "}with {quote.included_seats} broker
+                  {quote.included_seats === 1 ? "" : "s"} included
+                </>
+              ) : null}
+              . Activate it to unlock the dashboard for your team.
+            </p>
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Total</span>
+            <span className="text-xl font-bold">Free</span>
+          </div>
+          {freeError && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{freeError}</span>
+            </div>
+          )}
+          <Button
+            onClick={handleActivateFree}
+            disabled={activatingFree}
+            className="w-full gap-2"
+            size="lg"
+          >
+            {activatingFree ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            Activate plan for free
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            No card, no invoice. You can change plans later if paid options are
+            introduced.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -369,14 +445,16 @@ export function SubscriptionCheckout({ product, quote }: Props) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground text-right">
-                  then {formatPrice(totalCents, currency)}/mo
+                  then {formatPrice(totalCents, currency)}
+                  {totalCents > 0 ? "/mo" : ""}
                 </p>
               </div>
             ) : (
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Total</span>
                 <span className="text-xl font-bold">
-                  {formatPrice(totalCents, currency)}/mo
+                  {formatPrice(totalCents, currency)}
+                  {totalCents > 0 ? "/mo" : ""}
                 </span>
               </div>
             )}

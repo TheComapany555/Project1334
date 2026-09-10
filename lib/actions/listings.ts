@@ -22,6 +22,7 @@ import {
 } from "@/lib/types/pagination";
 import { checkAgencySubscriptionAccess } from "@/lib/subscriptions/agency-access";
 import { getBasicListingsSearchable } from "@/lib/actions/site-settings";
+import { isBillingEnabled } from "@/lib/billing-mode";
 
 // Homepage feeds over-fetch by this factor before diversifying, so a few
 // dominant brokers can't lock out the visible window. Capped at the
@@ -495,8 +496,9 @@ export async function searchListings(params: SearchListingsParams): Promise<Sear
   // Basic (free) listings are normally excluded from the marketplace — paid
   // tiers buy that exposure. Admins can lift the gate globally from
   // /admin/settings, which is what makes a wholly-Basic imported catalogue
-  // visible without dismantling the paywall.
-  if (!(await getBasicListingsSearchable())) {
+  // visible without dismantling the paywall. In free mode (billing switched
+  // off) there is no paywall to protect, so every published listing shows.
+  if ((await isBillingEnabled()) && !(await getBasicListingsSearchable())) {
     query = query.or(
       publicMarketplaceVisibilityFilter(
         categoryFilterApplied ? "category" : "homepage",
@@ -665,9 +667,11 @@ export async function createListing(form: {
   }
 
   // Private (off-market) listings never touch the marketplace: force the free basic tier
-  // and skip the paid-tier gate entirely.
+  // and skip the paid-tier gate entirely. In free mode (billing switched off) there are
+  // no paid tiers at all; the picker is hidden client-side and enforced here.
   const isPrivate = form.is_private === true;
-  const tier = isPrivate ? "basic" : (form.listing_tier ?? "basic");
+  const billingEnabled = await isBillingEnabled();
+  const tier = isPrivate || !billingEnabled ? "basic" : (form.listing_tier ?? "basic");
   const isFreeOrBasic = tier === "basic";
 
   // For paid tiers, force draft status until payment is made (never applies to private/basic).
@@ -700,7 +704,7 @@ export async function createListing(form: {
       published_at,
       is_private: isPrivate,
       listing_tier: tier,
-      tier_product_id: isPrivate ? null : (form.tier_product_id || null),
+      tier_product_id: isPrivate || !billingEnabled ? null : (form.tier_product_id || null),
       tier_paid_at: isFreeOrBasic && effectiveStatus === "published" ? new Date().toISOString() : null,
     })
     .select("id")
@@ -830,13 +834,15 @@ export async function updateListingStatus(id: string, status: ListingStatus): Pr
   // "publishing" one just marks it active — no tier payment, no public-publish notification.
   const isPrivate = (listing as { is_private?: boolean }).is_private === true;
 
-  // Block publishing if subscription or tier payment is missing
+  // Block publishing if subscription or tier payment is missing. In free mode
+  // (billing switched off) the tier paywall is lifted: an unpaid Standard/Featured
+  // draft publishes as-is; its tier is left untouched and tier_paid_at stays null.
   if (status === "published") {
     const access = await checkAgencySubscriptionAccess(supabase, agencyId);
     if (!access.allowed) {
       return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
     }
-    if (!isPrivate) {
+    if (!isPrivate && access.reason !== "free_mode") {
       const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
       const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
       if (tier !== "basic" && !tierPaidAt) {
@@ -898,16 +904,19 @@ export async function setListingVisibility(
   const { data: listing } = await ownerQuery.single();
   if (!listing) return { ok: false, error: "Listing not found." };
 
-  // Going Live on the marketplace: enforce the same gate as publishing.
+  // Going Live on the marketplace: enforce the same gate as publishing
+  // (tier payment is not required in free mode; see updateListingStatus).
   if (!isPrivate) {
     const access = await checkAgencySubscriptionAccess(supabase, agencyId);
     if (!access.allowed) {
       return { ok: false, error: "Your agency subscription is not active. Please subscribe first." };
     }
-    const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
-    const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
-    if (tier !== "basic" && !tierPaidAt) {
-      return { ok: false, error: "Payment is required before going live. Please complete the payment for your selected visibility level first." };
+    if (access.reason !== "free_mode") {
+      const tier = (listing as { listing_tier?: string }).listing_tier ?? "basic";
+      const tierPaidAt = (listing as { tier_paid_at?: string | null }).tier_paid_at;
+      if (tier !== "basic" && !tierPaidAt) {
+        return { ok: false, error: "Payment is required before going live. Please complete the payment for your selected visibility level first." };
+      }
     }
   }
 
