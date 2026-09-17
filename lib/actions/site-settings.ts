@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { isBillingEnabled } from "@/lib/billing-mode";
+import { isBillingEnabled, isFeaturedPromoted } from "@/lib/billing-mode";
 
 async function requireAdmin() {
   const { getServerSession } = await import("next-auth");
@@ -186,4 +186,55 @@ export async function setListingsComingSoon(
   revalidatePath("/", "layout");
   revalidatePath("/sitemap.xml");
   return { ok: true, updatedAt: data?.updated_at ?? null };
+}
+
+/**
+ * True when Featured upgrades are promoted during free mode. Thin server-action
+ * wrapper so client components can read the flag; the cached source of truth is
+ * `isFeaturedPromoted()` in lib/billing-mode.ts.
+ */
+export async function getPromoteFeatured(): Promise<boolean> {
+  return isFeaturedPromoted();
+}
+
+/** Admin-only read for the Featured-promotion toggle. */
+export async function getPromoteFeaturedDetails(): Promise<{
+  enabled: boolean;
+  available: boolean;
+}> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("promote_featured")
+    .eq("id", true)
+    .maybeSingle();
+  // `available: false` = migration not applied; the switch is disabled with an
+  // explanation and featured upgrades stay hidden while the site is free.
+  if (error) return { enabled: false, available: false };
+  return { enabled: data?.promote_featured === true, available: true };
+}
+
+export async function setPromoteFeatured(
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert({ id: true, promote_featured: enabled }, { onConflict: "id" })
+    .select("updated_at")
+    .single();
+  if (error) {
+    return {
+      ok: false,
+      error:
+        "Could not save the setting. Check that the promote_featured migration has been applied.",
+    };
+  }
+  // The broker dashboard and listing pages render differently when the upsell
+  // is live, and they are ISR-cached.
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

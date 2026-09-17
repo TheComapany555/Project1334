@@ -23,7 +23,7 @@ import { ImportListingsButton } from "@/components/dashboard/import-listings-but
 import { ImportReaxmlButton } from "@/components/dashboard/import-reaxml-button";
 import { PlusIcon, Building2Icon } from "lucide-react";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types/pagination";
-import { isBillingEnabled } from "@/lib/billing-mode";
+import { isBillingEnabled, canSellFeatured } from "@/lib/billing-mode";
 
 type SP = { [key: string]: string | string[] | undefined };
 
@@ -54,19 +54,22 @@ export default async function ListingsPage({
       ? visibilityParam
       : undefined;
 
-  const [result, brokerSlug, categories, highlights, session, billingEnabled] = await Promise.all([
-    listBrokerListings({ page, pageSize, q, status, ownership, visibility }),
-    getBrokerSlug(),
-    getCategories(),
-    getListingHighlights(),
-    getSession(),
-    isBillingEnabled(),
-  ]);
+  const [result, brokerSlug, categories, highlights, session, billingEnabled, sellFeatured] =
+    await Promise.all([
+      listBrokerListings({ page, pageSize, q, status, ownership, visibility }),
+      getBrokerSlug(),
+      getCategories(),
+      getListingHighlights(),
+      getSession(),
+      isBillingEnabled(),
+      canSellFeatured(),
+    ]);
 
   const isAgencyOwner = session?.user?.agencyRole === "owner";
   const isAgencyMember = !!session?.user?.agencyId && !isAgencyOwner;
-  // Featured upgrades are a paid product, hidden entirely in free mode.
-  const canFeature = billingEnabled && (!session?.user?.agencyId || isAgencyOwner);
+  // Featured upgrades are a paid product: available when billing is on, or
+  // when the client is promoting Featured during free mode.
+  const canFeature = sellFeatured && (!session?.user?.agencyId || isAgencyOwner);
 
   // Agency owners can assign listings to their brokers — load the team for the picker.
   const agencyBrokers = isAgencyOwner ? await getAgencyBrokers() : [];

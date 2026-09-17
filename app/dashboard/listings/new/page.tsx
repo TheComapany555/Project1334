@@ -17,7 +17,7 @@ import {
   uploadListingImage,
 } from "@/lib/actions/listings";
 import { getActiveProducts } from "@/lib/actions/products";
-import { getBillingEnabled } from "@/lib/actions/site-settings";
+import { getBillingEnabled, getPromoteFeatured } from "@/lib/actions/site-settings";
 import type {
   Category,
   Subcategory,
@@ -26,6 +26,10 @@ import type {
 } from "@/lib/types/listings";
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
+import {
+  FeatureUpsellDialog,
+  shouldOfferFeatureUpsell,
+} from "@/components/listings/feature-upsell-dialog";
 import { cn } from "@/lib/utils";
 import { matchTierProduct } from "@/lib/listing-tier-products";
 import { Editor } from "@/components/blocks/editor-00/editor";
@@ -157,6 +161,9 @@ export default function NewListingPage() {
   // Free mode (billing switched off in admin settings): no visibility tiers,
   // no checkout; every listing is created as Basic and publishes straight away.
   const [billingEnabled, setBillingEnabled] = useState(true);
+  // Featured upsell (offered after publishing when the client has it switched on).
+  const [promoteFeatured, setPromoteFeatured] = useState(false);
+  const [upsell, setUpsell] = useState<{ id: string; title: string } | null>(null);
   // "live" = listed on the public Salebiz marketplace; "private" = off-market,
   // broker-only (managed in the dashboard/CRM, never shown publicly).
   const [listingType, setListingType] = useState<"live" | "private">("live");
@@ -183,12 +190,14 @@ export default function NewListingPage() {
       getListingHighlights(),
       getActiveProducts("listing_tier"),
       getBillingEnabled().catch(() => false),
-    ]).then(([cats, subs, hls, products, billing]) => {
+      getPromoteFeatured().catch(() => false),
+    ]).then(([cats, subs, hls, products, billing, promoted]) => {
       setCategories(cats);
       setSubcategories(subs);
       setHighlights(hls);
       setTierProducts(products);
       setBillingEnabled(billing);
+      setPromoteFeatured(promoted);
       if (!billing) {
         setSelectedTier("basic");
         setSelectedTierProductId(null);
@@ -355,6 +364,19 @@ export default function NewListingPage() {
             ? "Private listing saved."
             : "Listing published.",
       );
+      // Offer the Featured upgrade right after a public listing goes live: the
+      // highest-intent moment, and only when the client has the upsell on.
+      // Drafts and private listings are never eligible (nothing is public yet).
+      const offerUpsell =
+        promoteFeatured &&
+        !isDraft &&
+        !isPrivate &&
+        !!listingId &&
+        shouldOfferFeatureUpsell(listingId);
+      if (offerUpsell && listingId) {
+        setUpsell({ id: listingId, title: values.title });
+        return; // navigation happens once the dialog is answered
+      }
       router.replace("/dashboard/listings");
     }
   }
@@ -1039,6 +1061,23 @@ export default function NewListingPage() {
           </Card>
         )}
       </form>
+
+      {upsell && (
+        <FeatureUpsellDialog
+          listingId={upsell.id}
+          listingTitle={upsell.title}
+          categoryId={watch("category_id") || null}
+          open
+          onOpenChange={(next) => {
+            // Either answer sends the broker on to their listings; the dialog
+            // itself remembers the dismissal so it will not ask again.
+            if (!next) {
+              setUpsell(null);
+              router.replace("/dashboard/listings");
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

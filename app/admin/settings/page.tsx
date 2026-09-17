@@ -2,15 +2,17 @@ import {
   getListingsComingSoonDetails,
   getBasicListingsSearchableDetails,
   getBillingEnabledDetails,
+  getPromoteFeaturedDetails,
 } from "@/lib/actions/site-settings";
 import { PageHeader } from "@/components/admin/page-header";
 import { SettingsForm } from "./settings-form";
 
 export default async function AdminSettingsPage() {
-  const [{ enabled, updatedAt }, basic, billing] = await Promise.all([
+  const [{ enabled, updatedAt }, basic, billing, promote] = await Promise.all([
     getListingsComingSoonDetails(),
     getBasicListingsSearchableDetails(),
     getBillingEnabledDetails(),
+    getPromoteFeaturedDetails(),
   ]);
 
   return (
@@ -26,6 +28,8 @@ export default async function AdminSettingsPage() {
         basicSearchableAvailable={basic.available}
         initialBillingEnabled={billing.enabled}
         billingAvailable={billing.available}
+        initialPromoteFeatured={promote.enabled}
+        promoteFeaturedAvailable={promote.available}
       />
     </div>
   );

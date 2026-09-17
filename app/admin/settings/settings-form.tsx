@@ -16,6 +16,7 @@ import {
   Loader2,
   Mail,
   Search,
+  Star,
   Tag,
 } from "lucide-react";
 import {
@@ -43,6 +44,7 @@ import {
   setListingsComingSoon,
   setBasicListingsSearchable,
   setBillingEnabled,
+  setPromoteFeatured,
 } from "@/lib/actions/site-settings";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +52,13 @@ const FREE_MODE_EFFECTS = [
   "No subscription needed. Every broker and agency gets the full dashboard",
   "Listings publish immediately, with no visibility-level payment",
   "All published listings appear on the homepage and in search",
-  "Subscribe, Payments and Featured-upgrade pages are hidden from brokers",
+] as const;
+
+/** What Featured buys once it is promoted during free mode. */
+const FEATURED_SELLING_POINTS = [
+  "Shown on the homepage featured rail",
+  "Ranked above other listings in search",
+  "Featured badge on the listing card",
 ] as const;
 
 const AFFECTED_SURFACES = [
@@ -69,6 +77,8 @@ export function SettingsForm({
   basicSearchableAvailable,
   initialBillingEnabled,
   billingAvailable,
+  initialPromoteFeatured,
+  promoteFeaturedAvailable,
 }: {
   initialComingSoon: boolean;
   initialUpdatedAt: string | null;
@@ -76,8 +86,13 @@ export function SettingsForm({
   basicSearchableAvailable: boolean;
   initialBillingEnabled: boolean;
   billingAvailable: boolean;
+  initialPromoteFeatured: boolean;
+  promoteFeaturedAvailable: boolean;
 }) {
   const [billingEnabled, setBillingEnabledState] = useState(initialBillingEnabled);
+  const [promoteFeatured, setPromoteFeaturedState] = useState(initialPromoteFeatured);
+  const [pendingPromoteNext, setPendingPromoteNext] = useState<boolean | null>(null);
+  const [isPromotePending, startPromoteTransition] = useTransition();
   const [pendingBillingNext, setPendingBillingNext] = useState<boolean | null>(null);
   const [isBillingPending, startBillingTransition] = useTransition();
 
@@ -93,6 +108,25 @@ export function SettingsForm({
           next
             ? "Billing is on. Subscriptions and listing payments apply again."
             : "Free mode is on. All paywalls are switched off.",
+        );
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function confirmPromoteChange() {
+    if (pendingPromoteNext === null) return;
+    const next = pendingPromoteNext;
+    setPendingPromoteNext(null);
+    startPromoteTransition(async () => {
+      const result = await setPromoteFeatured(next);
+      if (result.ok) {
+        setPromoteFeaturedState(next);
+        toast.success(
+          next
+            ? "Featured upgrades are now offered to brokers."
+            : "Featured upgrades are hidden again.",
         );
       } else {
         toast.error(result.error);
@@ -256,6 +290,15 @@ export function SettingsForm({
                   {line}
                 </li>
               ))}
+              <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                <span
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                  aria-hidden
+                />
+                {promoteFeatured
+                  ? "Subscribe and Payments pages are hidden, but Featured upgrades are still offered (see below)"
+                  : "Subscribe, Payments and Featured-upgrade pages are hidden from brokers"}
+              </li>
             </ul>
           </div>
 
@@ -263,6 +306,115 @@ export function SettingsForm({
             Existing paid Stripe subscriptions keep billing as normal either
             way. To stop charging a specific agency, use &ldquo;Waive
             subscription&rdquo; on that agency instead.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <CardTitle>Featured listing upgrades</CardTitle>
+            <CardDescription>
+              Sell Featured placements to brokers even while the rest of the
+              platform is free. Brokers are offered the upgrade once, right
+              after they publish a listing.
+            </CardDescription>
+          </div>
+          <Badge variant={promoteFeatured ? "success" : "secondary"}>
+            {promoteFeatured ? "Promoted" : "Hidden"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!promoteFeaturedAvailable && (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-muted-foreground">
+              This setting needs the{" "}
+              <code className="text-xs">promote_featured</code> migration to be
+              applied to the database before it can be changed.
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "flex items-start gap-3 rounded-lg border p-4",
+              promoteFeatured
+                ? "border-success/30 bg-success/10"
+                : "border-border bg-muted/40",
+            )}
+          >
+            <div
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+                promoteFeatured
+                  ? "bg-success/15 text-success"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              <Star className="h-4.5 w-4.5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {promoteFeatured
+                  ? "Brokers are offered Featured upgrades"
+                  : "Featured upgrades are hidden"}
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground leading-relaxed">
+                {promoteFeatured
+                  ? "After publishing, brokers see a one-time offer to feature that listing. They can also feature any listing from its actions menu."
+                  : "No upgrade is offered anywhere. Publishing a listing is completely free and nothing is promoted to brokers."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-6 rounded-lg border border-border p-4">
+            <div className="min-w-0 space-y-1">
+              <Label htmlFor="promote-featured" className="text-sm font-medium">
+                Offer Featured upgrades to brokers
+              </Label>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Works independently of the billing switch above, so you can earn
+                from Featured placements while everything else stays free.
+                Changes apply instantly, no deploy needed.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              {isPromotePending && (
+                <Loader2
+                  className="h-4 w-4 animate-spin text-muted-foreground"
+                  aria-label="Saving"
+                />
+              )}
+              <Switch
+                id="promote-featured"
+                checked={promoteFeatured}
+                onCheckedChange={(next) => setPendingPromoteNext(next)}
+                disabled={isPromotePending || !promoteFeaturedAvailable}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              What a broker pays for
+            </p>
+            <ul className="mt-3 space-y-2">
+              {FEATURED_SELLING_POINTS.map((line) => (
+                <li
+                  key={line}
+                  className="flex items-start gap-2 text-sm text-muted-foreground"
+                >
+                  <span
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                    aria-hidden
+                  />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Free listings stay published and searchable either way. Featured is
+            an optional one-time purchase, priced under Pricing &amp; Plans.
           </p>
         </CardContent>
       </Card>
@@ -515,6 +667,34 @@ export function SettingsForm({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmBillingChange}>
               {pendingBillingNext ? "Turn billing on" : "Make everything free"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingPromoteNext !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPromoteNext(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingPromoteNext
+                ? "Start offering Featured upgrades?"
+                : "Stop offering Featured upgrades?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPromoteNext
+                ? "After publishing a listing, brokers will be offered a one-time paid upgrade to feature it on the homepage and at the top of search. They are asked only once per listing, and publishing stays free. Make sure your Featured packages are priced correctly under Pricing and Plans first."
+                : "The offer disappears immediately and the Feature action is hidden from brokers. Listings that are already featured keep their placement until it expires, and nothing is refunded."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPromoteChange}>
+              {pendingPromoteNext ? "Start offering" : "Stop offering"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
