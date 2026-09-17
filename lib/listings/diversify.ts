@@ -73,3 +73,63 @@ export function listingOwnerKey(listing: {
 }): string | null {
   return listing.agency_id ?? listing.broker_id ?? null;
 }
+
+// ─── Time-seeded rotation ────────────────────────────────────────────────────
+
+/**
+ * Rotation window in ms. Matches the homepage's `export const revalidate = 300`
+ * so the shuffle changes exactly once per ISR cache window: every visitor in a
+ * given 5-minute slice sees the same order (page stays cacheable), but the set
+ * on top changes as windows roll over.
+ */
+export const ROTATION_WINDOW_MS = 5 * 60 * 1000;
+
+/** The current rotation slice. Exported so callers/tests can pin it. */
+export function currentRotationSeed(now: number = Date.now()): number {
+  return Math.floor(now / ROTATION_WINDOW_MS);
+}
+
+/**
+ * Deterministic 32-bit hash of a string (FNV-1a). Used to derive a per-item
+ * sort value from its id, so ordering is stable within a rotation window and
+ * identical across server instances — no RNG state, no hydration mismatch.
+ */
+function hashString(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Deterministically shuffle `items` for the given rotation seed.
+ *
+ * Every item is scored by hashing `<id>:<seed>` and sorted by that score, so:
+ *   • within one window the order is fixed (cache-friendly, no flicker);
+ *   • when the window rolls over, every score changes and a different subset
+ *     surfaces at the top;
+ *   • the rotation is fair over time — no listing is permanently pinned.
+ *
+ * Pure function: same inputs always give the same output.
+ */
+export function rotateBySeed<T>(
+  items: T[],
+  idOf: (item: T) => string,
+  seed: number = currentRotationSeed(),
+): T[] {
+  if (items.length <= 1) return items.slice();
+  return items
+    .map((item, index) => ({
+      item,
+      // Seed FIRST: FNV-1a folds input left-to-right, so a trailing seed barely
+      // perturbs ids that share a long prefix (e.g. sequential UUIDs) and the
+      // same items kept winning every window. Leading with the seed makes the
+      // whole hash diverge per window.
+      score: hashString(`${seed}:${idOf(item)}`),
+      index,
+    }))
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((entry) => entry.item);
+}

@@ -70,13 +70,6 @@ function formatPrice(listing: Listing): string {
 const SITE_URL = getSiteUrl();
 
 // ─── Static data ──────────────────────────────────────────────────────────────
-const STATS = [
-  { value: "1,200+", label: "Active listings" },
-  { value: "450+", label: "Verified brokers" },
-  { value: "$2.4B+", label: "In transactions" },
-  { value: "98%", label: "Satisfaction rate" },
-];
-
 const FEATURES = [
   {
     icon: ShieldCheck,
@@ -410,35 +403,6 @@ export default async function HomePage() {
               </MotionP>
             </div>
           </div>
-        </section>
-
-        {/* ── Stats bar ────────────────────────────────────────────────────── */}
-        <section className="border-y border-border bg-muted/30">
-          <MotionDiv
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.5 }}
-            variants={staggerContainer}
-            className="container px-4 sm:px-6 max-w-7xl mx-auto py-7 sm:py-10"
-          >
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-4 sm:gap-8">
-              {STATS.map((stat) => (
-                <MotionDiv
-                  key={stat.label}
-                  variants={fadeUp}
-                  transition={{ duration: 0.4 }}
-                  className="text-center"
-                >
-                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    {stat.label}
-                  </p>
-                </MotionDiv>
-              ))}
-            </div>
-          </MotionDiv>
         </section>
 
         {comingSoon ? (

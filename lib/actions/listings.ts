@@ -14,7 +14,11 @@ import type {
 } from "@/lib/types/listings";
 import { notifyAdmins, createNotification } from "@/lib/actions/notifications";
 import { optimizeImage } from "@/lib/image-optimizer";
-import { diversifyByOwner, listingOwnerKey } from "@/lib/listings/diversify";
+import {
+  diversifyByOwner,
+  listingOwnerKey,
+  rotateBySeed,
+} from "@/lib/listings/diversify";
 import {
   buildPaginated,
   normalizePagination,
@@ -387,7 +391,12 @@ export async function getHomepageFeaturedListings(limit = 12): Promise<Listing[]
     };
   });
 
-  const diversified = diversifyByOwner(mapped, {
+  // Rotate the eligible pool before trimming so paid Featured placements share
+  // top-of-homepage time instead of the newest purchase always winning. The
+  // seed changes once per ISR window, so the page stays cacheable.
+  const rotated = rotateBySeed(mapped, (l) => l.id);
+
+  const diversified = diversifyByOwner(rotated, {
     ownerKey: listingOwnerKey,
     windowSize: HOMEPAGE_DIVERSIFY_WINDOW,
   });
@@ -419,7 +428,11 @@ export async function getHomepageRecentListings(
     ? result.listings.filter((l) => !excludeIds.has(l.id))
     : result.listings;
 
-  const diversified = diversifyByOwner(filtered, {
+  // Rotate before trimming to targetSize so the homepage surfaces a different
+  // slice of the pool each ISR window instead of always the newest N.
+  const rotated = rotateBySeed(filtered, (l) => l.id);
+
+  const diversified = diversifyByOwner(rotated, {
     ownerKey: listingOwnerKey,
     windowSize: HOMEPAGE_DIVERSIFY_WINDOW,
   });
