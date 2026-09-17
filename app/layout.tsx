@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleAdsTag } from "@/components/google-ads-tag";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
@@ -13,6 +14,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 const SITE_URL = getSiteUrl();
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+// Google Ads conversion tag (AW-…). Separate from GA4 above; both can run together.
+const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -83,6 +86,12 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <SpeedInsights />
         {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
+        {GOOGLE_ADS_ID && (
+          <GoogleAdsTag
+            adsId={GOOGLE_ADS_ID}
+            gtagAlreadyLoaded={!!GA_MEASUREMENT_ID}
+          />
+        )}
       </body>
     </html>
   );
