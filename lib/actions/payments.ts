@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import { invoiceStatusEmail } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 import type { Payment } from "@/lib/types/payments";
 import {
   createNotification,
@@ -21,7 +26,6 @@ import {
 } from "@/lib/payments/apply-benefits";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
 
 async function requireBroker() {
   const session = await getServerSession(authOptions);
@@ -348,18 +352,21 @@ export async function updatePaymentStatus(
             minimumFractionDigits: 2,
           }).format((fullPayment.amount ?? 0) / 100);
 
+          const statusHtml = invoiceStatusEmail({
+            agencyName: recipientName,
+            listingTitle: listingTitle ?? "your listing",
+            status,
+            amount: `${formattedAmount} ${(fullPayment.currency ?? "aud").toUpperCase()}`,
+          });
           await resend.emails.send({
-            from: EMAIL_FROM,
+            from: EMAIL_FROM_DEFAULT,
+            replyTo: EMAIL_REPLY_TO,
             to: [recipientEmail],
             subject: status === "paid"
-              ? `Payment Confirmed: ${listingTitle}`
-              : `Invoice Approved: ${listingTitle}`,
-            html: invoiceStatusEmail({
-              agencyName: recipientName,
-              listingTitle: listingTitle ?? "your listing",
-              status,
-              amount: `${formattedAmount} ${(fullPayment.currency ?? "aud").toUpperCase()}`,
-            }),
+              ? `Payment confirmed: ${listingTitle}`
+              : `Invoice approved: ${listingTitle}`,
+            html: statusHtml,
+            text: htmlToPlainText(statusHtml),
           });
         }
       }

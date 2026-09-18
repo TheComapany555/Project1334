@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { externalShareInviteEmail } from "@/lib/email-templates";
+import { EMAIL_FROM_DEFAULT, htmlToPlainText } from "@/lib/email-sender";
 import { getBrokerSignature } from "@/lib/email-signatures";
 import { generateSlugFromName } from "@/lib/slug";
 import { checkSlugAvailable } from "@/lib/actions/profile";
@@ -18,7 +19,6 @@ import type {
 } from "@/lib/types/share-invites";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 const INVITE_EXPIRES_DAYS = 30;
 
@@ -162,26 +162,28 @@ export async function createExternalShareInvite(input: {
 
   const signature = await getBrokerSignature(userId);
 
+  const shareHtml = externalShareInviteEmail({
+    recipientName,
+    brokerName,
+    brokerCompany: broker?.company ?? null,
+    brokerPhotoUrl: broker?.photo_url ?? null,
+    brokerProfileUrl,
+    listingTitle: listing.title,
+    inviteUrl,
+    price,
+    location: listing.location_text,
+    customMessage,
+    ndaRequired: !!nda?.is_required,
+    expiresInDays: INVITE_EXPIRES_DAYS,
+    signatureHtml: signature?.html ?? null,
+  });
   await resend.emails
     .send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
       to: recipientEmail,
       subject: `${brokerName} shared a listing with you: ${listing.title}`,
-      html: externalShareInviteEmail({
-        recipientName,
-        brokerName,
-        brokerCompany: broker?.company ?? null,
-        brokerPhotoUrl: broker?.photo_url ?? null,
-        brokerProfileUrl,
-        listingTitle: listing.title,
-        inviteUrl,
-        price,
-        location: listing.location_text,
-        customMessage,
-        ndaRequired: !!nda?.is_required,
-        expiresInDays: INVITE_EXPIRES_DAYS,
-        signatureHtml: signature?.html ?? null,
-      }),
+      html: shareHtml,
+      text: htmlToPlainText(shareHtml),
     })
     .catch(() => {});
 

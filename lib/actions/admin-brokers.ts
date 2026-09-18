@@ -321,7 +321,17 @@ export async function setAgencyStatus(
     .eq("id", agencyId);
   if (error) return { ok: false, error: error.message };
 
+  // Self-registered agencies start pending with their owner profile pending too
+  // (see `register` in lib/actions/auth.ts). Approving the agency must clear the
+  // profile as well, otherwise the broker stays listed as "Pending" in the admin
+  // table and any profile-status check keeps refusing them.
   if (status === "active") {
+    await supabase
+      .from("profiles")
+      .update({ status: "active", updated_at: new Date().toISOString() })
+      .eq("agency_id", agencyId)
+      .eq("status", "pending");
+
     notifyAgencyBrokers({
       agencyId,
       type: "agency_approved",

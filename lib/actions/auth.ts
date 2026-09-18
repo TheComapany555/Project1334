@@ -14,6 +14,11 @@ import {
 } from "@/lib/email-templates";
 import { createNotification } from "@/lib/actions/notifications";
 import { verifyRecaptcha } from "@/lib/recaptcha";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_FROM_WELCOME,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 import { checkSlugAvailable } from "@/lib/actions/profile";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -28,9 +33,6 @@ async function generateUniqueSlug(name: string): Promise<string> {
   }
   return candidate;
 }
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
-/** Signup / welcome verification emails (brokers and buyers). */
-const WELCOME_EMAIL_FROM = "welcome@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export type RegisterResult = { ok: true } | { ok: false; error: string };
@@ -78,14 +80,20 @@ export async function register(formData: FormData): Promise<RegisterResult> {
     return { ok: false, error: "Failed to create account. Please try again." };
   }
 
-  // Create the agency for this new account
+  // Create the agency for this new account.
+  //
+  // Self-registered agencies start PENDING and stay invisible until an admin
+  // approves them in /admin/brokers. `lib/auth.ts` refuses sign-in while the
+  // agency is not "active", so this is the gate — do not set "active" here.
+  // Admin-created accounts (lib/actions/admin-account-creation.ts) are the
+  // deliberate exception, because an admin already vouched for them.
   const agencySlug = generateSlugFromName(companyName);
   const { data: agency, error: agencyError } = await supabase
     .from("agencies")
     .insert({
       name: companyName,
       slug: agencySlug,
-      status: "active",
+      status: "pending",
     })
     .select("id")
     .single();
@@ -94,12 +102,13 @@ export async function register(formData: FormData): Promise<RegisterResult> {
     return { ok: false, error: "Failed to create agency. Please try again." };
   }
 
-  // Create profile linked to the agency as owner
+  // Create profile linked to the agency as owner.
+  // Pending until an admin approves — see the agency insert above.
   const profileSlug = name ? await generateUniqueSlug(name) : null;
   await supabase.from("profiles").insert({
     id: newUser.id,
     role: "broker",
-    status: "active",
+    status: "pending",
     name: name || null,
     company: companyName,
     slug: profileSlug,
@@ -119,7 +128,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
 
   const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
   await resend.emails.send({
-    from: WELCOME_EMAIL_FROM,
+    from: EMAIL_FROM_WELCOME,
     to: email,
     subject: "Verify your Salebiz account",
     html: verificationEmail(verifyUrl, name ?? "there"),
@@ -153,27 +162,69 @@ export async function verifyEmailToken(token: string): Promise<{ ok: boolean; er
     const { data: user } = await supabase.from("users").select("email").eq("id", row.user_id).single();
     const brokerEmail = user?.email ?? "(unknown)";
     const adminDashboardUrl = process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/admin/brokers` : "#";
+    const signupHtml = adminBrokerSignupEmail(brokerEmail, adminDashboardUrl);
     await resend.emails.send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
+      // Replying reaches the broker waiting on approval.
+      replyTo: brokerEmail,
       to: adminEmail,
       subject: "Salebiz: New broker signup pending approval",
-      html: adminBrokerSignupEmail(brokerEmail, adminDashboardUrl),
+      html: signupHtml,
+      text: htmlToPlainText(signupHtml),
     }).catch(() => {});
   }
 
   return { ok: true };
 }
 
-/** Check if a broker with this email has verified but is pending approval. Used after failed login to show a helpful message. */
-export async function checkBrokerPendingApproval(email: string): Promise<{ pending: boolean }> {
+/**
+ * Distinguish "awaiting admin approval" from "wrong password" after a failed
+ * sign-in, so a legitimate broker in the review queue isn't told their
+ * credentials are wrong.
+ *
+ * Deliberately only reports `pending` once the password ALSO checks out —
+ * otherwise this becomes an unauthenticated oracle for which emails have
+ * accounts. Callers pass the password they just tried.
+ *
+ * `lib/auth.ts` gates agency brokers on `agencies.status` and legacy solo
+ * brokers on `profiles.status`, so both are checked here.
+ */
+export async function checkBrokerPendingApproval(
+  email: string,
+  password?: string,
+): Promise<{ pending: boolean }> {
   const e = email?.toLowerCase().trim();
-  if (!e) return { pending: false };
+  if (!e || !password) return { pending: false };
+
   const supabase = createServiceRoleClient();
-  const { data: user } = await supabase.from("users").select("id, email_verified_at").eq("email", e).single();
-  if (!user?.email_verified_at) return { pending: false };
-  const { data: profile } = await supabase.from("profiles").select("status").eq("id", user.id).single();
-  if (!profile || profile.status !== "pending") return { pending: false };
-  return { pending: true };
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, email_verified_at, password_hash")
+    .eq("email", e)
+    .single();
+  if (!user?.email_verified_at || !user.password_hash) return { pending: false };
+
+  // Only reveal pending status to someone who proved they own the account.
+  const passwordOk = await bcrypt.compare(password, user.password_hash);
+  if (!passwordOk) return { pending: false };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("status, role, agency_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile || profile.role !== "broker") return { pending: false };
+
+  if (profile.agency_id) {
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("status")
+      .eq("id", profile.agency_id)
+      .single();
+    return { pending: agency?.status === "pending" };
+  }
+
+  return { pending: profile.status === "pending" };
 }
 
 /** Server action: verify a reCAPTCHA token (used by login form). */
@@ -387,7 +438,7 @@ export async function requestPasswordReset(formData: FormData): Promise<{ ok: bo
 
   const resetUrl = `${APP_URL}/auth/reset?token=${token}`;
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: EMAIL_FROM_DEFAULT,
     to: email,
     subject: "Reset your Salebiz password",
     html: passwordResetEmail(resetUrl),
@@ -581,7 +632,7 @@ export async function registerBuyer(formData: FormData): Promise<RegisterResult>
   const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
   await resend.emails
     .send({
-      from: WELCOME_EMAIL_FROM,
+      from: EMAIL_FROM_WELCOME,
       to: email,
       subject: "Verify your Salebiz account",
       html: verificationEmail(verifyUrl, name || "there"),

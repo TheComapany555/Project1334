@@ -10,15 +10,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
-import { verifyLoginCaptcha } from "@/lib/actions/auth";
+import { RoleSwitch, type AuthRole } from "@/components/auth/role-switch";
+import { AuthField, AuthPasswordField } from "@/components/auth/auth-field";
+import {
+  AuthError,
+  AuthFootLink,
+  AuthHeader,
+} from "@/components/auth/auth-shell";
+import { Loader2, Clock } from "lucide-react";
+import {
+  verifyLoginCaptcha,
+  checkBrokerPendingApproval,
+} from "@/lib/actions/auth";
+import { AuthOutcome } from "@/components/auth/auth-shell";
+import { trackEmailVerified } from "@/lib/analytics/conversions";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(1, "Enter your password"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -29,9 +38,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/search";
-  const initialTab = searchParams.get("tab") === "broker" ? "broker" : "buyer";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const initialRole: AuthRole =
+    searchParams.get("tab") === "broker" ? "broker" : "buyer";
+
+  const [role, setRole] = useState<AuthRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const {
@@ -43,48 +55,71 @@ export function LoginForm() {
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
       toast.success("Email verified. You can now sign in.");
+      // /auth/verify is a server component that redirects here, so this is the
+      // first client render after a successful verification.
+      trackEmailVerified();
     }
   }, [searchParams]);
 
   async function onSubmit(data: FormData) {
     setError(null);
+
     const captchaToken = recaptchaRef.current?.getValue();
-    if (!captchaToken) {
-      setError("Please complete the CAPTCHA.");
-      toast.error("Please complete the CAPTCHA.");
-      return;
+    if (RECAPTCHA_SITE_KEY) {
+      if (!captchaToken) {
+        const message = "Confirm you're not a robot to continue.";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      const captchaOk = await verifyLoginCaptcha(captchaToken);
+      if (!captchaOk) {
+        recaptchaRef.current?.reset();
+        const message = "That check didn't go through. Please try again.";
+        setError(message);
+        toast.error(message);
+        return;
+      }
     }
-    const captchaOk = await verifyLoginCaptcha(captchaToken);
-    if (!captchaOk) {
-      recaptchaRef.current?.reset();
-      setError("CAPTCHA verification failed. Please try again.");
-      toast.error("CAPTCHA verification failed. Please try again.");
-      return;
-    }
+
     const res = await signIn("credentials", {
       email: data.email,
       password: data.password,
       redirect: false,
     });
     recaptchaRef.current?.reset();
+
     if (res?.error) {
+      // `authorize` returns null both for bad credentials and for a broker whose
+      // agency is still awaiting approval. Ask the server which it was so a
+      // queued broker isn't told their password is wrong.
+      const { pending } = await checkBrokerPendingApproval(
+        data.email,
+        data.password,
+      );
+      if (pending) {
+        setAwaitingApproval(true);
+        return;
+      }
+
       const message =
         res.error === "CredentialsSignin"
-          ? "Invalid email or password. If you just signed up, verify your email first."
-          : "Invalid email or password.";
+          ? "That email and password don't match. If you just signed up, verify your email first."
+          : "That email and password don't match.";
       setError(message);
       toast.error(message);
       return;
     }
+
     if (res?.ok) {
       toast.success("Signed in successfully.");
-      // Get actual session role instead of relying on tab selection
+      // Route on the session's real role, never on the selected segment.
       const session = await getSession();
-      const role = session?.user?.role;
+      const sessionRole = session?.user?.role;
       let redirect: string;
-      if (role === "admin") {
+      if (sessionRole === "admin") {
         redirect = searchParams.get("callbackUrl") ?? "/admin";
-      } else if (role === "broker") {
+      } else if (sessionRole === "broker") {
         redirect = searchParams.get("callbackUrl") ?? "/dashboard";
       } else {
         redirect = callbackUrl; // buyer → /search (or callbackUrl)
@@ -93,125 +128,109 @@ export function LoginForm() {
       router.refresh();
       return;
     }
+
     setError("Something went wrong. Please try again.");
     toast.error("Something went wrong. Please try again.");
   }
 
-  const loginFormContent = (
-    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-      <div className="grid gap-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
+  const isBroker = role === "broker";
+
+  if (awaitingApproval) {
+    return (
+      <AuthOutcome
+        icon={Clock}
+        tone="warning"
+        title="Your account is awaiting approval"
+        description="Your email is verified and your agency is in our review queue. We check new agencies manually to keep the marketplace trustworthy — usually within one business day. We'll email you as soon as you're approved, and you can sign in straight away after that."
+        action={{ href: "/broker-onboarding", label: "Need help getting set up?" }}
+        secondaryAction={{ href: "/", label: "Back to home" }}
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-7">
+      <AuthHeader
+        title="Welcome back"
+        description={
+          isBroker
+            ? "Sign in to manage your listings, enquiries, and agency. Admin accounts use this option too."
+            : "Sign in to save listings, compare businesses, and access documents."
+        }
+      />
+
+      <RoleSwitch
+        value={role}
+        onChange={(next) => {
+          setRole(next);
+          setError(null);
+        }}
+      />
+
+      {error && <AuthError>{error}</AuthError>}
+
+      <form
+        onSubmit={(event) => {
+          void handleSubmit(onSubmit)(event);
+        }}
+        className="grid gap-5"
+        noValidate
+      >
+        <AuthField
+          label="Email"
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="m@example.com"
-          className={errors.email ? "border-destructive" : ""}
+          placeholder="you@example.com"
+          error={errors.email?.message}
           {...register("email")}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
-      </div>
 
-      <div className="grid gap-2">
-        <div className="flex items-center">
-          <Label htmlFor="password">Password</Label>
-          <Link
-            href="/auth/reset"
-            className="ml-auto text-sm underline-offset-4 hover:underline"
-          >
-            Forgot your password?
-          </Link>
-        </div>
-        <Input
+        <AuthPasswordField
+          label="Password"
           id="password"
-          type="password"
           autoComplete="current-password"
-          className={errors.password ? "border-destructive" : ""}
+          placeholder="Your password"
+          error={errors.password?.message}
+          labelAction={
+            <Link
+              href="/auth/reset"
+              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 transition-colors hover:underline"
+            >
+              Forgot password?
+            </Link>
+          }
           {...register("password")}
         />
-        {errors.password && (
-          <p className="text-xs text-destructive">
-            {errors.password.message}
-          </p>
-        )}
-      </div>
 
-      {RECAPTCHA_SITE_KEY && (
-        <div className="flex w-full justify-center py-1">
-          <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
-        </div>
-      )}
-
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Signing in…
-          </>
-        ) : (
-          "Login"
-        )}
-      </Button>
-    </form>
-  );
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Login to your Salebiz account
-        </p>
-      </div>
-
-      {error && (
-        <p className="text-sm text-destructive text-center">{error}</p>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full">
-          <TabsTrigger value="buyer" className="flex-1">
-            Buyer
-          </TabsTrigger>
-          <TabsTrigger value="broker" className="flex-1">
-            Broker / Agency
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="buyer" className="space-y-4">
-          <p className="text-xs text-muted-foreground text-center">
-            Sign in to save listings, compare businesses, and access documents.
-          </p>
-          {loginFormContent}
-          <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/auth/register?tab=buyer"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Create a buyer account
-            </Link>
+        {RECAPTCHA_SITE_KEY && (
+          <div className="flex justify-center">
+            <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} />
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="broker" className="space-y-4">
-          <p className="text-xs text-muted-foreground text-center">
-            Sign in to manage your listings, enquiries, and agency. Admin accounts also use this tab.
-          </p>
-          {loginFormContent}
-          <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/auth/register?tab=broker"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Register your agency
-            </Link>
-          </div>
-        </TabsContent>
-      </Tabs>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-11 w-full cursor-pointer"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              Signing in…
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </Button>
+      </form>
+
+      <AuthFootLink
+        prompt="Don't have an account?"
+        href={`/auth/register?tab=${role}`}
+        label={isBroker ? "Register your agency" : "Create a buyer account"}
+      />
     </div>
   );
 }

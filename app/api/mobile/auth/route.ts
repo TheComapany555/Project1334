@@ -8,9 +8,16 @@ import { generateSlugFromName } from "@/lib/slug";
 import { Resend } from "resend";
 import {
   verificationEmail,
+  verificationEmailText,
   passwordResetEmail,
+  passwordResetEmailText,
   mobileUserOtpEmail,
 } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_FROM_WELCOME,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
@@ -187,12 +194,14 @@ async function issueMobileUserOtp(
     return;
   }
 
+  const otpHtml = mobileUserOtpEmail(otp, displayName || "there");
   await resend.emails
     .send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
       to: email,
       subject: "Your Salebiz verification code",
-      html: mobileUserOtpEmail(otp, displayName || "there"),
+      html: otpHtml,
+      text: htmlToPlainText(otpHtml),
     })
     .catch((e) => {
       console.error("[mobile/auth] OTP email send:", e);
@@ -571,10 +580,11 @@ async function handleRegister({
 
   const verifyUrl = `${APP_URL}/auth/verify?token=${token}`;
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: EMAIL_FROM_WELCOME,
     to: email.toLowerCase().trim(),
     subject: "Verify your Salebiz account",
     html: verificationEmail(verifyUrl, name || "there"),
+    text: verificationEmailText(verifyUrl, name || "there"),
   }).catch(() => {});
 
   return NextResponse.json({
@@ -610,10 +620,11 @@ async function handleResetPassword({ email }: { email: string }) {
 
     const resetUrl = `${APP_URL}/auth/reset?token=${token}`;
     await resend.emails.send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
       to: email.toLowerCase().trim(),
       subject: "Reset your Salebiz password",
       html: passwordResetEmail(resetUrl),
+      text: passwordResetEmailText(resetUrl),
     }).catch(() => {});
   }
 

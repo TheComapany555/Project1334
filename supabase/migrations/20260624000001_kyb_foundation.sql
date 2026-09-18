@@ -164,6 +164,13 @@ ALTER TABLE public.broker_contact_listing_status
 -- ── Notification type: kyb_verification_complete ───────────────────────────
 -- Brokers get an in-app notification when a buyer's verification result lands.
 -- Re-add the full canonical list (all existing types) plus the new KYB type.
+--
+-- ⚠️ This list must be a SUPERSET of every type any other migration allows, and
+-- of every type already present in `notifications`. Migrations are not always
+-- applied in filename order here, so a later-dated migration's types can
+-- already be live when this one runs; omitting one makes this ALTER fail with
+-- "check constraint ... is violated by some row". `onboarding_request` is
+-- included for exactly that reason (added by 20260918000001, applied first).
 ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 ALTER TABLE public.notifications
   ADD CONSTRAINT notifications_type_check CHECK (type IN (
@@ -179,5 +186,6 @@ ALTER TABLE public.notifications
     'access_approved','access_expiring','access_expired','new_files_added',
     'listing_assigned',
     'ticket_created','ticket_reply','ticket_status_changed','ticket_assigned',
-    'kyb_verification_complete'
+    'kyb_verification_complete',
+    'onboarding_request'
   ));

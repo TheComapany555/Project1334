@@ -27,9 +27,13 @@ import {
   normalizePagination,
   type Paginated,
 } from "@/lib/types/pagination";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 const VALID_CATEGORIES = Object.keys(TICKET_CATEGORY_LABELS) as SupportTicketCategory[];
@@ -148,17 +152,20 @@ export async function createTicket(form: {
   // Email: confirmation to the submitter (exactly one) + notification to admins.
   const brokerEmail = await getEmailForProfile(supabase, userId);
   if (brokerEmail) {
+    const confirmHtml = supportTicketConfirmationEmail({
+      brokerName,
+      ticketNo,
+      subject,
+      ticketUrl: `${APP_URL}/dashboard/support/${ticket.id}`,
+    });
     resend.emails
       .send({
-        from: EMAIL_FROM,
+        from: EMAIL_FROM_DEFAULT,
+        replyTo: EMAIL_REPLY_TO,
         to: brokerEmail,
         subject: `We've received your request — ticket #${ticketNo}`,
-        html: supportTicketConfirmationEmail({
-          brokerName,
-          ticketNo,
-          subject,
-          ticketUrl: `${APP_URL}/dashboard/support/${ticket.id}`,
-        }),
+        html: confirmHtml,
+        text: htmlToPlainText(confirmHtml),
       })
       .catch(() => undefined);
   }
@@ -169,21 +176,25 @@ export async function createTicket(form: {
     const { data: adminUsers } = await supabase.from("users").select("email").in("id", adminIds);
     const adminEmails = (adminUsers ?? []).map((u) => u.email).filter(Boolean) as string[];
     if (adminEmails.length > 0) {
+      const adminHtml = supportTicketAdminNotificationEmail({
+        ticketNo,
+        subject,
+        brokerName,
+        brokerEmail,
+        categoryLabel: TICKET_CATEGORY_LABELS[category],
+        priorityLabel: TICKET_PRIORITY_LABELS[priority],
+        messageExcerpt: description.slice(0, 600),
+        ticketUrl: `${APP_URL}/admin/support/${ticket.id}`,
+      });
       resend.emails
         .send({
-          from: EMAIL_FROM,
+          from: EMAIL_FROM_DEFAULT,
+          // Replying reaches the broker who raised the ticket.
+          ...(brokerEmail ? { replyTo: brokerEmail } : {}),
           to: adminEmails,
           subject: `New support ticket #${ticketNo}: ${subject}`,
-          html: supportTicketAdminNotificationEmail({
-            ticketNo,
-            subject,
-            brokerName,
-            brokerEmail,
-            categoryLabel: TICKET_CATEGORY_LABELS[category],
-            priorityLabel: TICKET_PRIORITY_LABELS[priority],
-            messageExcerpt: description.slice(0, 600),
-            ticketUrl: `${APP_URL}/admin/support/${ticket.id}`,
-          }),
+          html: adminHtml,
+          text: htmlToPlainText(adminHtml),
         })
         .catch(() => undefined);
     }

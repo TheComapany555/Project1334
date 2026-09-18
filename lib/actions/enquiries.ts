@@ -7,6 +7,11 @@ import { Resend } from "resend";
 import type { Enquiry, EnquiryWithListing, EnquiryWithListingAndBroker } from "@/lib/types/enquiries";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 import { createNotification } from "@/lib/actions/notifications";
 import { bumpBuyerActivity } from "@/lib/actions/buyer-account";
 import { getOrCreateBrokerContactForBuyer } from "@/lib/actions/contacts";
@@ -18,7 +23,6 @@ import {
 } from "@/lib/types/pagination";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export type SubmitEnquiryResult = { ok: true } | { ok: false; error: string };
@@ -196,20 +200,24 @@ export async function submitEnquiry(
     const reasonLabel = reason && ENQUIRY_REASON_LABELS[reason] ? ENQUIRY_REASON_LABELS[reason] : reason || "Not specified";
     const listingUrl = `${APP_URL}/listing/${listing.slug}`;
     const dashboardUrl = `${APP_URL}/dashboard/enquiries`;
+    const brokerHtml = enquiryNotificationEmail({
+      listingTitle: listing.title,
+      reasonLabel,
+      contactName,
+      contactEmail,
+      contactPhone,
+      message,
+      listingUrl,
+      dashboardUrl,
+    });
     await resend.emails.send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
+      // Let the broker reply straight to the person who enquired.
+      replyTo: contactEmail,
       to: brokerEmail,
       subject: `New enquiry: ${listing.title}`,
-      html: enquiryNotificationEmail({
-        listingTitle: listing.title,
-        reasonLabel,
-        contactName,
-        contactEmail,
-        contactPhone,
-        message,
-        listingUrl,
-        dashboardUrl,
-      }),
+      html: brokerHtml,
+      text: htmlToPlainText(brokerHtml),
     }).catch(() => {});
   }
 
@@ -222,16 +230,19 @@ export async function submitEnquiry(
       .eq("id", listing.broker_id)
       .single();
 
+    const confirmHtml = enquiryConfirmationEmail({
+      contactName,
+      listingTitle: listing.title,
+      listingUrl,
+      brokerName: brokerProfile?.name ?? null,
+    });
     await resend.emails.send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
+      replyTo: EMAIL_REPLY_TO,
       to: contactEmail,
       subject: `Your enquiry on "${listing.title}" — Salebiz`,
-      html: enquiryConfirmationEmail({
-        contactName,
-        listingTitle: listing.title,
-        listingUrl,
-        brokerName: brokerProfile?.name ?? null,
-      }),
+      html: confirmHtml,
+      text: htmlToPlainText(confirmHtml),
     }).catch(() => {});
   }
 

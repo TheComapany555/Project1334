@@ -1,43 +1,55 @@
-import Script from "next/script";
-
 /**
- * Google Ads tag (AW-…), used for conversion tracking and remarketing audiences.
+ * Google tag (gtag.js) for GA4 + Google Ads.
  *
- * This is SEPARATE from the GA4 measurement tag (G-…) mounted via
- * `<GoogleAnalytics>` in app/layout.tsx. Both are gtag.js tags and are designed
- * to coexist: gtag.js is loaded once, then each tag is registered with its own
- * `config` call. We only inject the loader here when GA4 is absent, so the two
- * never race to load the same script.
+ * Rendered as PLAIN `<script>` elements in `<head>`, not via `next/script`.
  *
- * Driven by NEXT_PUBLIC_GOOGLE_ADS_ID so the tag can be changed or removed
- * without a code change. NEXT_PUBLIC_* values are inlined at BUILD time, so a
- * change to it requires a redeploy, not just an env update.
+ * Why this matters: `next/script` with `afterInteractive` injects the tag from
+ * client JavaScript, so the served HTML contains no `<script>` element at all —
+ * the tag only exists inside React's streaming payload. Real browsers run it
+ * fine, but Google's tag verification (and the Ads "tag not detected" check)
+ * fetches the HTML without executing React, sees nothing, and reports the tag
+ * as missing. That is what puts a campaign into "misconfigured / limited".
+ *
+ * Emitting real script tags server-side fixes verification without changing
+ * what the tag does at runtime. `async` keeps it off the critical path.
+ *
+ * Both IDs are configured with a single gtag.js load, which is the documented
+ * way to run GA4 and Ads together — never load the loader twice.
+ *
+ * NEXT_PUBLIC_* values are inlined at BUILD time, so changing an ID requires a
+ * redeploy, not just an environment-variable update.
  */
-export function GoogleAdsTag({
+export function GoogleTag({
+  gaId,
   adsId,
-  /** True when <GoogleAnalytics> already loads gtag.js on the page. */
-  gtagAlreadyLoaded,
 }: {
-  adsId: string;
-  gtagAlreadyLoaded: boolean;
+  gaId?: string;
+  adsId?: string;
 }) {
+  // The loader needs one id in its URL; either tag can provide it.
+  const loaderId = gaId ?? adsId;
+  if (!loaderId) return null;
+
+  const configLines = [
+    gaId ? `gtag('config','${gaId}');` : "",
+    adsId ? `gtag('config','${adsId}');` : "",
+  ]
+    .filter(Boolean)
+    .join("");
+
   return (
     <>
-      {!gtagAlreadyLoaded && (
-        <Script
-          id="gtag-loader"
-          strategy="afterInteractive"
-          src={`https://www.googletagmanager.com/gtag/js?id=${adsId}`}
-        />
-      )}
-      <Script id="google-ads-tag" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${adsId}');
-        `}
-      </Script>
+      <script
+        async
+        src={`https://www.googletagmanager.com/gtag/js?id=${loaderId}`}
+      />
+      <script
+        // Inline bootstrap: defines dataLayer/gtag before the loader arrives,
+        // so events queued by the app are never dropped.
+        dangerouslySetInnerHTML={{
+          __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());${configLines}`,
+        }}
+      />
     </>
   );
 }

@@ -7,9 +7,13 @@
 import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buyerAlertMatchEmail } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  bulkMailHeaders,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 const DEFAULT_LOOKBACK_HOURS = 25; // > 24h to absorb missed cron runs
@@ -340,20 +344,26 @@ async function sendMatchEmail(
   const price = formatPriceLabel(listing);
 
   try {
+    const alertHtml = buyerAlertMatchEmail({
+      buyerName: buyer.name,
+      alertLabel: preference.label,
+      listingTitle: listing.title,
+      listingUrl,
+      price,
+      location: listing.location_text,
+      matchedFor,
+      manageAlertsUrl,
+    });
     await resend.emails.send({
-      from: EMAIL_FROM,
+      from: EMAIL_FROM_DEFAULT,
       to: buyer.email,
       subject: `New match: ${listing.title}`,
-      html: buyerAlertMatchEmail({
-        buyerName: buyer.name,
-        alertLabel: preference.label,
-        listingTitle: listing.title,
-        listingUrl,
-        price,
-        location: listing.location_text,
-        matchedFor,
-        manageAlertsUrl,
-      }),
+      html: alertHtml,
+      text: htmlToPlainText(alertHtml),
+      // Saved-search alerts are recurring, non-transactional mail: Gmail and
+      // Outlook both expect a machine-readable unsubscribe path on these, and
+      // grade inbox placement on it.
+      headers: bulkMailHeaders(manageAlertsUrl),
     });
     return true;
   } catch (err) {

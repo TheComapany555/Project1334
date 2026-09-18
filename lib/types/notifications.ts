@@ -34,6 +34,8 @@ export type NotificationType =
   | "ticket_assigned"
   // Know Your Buyer (Sumsub) — a buyer's verification result landed
   | "kyb_verification_complete"
+  // Managed onboarding — a broker asked us to set them up
+  | "onboarding_request"
   // M2.2 (Virtual Data Room)
   | "data_room_request"
   | "data_room_view"

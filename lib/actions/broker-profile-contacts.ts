@@ -10,9 +10,13 @@ import {
   brokerProfileContactConfirmationEmail,
   brokerProfileContactEmail,
 } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export type SubmitBrokerProfileContactResult =
@@ -107,37 +111,44 @@ export async function submitBrokerProfileContact(
 
   const emailJobs: Promise<unknown>[] = [];
   if (brokerUser?.email) {
+    const brokerHtml = brokerProfileContactEmail({
+      brokerName: displayName,
+      contactName,
+      contactEmail,
+      contactPhone,
+      message,
+      profileUrl,
+      dashboardUrl,
+    });
     emailJobs.push(
       resend.emails
         .send({
-          from: EMAIL_FROM,
+          from: EMAIL_FROM_DEFAULT,
+          // Let the broker reply straight to the person who contacted them.
+          replyTo: contactEmail,
           to: brokerUser.email,
           subject: `New contact from your Salebiz profile`,
-          html: brokerProfileContactEmail({
-            brokerName: displayName,
-            contactName,
-            contactEmail,
-            contactPhone,
-            message,
-            profileUrl,
-            dashboardUrl,
-          }),
+          html: brokerHtml,
+          text: htmlToPlainText(brokerHtml),
         })
         .catch(() => {}),
     );
   }
 
+  const confirmHtml = brokerProfileContactConfirmationEmail({
+    contactName,
+    brokerName: displayName,
+    profileUrl,
+  });
   emailJobs.push(
     resend.emails
       .send({
-        from: EMAIL_FROM,
+        from: EMAIL_FROM_DEFAULT,
+        replyTo: EMAIL_REPLY_TO,
         to: contactEmail,
-        subject: `Your message to ${displayName} - Salebiz`,
-        html: brokerProfileContactConfirmationEmail({
-          contactName,
-          brokerName: displayName,
-          profileUrl,
-        }),
+        subject: `Your message to ${displayName} — Salebiz`,
+        html: confirmHtml,
+        text: htmlToPlainText(confirmHtml),
       })
       .catch(() => {}),
   );

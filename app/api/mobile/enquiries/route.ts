@@ -3,6 +3,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getMobileUser } from "@/lib/mobile-jwt";
 import { Resend } from "resend";
 import { enquiryNotificationEmail, enquiryConfirmationEmail } from "@/lib/email-templates";
+import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
 import { ENQUIRY_REASON_LABELS } from "@/lib/types/enquiries";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -92,37 +97,44 @@ export async function POST(request: Request) {
 
     // Email to broker
     if (brokerUserRes.data?.email) {
+      const brokerHtml = enquiryNotificationEmail({
+        listingTitle: listing.title,
+        reasonLabel,
+        contactName: contact_name?.trim() ?? null,
+        contactEmail: contact_email.toLowerCase().trim(),
+        contactPhone: contact_phone?.trim() ?? null,
+        message: message.trim(),
+        listingUrl,
+        dashboardUrl,
+      });
       emailPromises.push(
         resend.emails.send({
-          from: EMAIL_FROM,
+          from: EMAIL_FROM_DEFAULT,
+          // Let the broker reply straight to the person who enquired.
+          replyTo: contact_email.toLowerCase().trim(),
           to: brokerUserRes.data.email,
           subject: `New enquiry: ${listing.title}`,
-          html: enquiryNotificationEmail({
-            listingTitle: listing.title,
-            reasonLabel,
-            contactName: contact_name?.trim() ?? null,
-            contactEmail: contact_email.toLowerCase().trim(),
-            contactPhone: contact_phone?.trim() ?? null,
-            message: message.trim(),
-            listingUrl,
-            dashboardUrl,
-          }),
+          html: brokerHtml,
+          text: htmlToPlainText(brokerHtml),
         }).catch(() => {})
       );
     }
 
     // Confirmation email to enquirer
+    const confirmHtml = enquiryConfirmationEmail({
+      contactName: contact_name?.trim() ?? null,
+      listingTitle: listing.title,
+      listingUrl,
+      brokerName: brokerProfileRes.data?.name ?? null,
+    });
     emailPromises.push(
       resend.emails.send({
-        from: EMAIL_FROM,
+        from: EMAIL_FROM_DEFAULT,
+        replyTo: EMAIL_REPLY_TO,
         to: contact_email.toLowerCase().trim(),
         subject: `Your enquiry on "${listing.title}" — Salebiz`,
-        html: enquiryConfirmationEmail({
-          contactName: contact_name?.trim() ?? null,
-          listingTitle: listing.title,
-          listingUrl,
-          brokerName: brokerProfileRes.data?.name ?? null,
-        }),
+        html: confirmHtml,
+        text: htmlToPlainText(confirmHtml),
       }).catch(() => {})
     );
 

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
-import { GoogleAdsTag } from "@/components/google-ads-tag";
+import { GoogleTag } from "@/components/google-ads-tag";
 import { Providers } from "./providers";
 import { TopLoader } from "@/components/top-loader";
 import { SALEBIZ_LOGO_URL } from "@/lib/branding";
@@ -81,17 +80,18 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/*
+          The Google tag goes in <head> as a real <script>, so Google's tag
+          verification (which does not execute React) can actually find it.
+          One gtag.js load configures both GA4 and Ads.
+        */}
+        <GoogleTag gaId={GA_MEASUREMENT_ID} adsId={GOOGLE_ADS_ID} />
+      </head>
       <body className={`${geistMono.variable} antialiased`}>
         <TopLoader />
         <Providers>{children}</Providers>
         <SpeedInsights />
-        {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
-        {GOOGLE_ADS_ID && (
-          <GoogleAdsTag
-            adsId={GOOGLE_ADS_ID}
-            gtagAlreadyLoaded={!!GA_MEASUREMENT_ID}
-          />
-        )}
       </body>
     </html>
   );

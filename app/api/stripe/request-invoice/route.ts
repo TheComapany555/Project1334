@@ -5,10 +5,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveProductPrice } from "@/lib/actions/products";
 import { Resend } from "resend";
 import { invoiceRequestedAdminEmail } from "@/lib/email-templates";
+import { EMAIL_FROM_DEFAULT, htmlToPlainText } from "@/lib/email-sender";
 import { createNotification } from "@/lib/actions/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "Salebiz <noreply@salebiz.com.au>";
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://salebiz.com.au";
 
 export async function POST(req: NextRequest) {
@@ -151,18 +151,20 @@ export async function POST(req: NextRequest) {
     const adminEmails = adminList.map((a) => a.users.email).filter(Boolean);
 
     if (adminEmails.length > 0) {
+      const invoiceHtml = invoiceRequestedAdminEmail({
+        agencyName,
+        listingTitle: listing.title,
+        productName: product.name,
+        amount: `${formattedAmount} ${finalCurrency.toUpperCase()}`,
+        notes: notes?.trim() || null,
+        adminUrl: `${APP_URL}/admin/payments`,
+      });
       await resend.emails.send({
-        from: EMAIL_FROM,
+        from: EMAIL_FROM_DEFAULT,
         to: adminEmails,
-        subject: `Invoice Request: ${listing.title}`,
-        html: invoiceRequestedAdminEmail({
-          agencyName,
-          listingTitle: listing.title,
-          productName: product.name,
-          amount: `${formattedAmount} ${finalCurrency.toUpperCase()}`,
-          notes: notes?.trim() || null,
-          adminUrl: `${APP_URL}/admin/payments`,
-        }),
+        subject: `Invoice request: ${listing.title}`,
+        html: invoiceHtml,
+        text: htmlToPlainText(invoiceHtml),
       });
     }
 

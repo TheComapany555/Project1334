@@ -9,6 +9,11 @@ import { nanoid } from "nanoid";
 import { Resend } from "resend";
 import { brokerInvitationEmail } from "@/lib/email-templates";
 import {
+  EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO,
+  htmlToPlainText,
+} from "@/lib/email-sender";
+import {
   createSetPasswordToken,
   sendSetPasswordEmail,
   buildSetPasswordUrl,
@@ -21,7 +26,6 @@ import {
 } from "@/lib/types/pagination";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM ?? "noreply@salebiz.com.au";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 const INVITATION_EXPIRY_DAYS = 7;
 
@@ -419,16 +423,19 @@ export async function inviteBroker(email: string): Promise<{ ok: boolean; error?
 
   // Send invitation email
   const joinUrl = `${APP_URL}/auth/join?token=${token}`;
+  const inviteHtml = brokerInvitationEmail({
+    agencyName: agency?.name ?? "Agency",
+    inviterName: inviterProfile?.name ?? null,
+    joinUrl,
+    expiresInDays: INVITATION_EXPIRY_DAYS,
+  });
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: EMAIL_FROM_DEFAULT,
+    replyTo: EMAIL_REPLY_TO,
     to: normalizedEmail,
     subject: `You're invited to join ${agency?.name ?? "an agency"} on Salebiz`,
-    html: brokerInvitationEmail({
-      agencyName: agency?.name ?? "Agency",
-      inviterName: inviterProfile?.name ?? null,
-      joinUrl,
-      expiresInDays: INVITATION_EXPIRY_DAYS,
-    }),
+    html: inviteHtml,
+    text: htmlToPlainText(inviteHtml),
   }).catch(() => {});
 
   return { ok: true };
@@ -714,16 +721,19 @@ export async function resendInvitation(invitationId: string): Promise<{ ok: bool
     .single();
 
   const joinUrl = `${APP_URL}/auth/join?token=${newToken}`;
+  const inviteHtml = brokerInvitationEmail({
+    agencyName: agency?.name ?? "Agency",
+    inviterName: inviterProfile?.name ?? null,
+    joinUrl,
+    expiresInDays: INVITATION_EXPIRY_DAYS,
+  });
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: EMAIL_FROM_DEFAULT,
+    replyTo: EMAIL_REPLY_TO,
     to: invitation.email,
     subject: `Reminder: You're invited to join ${agency?.name ?? "an agency"} on Salebiz`,
-    html: brokerInvitationEmail({
-      agencyName: agency?.name ?? "Agency",
-      inviterName: inviterProfile?.name ?? null,
-      joinUrl,
-      expiresInDays: INVITATION_EXPIRY_DAYS,
-    }),
+    html: inviteHtml,
+    text: htmlToPlainText(inviteHtml),
   }).catch(() => {});
 
   return { ok: true };
