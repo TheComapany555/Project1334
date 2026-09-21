@@ -31,14 +31,32 @@ declare global {
 const ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
 /**
- * Conversion label for the Ads "Sign Up" action, in Google's
+ * Conversion labels for the Ads sign-up actions, in Google's
  * `AW-XXXXXXXXX/AbC-D_efGh` format.
  *
- * Optional: without it the event still reaches GA4 (and can be imported into
- * Ads as a GA4 conversion), it just is not attributed to a specific Ads
- * conversion action. Set it once Ads gives you the label.
+ * Ads has two separate conversion actions here, one per account type, so a
+ * buyer sign-up and a broker sign-up are counted (and can be bid on)
+ * independently. Each label is read separately.
+ *
+ * `NEXT_PUBLIC_ADS_SIGNUP_CONVERSION_LABEL` stays supported as a fallback for
+ * either role, so a single combined action still works if Ads is ever
+ * consolidated back into one.
+ *
+ * All optional: without a label the `sign_up` event still reaches GA4 (and can
+ * be imported into Ads as a GA4 conversion), it just is not attributed to a
+ * specific Ads conversion action.
  */
-const SIGNUP_SEND_TO = process.env.NEXT_PUBLIC_ADS_SIGNUP_CONVERSION_LABEL;
+const SIGNUP_SEND_TO_FALLBACK =
+  process.env.NEXT_PUBLIC_ADS_SIGNUP_CONVERSION_LABEL;
+
+const SIGNUP_SEND_TO: Record<"buyer" | "broker", string | undefined> = {
+  buyer:
+    process.env.NEXT_PUBLIC_ADS_SIGNUP_CONVERSION_LABEL_BUYER ??
+    SIGNUP_SEND_TO_FALLBACK,
+  broker:
+    process.env.NEXT_PUBLIC_ADS_SIGNUP_CONVERSION_LABEL_BROKER ??
+    SIGNUP_SEND_TO_FALLBACK,
+};
 
 function gtag(): GtagFn | null {
   if (typeof window === "undefined") return null;
@@ -52,8 +70,9 @@ function gtag(): GtagFn | null {
  *  - `sign_up` — the GA4 recommended event, with the account type attached so
  *    buyer and broker sign-ups can be segmented (or split into two Ads
  *    conversion actions) without a code change.
- *  - `conversion` — the Ads-specific event, only when a conversion label is
- *    configured. This is what Google Ads counts.
+ *  - `conversion` — the Ads-specific event, sent to the conversion action for
+ *    this account type, only when that label is configured. This is what
+ *    Google Ads counts.
  *
  * Call it exactly once, after the server confirms success — never on form
  * submit, or failed attempts would be counted.
@@ -70,9 +89,10 @@ export function trackSignUpConversion(accountType: "buyer" | "broker"): void {
       send_to: ADS_ID,
     });
 
-    if (SIGNUP_SEND_TO) {
+    const sendTo = SIGNUP_SEND_TO[accountType];
+    if (sendTo) {
       send("event", "conversion", {
-        send_to: SIGNUP_SEND_TO,
+        send_to: sendTo,
         event_category: "signup",
         account_type: accountType,
       });
