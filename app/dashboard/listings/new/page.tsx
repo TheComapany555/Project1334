@@ -27,6 +27,10 @@ import type {
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import {
+  ListingPreviewButton,
+  type ListingPreviewInput,
+} from "@/components/listings/listing-preview-button";
+import {
   FeatureUpsellDialog,
   shouldOfferFeatureUpsell,
 } from "@/components/listings/feature-upsell-dialog";
@@ -381,6 +385,35 @@ export default function NewListingPage() {
     }
   }
 
+  // Snapshot of the unsaved form in the shape the public listing page renders.
+  function getPreviewData(): ListingPreviewInput {
+    const v = form.getValues();
+    const category = categories.find((c) => c.id === v.category_id) ?? null;
+    const subcategory = subcategories.find((s) => s.id === v.subcategory_id) ?? null;
+    const ids = v.highlight_ids ?? [];
+    return {
+      title: v.title,
+      category: category && { name: category.name, slug: category.slug },
+      subcategory: subcategory && { name: subcategory.name },
+      exclusivity: v.exclusivity,
+      locationText:
+        v.location_text?.trim() ||
+        [v.suburb, v.state].filter((x) => x?.trim()).join(", "),
+      price_type: v.price_type,
+      asking_price: v.asking_price ?? null,
+      revenue: v.revenue ?? null,
+      profit: v.profit ?? null,
+      lease_details: v.lease_details || null,
+      summary: v.summary || null,
+      description: descriptionEditorState
+        ? JSON.stringify(descriptionEditorState)
+        : v.description || null,
+      images: selectedImages.map((img) => ({ id: img.url, url: img.url })),
+      highlights: highlights.filter((h) => ids.includes(h.id)),
+      featured: false,
+    };
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -417,7 +450,7 @@ export default function NewListingPage() {
             <span className="sr-only">Back</span>
           </Link>
         </Button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             New listing
           </h1>
@@ -439,6 +472,14 @@ export default function NewListingPage() {
             </div>
           </div>
         </div>
+        {/* On step 3 the preview sits beside Publish instead. */}
+        {step !== 3 && (
+          <ListingPreviewButton
+            getData={getPreviewData}
+            isPrivate={listingType === "private"}
+            className="shrink-0"
+          />
+        )}
       </div>
 
       <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
@@ -1020,10 +1061,11 @@ export default function NewListingPage() {
                 </div>
               )}
 
-              <div className="flex justify-between pt-4">
+              <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
+                  className="self-start"
                   onClick={() => setStep(2)}
                   disabled={submitting}
                 >
@@ -1033,7 +1075,12 @@ export default function NewListingPage() {
                   />{" "}
                   Back
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <ListingPreviewButton
+                    getData={getPreviewData}
+                    isPrivate={listingType === "private"}
+                    disabled={submitting}
+                  />
                   <Button
                     type="button"
                     variant="secondary"

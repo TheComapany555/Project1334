@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getListingBySlug } from "@/lib/actions/listings";
+import {
+  getListingBySlug,
+  getListingBySlugForOwner,
+} from "@/lib/actions/listings";
 import { getListingBySlugAdmin } from "@/lib/actions/admin-listings";
 import { getListingsComingSoon } from "@/lib/actions/site-settings";
 import { NOINDEX_ROBOTS } from "@/lib/seo/noindex";
@@ -11,35 +13,14 @@ import { getSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PublicHeader } from "@/components/public-header";
-import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  MapPin,
-  DollarSign,
-  TrendingUp,
-  BarChart3,
-  FileText,
-  Sparkles,
-  PhoneCall,
-  Star,
-  Building2,
-} from "lucide-react";
-import {
-  FeaturedBadge,
-  isListingFeaturedAnywhere,
-} from "@/components/listings/featured-badge";
+import { Eye } from "lucide-react";
+import { isListingFeaturedAnywhere } from "@/components/listings/featured-badge";
 import { EnquiryForm } from "./enquiry-form";
-import { LocationMap } from "@/components/location-map";
 import { AdSlot } from "@/components/ads/ad-slot";
-import { DescriptionRenderer } from "@/components/listings/description-renderer";
-import { FinancialCalculator } from "@/components/listings/financial-calculator";
+import {
+  ListingDetailView,
+  EnquiryPreviewPlaceholder,
+} from "@/components/listings/listing-detail-view";
 import { DocumentVault } from "@/components/listings/document-vault";
 import { FavoriteButton } from "@/components/listings/favorite-button";
 import { CompareButton } from "@/components/listings/compare-button";
@@ -49,7 +30,6 @@ import { getListingNdaStatus } from "@/lib/actions/nda";
 import { isFavorited } from "@/lib/actions/favorites";
 import { getComparisonListingIds } from "@/lib/actions/comparison";
 import { ListingViewTracker } from "@/components/listings/listing-view-tracker";
-import { ListingImageGallery } from "@/components/listings/listing-image-gallery";
 import { CallTrackingButton } from "@/components/listings/call-tracking-button";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/site-url";
@@ -62,11 +42,16 @@ type Props = { params: Promise<{ slug: string }> };
 const SITE_URL = getSiteUrl();
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  // A broker previewing their own listing gets its title; nobody else learns anything.
+  const ownListing = await getListingBySlugForOwner(slug);
+  if (ownListing) {
+    return { title: `Preview: ${ownListing.title}`, robots: NOINDEX_ROBOTS };
+  }
   // While coming-soon mode is on, never leak listing details via meta tags.
   if (await getListingsComingSoon()) {
     return { title: "Coming soon", robots: { index: false, follow: false } };
   }
-  const { slug } = await params;
   const listing = await getListingBySlug(slug);
   if (!listing) {
     return { title: "Listing not found", robots: NOINDEX_ROBOTS };
@@ -106,21 +91,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function formatPrice(listing: {
-  price_type: string;
-  asking_price: number | null;
-}): string {
-  if (listing.price_type === "poa") return "Price on application";
-  if (listing.asking_price != null) {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(Number(listing.asking_price));
-  }
-  return "";
-}
-
 export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
 
@@ -129,8 +99,15 @@ export default async function ListingPage({ params }: Props) {
     getListingsComingSoon(),
   ]);
 
-  // Coming-soon mode hides listings from everyone except admins (preview).
-  if (comingSoon && session?.user?.role !== "admin") {
+  // Brokers can always preview their own listing on its real URL (draft, private,
+  // unpublished, or hidden by coming-soon mode). Only the owner ever gets a row back.
+  const ownListing =
+    session?.user?.role === "broker"
+      ? await getListingBySlugForOwner(slug)
+      : null;
+
+  // Coming-soon mode hides listings from everyone except admins and the owner.
+  if (comingSoon && session?.user?.role !== "admin" && !ownListing) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <PublicHeader session={session} maxWidth="max-w-6xl" />
@@ -142,7 +119,7 @@ export default async function ListingPage({ params }: Props) {
   }
 
   // Try public view first; if not found, try admin view (no status filter)
-  let listing = await getListingBySlug(slug);
+  let listing = comingSoon && ownListing ? null : await getListingBySlug(slug);
   let isAdminPreview = false;
   if (!listing) {
     if (session?.user?.role === "admin") {
@@ -150,6 +127,9 @@ export default async function ListingPage({ params }: Props) {
       isAdminPreview = !!listing;
     }
   }
+  // The owner sees the preview banner whenever buyers would NOT see this page.
+  const ownerPreview = !listing && !!ownListing;
+  if (ownerPreview) listing = ownListing;
   if (!listing) notFound();
 
   const broker = listing.broker;
@@ -172,7 +152,13 @@ export default async function ListingPage({ params }: Props) {
   const isInComparison = comparisonIds.includes(listing.id);
 
   // Auto-fill enquiry form for logged-in buyers (Feature 2).
-  let enquiryDefaults: { contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null } | undefined;
+  let enquiryDefaults:
+    | {
+        contact_name?: string | null;
+        contact_email?: string | null;
+        contact_phone?: string | null;
+      }
+    | undefined;
   if (session?.user?.role === "user" && session.user.id) {
     const supabaseAdmin = createServiceRoleClient();
     const { data: profile } = await supabaseAdmin
@@ -191,7 +177,7 @@ export default async function ListingPage({ params }: Props) {
   return (
     <div className="flex min-h-screen min-w-0 flex-col overflow-x-clip bg-background">
       <PublicHeader session={session} maxWidth="max-w-6xl" />
-      <ListingViewTracker listingId={listing.id} />
+      {!ownerPreview && <ListingViewTracker listingId={listing.id} />}
 
       <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 space-y-6 overflow-x-clip px-4 py-8 sm:py-10">
         {/* JSON-LD Structured Data */}
@@ -204,7 +190,9 @@ export default async function ListingPage({ params }: Props) {
               name: listing.title,
               description: listing.summary ?? listing.title,
               url: `${SITE_URL}/listing/${listing.slug}`,
-              ...(images.length > 0 && { image: images.map((img) => img.url) }),
+              ...(images.length > 0 && {
+                image: images.map((img) => img.url),
+              }),
               ...(listing.category && { category: listing.category.name }),
               offers: {
                 "@type": "Offer",
@@ -281,373 +269,115 @@ export default async function ListingPage({ params }: Props) {
             <span className="min-w-0 text-muted-foreground">
               — This listing is not publicly visible.
             </span>
-            <StatusBadge status={listing.status} className="ml-0 shrink-0 border-0 sm:ml-auto" />
+            <StatusBadge
+              status={listing.status}
+              className="ml-0 shrink-0 border-0 sm:ml-auto"
+            />
           </div>
         )}
 
-        {/* Featured banner */}
-        {isListingFeaturedAnywhere(listing) && (
-          <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 px-4 py-2.5 text-sm dark:bg-amber-950/20">
-            <Star className="h-4 w-4 shrink-0 fill-amber-500 text-amber-500" />
-            <span className="font-medium text-amber-700 dark:text-amber-400">
-              Featured listing :
-            </span>
-            <span className="min-w-0 text-muted-foreground">
-              This listing is promoted for increased visibility.
-            </span>
-          </div>
-        )}
-
-        {/* Breadcrumb */}
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Browse", href: "/search" },
-            { label: listing.title },
-          ]}
-        />
-
-        {/* Title block */}
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {listing.category && (
-              <Link
-                href={`/search?category=${listing.category.slug}`}
-                className="text-sm text-muted-foreground hover:underline"
-              >
-                {listing.category.name}
-              </Link>
-            )}
-            {listing.subcategory && (
-              <>
-                <span className="text-muted-foreground/40 text-sm">·</span>
-                <span className="text-sm text-muted-foreground">
-                  {listing.subcategory.name}
-                </span>
-              </>
-            )}
-            {listing.exclusivity && (
-              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                {listing.exclusivity === "exclusive" ? "Exclusive" : "Open listing"}
+        {ownerPreview && (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-primary/25 bg-primary/[0.04] px-4 py-3 text-sm">
+            <Eye className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <p className="min-w-0 flex-1">
+              <span className="font-medium">Preview.</span>{" "}
+              <span className="text-muted-foreground">
+                {listing.is_private
+                  ? "This is a private listing. Only you and your agency can see this page."
+                  : listing.status === "published"
+                    ? "Buyers see a Coming Soon page until listings open on Salebiz."
+                    : "Buyers can't see this page until you publish it."}
               </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="min-w-0 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
-              {listing.title}
-            </h1>
-            {isListingFeaturedAnywhere(listing) && <FeaturedBadge />}
-          </div>
-          <div className="flex w-full min-w-0 flex-col gap-3 pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3 sm:gap-y-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              {locationText && (
-                <p className="inline-flex min-w-0 max-w-full items-center gap-1 break-words text-sm text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  {locationText}
-                </p>
-              )}
-              {formatPrice(listing) && locationText && (
-                <span className="text-muted-foreground/40 text-sm">·</span>
-              )}
-              {formatPrice(listing) && (
-                <p className="shrink-0 text-base font-semibold text-foreground">
-                  {formatPrice(listing)}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5 self-start sm:self-center">
-              <FavoriteButton
-                listingId={listing.id}
-                isFavorited={isFav}
-                isLoggedIn={isLoggedIn}
-                size="sm"
-              />
-              <CompareButton
-                listingId={listing.id}
-                isInComparison={isInComparison}
-                isLoggedIn={isLoggedIn}
-                size="sm"
-              />
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <StatusBadge status={listing.status} className="border-0" />
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/dashboard/listings/${listing.id}/edit`}>
+                  Edit listing
+                </Link>
+              </Button>
             </div>
           </div>
-        </div>
-
-        {/* Broker & Agency */}
-        {(broker?.slug || listing.agency?.slug) && (
-          <Card>
-            <CardContent className="py-5">
-              {broker?.slug ? (
-                <div className="flex min-w-0 items-center gap-4">
-                  {broker.photo_url ? (
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                      <Image
-                        src={broker.photo_url}
-                        alt={broker.name ?? "Broker"}
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-base font-semibold text-muted-foreground">
-                      {(broker.name ?? "B").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium leading-snug">
-                        {broker.name ?? broker.company ?? "Broker"}
-                      </p>
-                      {listing.agency && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {listing.agency.logo_url && (
-                            <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded">
-                              <Image
-                                src={listing.agency.logo_url}
-                                alt=""
-                                fill
-                                className="object-contain"
-                                sizes="24px"
-                              />
-                            </div>
-                          )}
-                          {listing.agency.slug ? (
-                            <Link
-                              href={`/agency/${listing.agency.slug}`}
-                              className="text-sm text-muted-foreground truncate hover:text-foreground hover:underline"
-                            >
-                              {listing.agency.name}
-                            </Link>
-                          ) : (
-                            <span className="text-sm text-muted-foreground truncate">
-                              {listing.agency.name}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {broker.phone && (
-                        <CallTrackingButton
-                          phone={broker.phone}
-                          listingId={listing.id}
-                          brokerId={listing.broker_id}
-                          variant="outline"
-                          className="gap-2"
-                        >
-                          Call
-                        </CallTrackingButton>
-                      )}
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/broker/${broker.slug}`}>View profile</Link>
-                      </Button>
-                      <Button size="sm" asChild>
-                        <a href="#enquiry">Enquire</a>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                listing.agency?.slug && (
-                  <div className="flex min-w-0 items-center gap-4">
-                    {listing.agency.logo_url ? (
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-                        <Image
-                          src={listing.agency.logo_url}
-                          alt={listing.agency.name}
-                          fill
-                          className="object-contain p-0.5"
-                          sizes="56px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
-                        <Building2 className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium leading-snug">{listing.agency.name}</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">Agency</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/agency/${listing.agency.slug}`}>View agency</Link>
-                        </Button>
-                        <Button size="sm" asChild>
-                          <a href="#enquiry">Enquire</a>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
         )}
 
-        {/* Images */}
-        {images.length > 0 && (
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <ListingImageGallery
-                images={images.map((img) => ({ id: img.id, url: img.url }))}
-                title={listing.title}
+        <ListingDetailView
+          data={{
+            title: listing.title,
+            category: listing.category ?? null,
+            subcategory: listing.subcategory ?? null,
+            exclusivity: listing.exclusivity,
+            locationText,
+            price_type: listing.price_type,
+            asking_price: listing.asking_price,
+            revenue: listing.revenue,
+            profit: listing.profit,
+            lease_details: listing.lease_details,
+            summary: listing.summary,
+            description: listing.description,
+            images: images.map((img) => ({ id: img.id, url: img.url })),
+            highlights,
+            broker: broker ?? null,
+            agency: listing.agency ?? null,
+            featured: isListingFeaturedAnywhere(listing),
+          }}
+          titleActions={
+            ownerPreview ? undefined : (
+              <>
+                <FavoriteButton
+                  listingId={listing.id}
+                  isFavorited={isFav}
+                  isLoggedIn={isLoggedIn}
+                  size="sm"
+                />
+                <CompareButton
+                  listingId={listing.id}
+                  isInComparison={isInComparison}
+                  isLoggedIn={isLoggedIn}
+                  size="sm"
+                />
+              </>
+            )
+          }
+          callAction={
+            broker?.phone ? (
+              <CallTrackingButton
+                phone={broker.phone}
+                listingId={listing.id}
+                brokerId={listing.broker_id}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                Call
+              </CallTrackingButton>
+            ) : undefined
+          }
+          documents={
+            (documentData.documents.length > 0 ||
+              documentData.lockedConfidentialCount > 0) && (
+              <DocumentVault
+                listingId={listing.id}
+                documents={documentData.documents}
+                requiresNda={documentData.requiresNda}
+                hasSigned={documentData.hasSigned}
+                lockedConfidentialCount={documentData.lockedConfidentialCount}
+                ndaText={ndaStatus.ndaText}
+                isLoggedIn={!!session?.user?.id}
               />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Why This Business? — highlight selling points */}
-        {highlights.length > 0 && (
-          <Card className="border-primary/20 bg-primary/[0.03]">
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Sparkles className="h-5 w-5" />
-                Why this business?
-              </CardTitle>
-              <CardDescription>Key selling points</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {highlights.map((h) => (
-                  <li
-                    key={h.id}
-                    className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-                  >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        h.accent === "primary"
-                          ? "bg-primary/15 text-primary"
-                          : h.accent === "warning"
-                            ? "bg-warning/15 text-[var(--warning-foreground)]"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {h.label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Summary */}
-        {listing.summary && (
-          <Card>
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle>Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {listing.summary}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Description */}
-        {listing.description && (
-          <Card>
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DescriptionRenderer content={listing.description} />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Key details */}
-        <Card>
-          <CardHeader className="pb-3 pt-4">
-            <CardTitle>Key details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="min-w-0 divide-y divide-border">
-              {listing.revenue != null && (
-                <div className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm">
-                  <dt className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground/70" />
-                    Revenue
-                  </dt>
-                  <dd className="font-medium text-foreground">
-                    {new Intl.NumberFormat("en-AU", {
-                      style: "currency",
-                      currency: "AUD",
-                      maximumFractionDigits: 0,
-                    }).format(Number(listing.revenue))}
-                  </dd>
-                </div>
-              )}
-              {listing.profit != null && (
-                <div className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm">
-                  <dt className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                    <BarChart3 className="h-4 w-4 text-muted-foreground/70" />
-                    Profit
-                  </dt>
-                  <dd className="font-medium text-foreground">
-                    {new Intl.NumberFormat("en-AU", {
-                      style: "currency",
-                      currency: "AUD",
-                      maximumFractionDigits: 0,
-                    }).format(Number(listing.profit))}
-                  </dd>
-                </div>
-              )}
-              {listing.lease_details && (
-                <div className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm">
-                  <dt className="flex min-w-0 shrink-0 items-center gap-2 text-muted-foreground">
-                    <FileText className="h-4 w-4 text-muted-foreground/70" />
-                    Lease
-                  </dt>
-                  <dd className="font-medium text-foreground text-right max-w-[60%]">
-                    {listing.lease_details}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* Virtual Data Room */}
-        {(documentData.documents.length > 0 ||
-          documentData.lockedConfidentialCount > 0) && (
-          <DocumentVault
-            listingId={listing.id}
-            documents={documentData.documents}
-            requiresNda={documentData.requiresNda}
-            hasSigned={documentData.hasSigned}
-            lockedConfidentialCount={documentData.lockedConfidentialCount}
-            ndaText={ndaStatus.ndaText}
-            isLoggedIn={!!session?.user?.id}
-          />
-        )}
-
-        {/* Financial Calculator */}
-        {listing.price_type !== "poa" && listing.asking_price != null && (
-          <FinancialCalculator
-            askingPrice={Number(listing.asking_price)}
-            profit={listing.profit ? Number(listing.profit) : null}
-          />
-        )}
-
-        {/* Interactive Map */}
-        {locationText && <LocationMap location={locationText} />}
-
-        {/* Enquiry form */}
-        <div id="enquiry">
-          <EnquiryForm
-            listingId={listing.id}
-            listingTitle={listing.title}
-            defaults={enquiryDefaults}
-            formConfig={enquiryFormConfig}
-          />
-        </div>
+            )
+          }
+          enquiry={
+            ownerPreview ? (
+              <EnquiryPreviewPlaceholder />
+            ) : (
+              <EnquiryForm
+                listingId={listing.id}
+                listingTitle={listing.title}
+                defaults={enquiryDefaults}
+                formConfig={enquiryFormConfig}
+              />
+            )
+          }
+        />
 
         {/* Listing Ad Slot */}
         <AdSlot placement="listing" layout="banner" limit={1} />

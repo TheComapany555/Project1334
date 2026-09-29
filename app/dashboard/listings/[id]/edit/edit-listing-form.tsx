@@ -26,6 +26,11 @@ import { SUGGESTED_REGIONS, type Category, type Subcategory, type Listing, type 
 import type { Product } from "@/lib/types/products";
 import { TierSelector } from "@/components/listings/tier-selector";
 import { TierBadge } from "@/components/shared/tier-badge";
+import {
+  ListingPreviewButton,
+  type ListingPreviewInput,
+} from "@/components/listings/listing-preview-button";
+import { isListingFeaturedAnywhere } from "@/components/listings/featured-badge";
 import type { SerializedEditorState } from "lexical";
 import { Editor } from "@/components/blocks/editor-00/editor";
 import {
@@ -379,6 +384,35 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
     }
   }
 
+  // Snapshot of the form, including unsaved edits, in the public page's shape.
+  function getPreviewData(): ListingPreviewInput {
+    const v = form.getValues();
+    const category = categories.find((c) => c.id === v.category_id) ?? null;
+    const subcategory = subcategories.find((s) => s.id === v.subcategory_id) ?? null;
+    const ids = v.highlight_ids ?? [];
+    return {
+      title: v.title,
+      category: category && { name: category.name, slug: category.slug },
+      subcategory: subcategory && { name: subcategory.name },
+      exclusivity: v.exclusivity ?? null,
+      locationText:
+        v.location_text?.trim() ||
+        [v.suburb, v.state].filter((x) => x?.trim()).join(", "),
+      price_type: v.price_type,
+      asking_price: v.asking_price ?? null,
+      revenue: v.revenue ?? null,
+      profit: v.profit ?? null,
+      lease_details: v.lease_details || null,
+      summary: v.summary || null,
+      description: descriptionEditorState
+        ? JSON.stringify(descriptionEditorState)
+        : v.description || null,
+      images: images.map((img) => ({ id: img.id, url: img.url })),
+      highlights: highlights.filter((h) => ids.includes(h.id)),
+      featured: isListingFeaturedAnywhere(listing),
+    };
+  }
+
   const status = listing.status;
   const priceType = watch("price_type");
   const canUnderOffer = status === "published";
@@ -394,10 +428,18 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
             <span className="sr-only">Back</span>
           </Link>
         </Button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl truncate">Edit listing</h1>
           <p className="text-muted-foreground text-sm sm:text-base truncate">{listing.title}</p>
         </div>
+        {!isAdmin && (
+          <ListingPreviewButton
+            getData={getPreviewData}
+            listingId={listing.id}
+            isPrivate={isPrivate}
+            className="shrink-0"
+          />
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSave)} className="space-y-6">
@@ -898,6 +940,14 @@ export function EditListingForm({ listing, isAdmin, onAdminSave }: Props) {
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
+          {!isAdmin && (
+            <ListingPreviewButton
+              getData={getPreviewData}
+              listingId={listing.id}
+              isPrivate={isPrivate}
+              disabled={saving}
+            />
+          )}
           {canChangeTier && (
             <Button
               type="button"

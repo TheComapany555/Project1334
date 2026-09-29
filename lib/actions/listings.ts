@@ -646,6 +646,82 @@ export async function getListingBySlug(slug: string): Promise<(Listing & { broke
   };
 }
 
+/**
+ * Owner preview: the same shape as {@link getListingBySlug} but WITHOUT the public
+ * visibility filter, so a broker can view their own draft / private / unpublished
+ * listing on its real URL before it goes live. Ownership mirrors getListingById
+ * (agency owners: any agency listing; members/solo: their own). Returns null for
+ * anyone who is not a broker or does not own the listing, never throws.
+ */
+export async function getListingBySlugForOwner(slug: string): Promise<Awaited<ReturnType<typeof getListingBySlug>>> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.role !== "broker") return null;
+  const agencyId = session.user.agencyId ?? null;
+  const supabase = createServiceRoleClient();
+  let query = supabase
+    .from("listings")
+    .select(`
+      *,
+      broker:profiles!broker_id(slug, name, company, photo_url, phone),
+      category:categories(id, name, slug),
+      subcategory:subcategories(id, name, slug),
+      listing_images(id, url, sort_order),
+      agency:agencies!agency_id(name, slug, logo_url),
+      listing_highlights:listing_highlight_map(listing_highlights(id, label, accent, active))
+    `)
+    .eq("slug", slug);
+  if (agencyId && session.user.agencyRole === "owner") {
+    query = query.eq("agency_id", agencyId);
+  } else {
+    query = query.eq("broker_id", session.user.id);
+  }
+  const { data, error } = await query.single();
+  if (error || !data) return null;
+  const row = data as ListingSlugJoinRow;
+  return {
+    ...row,
+    broker: firstJoined(row.broker) ?? undefined,
+    category: row.category ?? null,
+    subcategory: row.subcategory ?? null,
+    listing_images: row.listing_images ?? [],
+    agency: firstJoined(row.agency),
+    listing_highlights: flattenHighlights(row),
+  };
+}
+
+export type ListingPreviewContext = {
+  broker: { slug: string | null; name: string | null; company: string | null; photo_url: string | null; phone: string | null } | null;
+  agency: { name: string; slug: string | null; logo_url: string | null } | null;
+};
+
+/**
+ * Broker + agency details for the in-form listing preview. With a listingId it uses
+ * that listing's assignee (ownership-checked); without one (new listing) it uses the
+ * signed-in broker, since that is who a new listing is created under.
+ */
+export async function getListingPreviewContext(listingId?: string): Promise<ListingPreviewContext> {
+  const { userId, agencyId, agencyRole } = await requireBroker();
+  const supabase = createServiceRoleClient();
+  let brokerId = userId;
+  let listingAgencyId = agencyId;
+  if (listingId) {
+    let q = supabase.from("listings").select("broker_id, agency_id").eq("id", listingId);
+    q = agencyId && agencyRole === "owner" ? q.eq("agency_id", agencyId) : q.eq("broker_id", userId);
+    const { data } = await q.maybeSingle();
+    if (data) {
+      brokerId = data.broker_id;
+      listingAgencyId = data.agency_id;
+    }
+  }
+  const [{ data: broker }, agencyRes] = await Promise.all([
+    supabase.from("profiles").select("slug, name, company, photo_url, phone").eq("id", brokerId).maybeSingle(),
+    listingAgencyId
+      ? supabase.from("agencies").select("name, slug, logo_url").eq("id", listingAgencyId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  return { broker: broker ?? null, agency: agencyRes.data ?? null };
+}
+
 export async function createListing(form: {
   title: string;
   category_id: string | null;

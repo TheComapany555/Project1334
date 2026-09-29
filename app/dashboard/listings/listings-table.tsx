@@ -70,7 +70,7 @@ import {
   SentIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
-import { Plus, UserCheck } from "lucide-react";
+import { Eye, Plus, UserCheck } from "lucide-react";
 import { AddFeedbackDialog } from "@/components/dashboard/add-feedback-dialog";
 import { AssignListingsDialog } from "@/components/dashboard/assign-listings-dialog";
 
@@ -635,6 +635,19 @@ export function ListingsTable({
                   className="size-4"
                 />
                 Mark as sold
+              </DropdownMenuItem>
+            )}
+            {/* Anything buyers can't see yet opens on its real URL in owner-preview mode. */}
+            {!(listing.status === "published" && !listing.is_private) && (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/listing/${listing.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Eye className="size-4" aria-hidden />
+                  Preview listing
+                </Link>
               </DropdownMenuItem>
             )}
             {listing.status === "published" && !listing.is_private && brokerSlug && (
